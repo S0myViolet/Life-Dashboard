@@ -6,9 +6,11 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import {
+  AI_THINKING_ALLOWANCE_TOKENS,
   AiSourcePolicyError,
   buildAiPrompt,
   computeAiUsageCostMicrosGbp,
+  estimateMaxCostMicrosGbp,
   type AiBuiltPrompt,
 } from '@personal-home/core'
 import {
@@ -225,6 +227,44 @@ describe('enabled check', () => {
     expect(build).not.toHaveBeenCalled()
     expect(await ledger('2027-02')).toHaveLength(0)
   })
+
+  it('sends a key saved with a trailing newline, trimmed, and reports a malformed key as disabled', async () => {
+    const sentKeys: (string | null)[] = []
+    const fn = vi.fn<GeminiFetch>(async (_url, init) => {
+      sentKeys.push(new Headers(init.headers).get('x-goog-api-key'))
+      return new Response(JSON.stringify(textResponse(GOOD_OUTPUT)), { status: 200 })
+    })
+    const req = {
+      purpose: 'summary' as const,
+      sources: ['email'],
+      build: emailPrompt,
+      output: Output,
+      limits: { maxOutputTokens: 500 },
+    }
+    expect(await aiEnabled({ db: t.db, apiKey: `${KEY}\n` })).toMatchObject({ enabled: true })
+    const ok = await runAiRequest({ ...deps(fn, '2028-09-10T09:00:00Z', `  ${KEY}\n`), ...req })
+    expect(ok.status).toBe('ok')
+    expect(sentKeys).toEqual([KEY])
+
+    // A key the client would refuse on every call is not reported as enabled.
+    expect(await aiEnabled({ db: t.db, apiKey: 'test key-with-space' })).toMatchObject({
+      enabled: false,
+      reason: 'invalid_api_key',
+    })
+    expect(await runAiRequest({ ...deps(fn, '2028-10-10T09:00:00Z', 'test key-with-space'), ...req })).toEqual({
+      status: 'disabled',
+      reason: 'invalid_api_key',
+    })
+    const tr = await runAiTranscription({
+      ...deps(fn, '2028-10-10T09:00:00Z', 'test\tkey'),
+      audio: new Uint8Array(1_000),
+      mimeType: 'audio/webm',
+      audioSeconds: 1,
+    })
+    expect(tr).toEqual({ status: 'disabled', reason: 'invalid_api_key' })
+    expect(fn).toHaveBeenCalledTimes(1)
+    expect(await ledger('2028-10')).toHaveLength(0)
+  })
 })
 
 describe('budget exhaustion', () => {
@@ -355,6 +395,46 @@ describe('successful requests', () => {
     expect(rows[0]!.usage).toMatchObject({ thoughtsTokens: 250, candidatesTokens: 120, maxOutputTokens: 700 })
     expect(JSON.stringify(rows)).not.toMatch(/invoice|IGNORE|evil/i)
     expect(await committed(period)).toBe(expectedCost)
+  })
+
+  it('never reserves less thinking than the level it sends', async () => {
+    const period = '2028-11'
+    const { fn, calls } = fetchReturning(200, textResponse(GOOD_OUTPUT))
+    const r = await runAiRequest({
+      ...deps(fn, '2028-11-10T09:00:00Z'),
+      purpose: 'summary',
+      sources: ['email'],
+      build: emailPrompt,
+      output: Output,
+      limits: { maxOutputTokens: 500, thinkingLevel: 'HIGH', thinkingBudgetTokens: 0 },
+    })
+    expect(r.status).toBe('ok')
+    expect((calls[0]!.body.generationConfig as Record<string, unknown>).thinkingConfig).toEqual({
+      thinkingLevel: 'HIGH',
+    })
+    const [row] = await ledger(period)
+    expect(row!.usage.thinkingAllowanceTokens).toBe(AI_THINKING_ALLOWANCE_TOKENS.HIGH)
+    expect(row!.reservedMicros).toBe(
+      estimateMaxCostMicrosGbp({
+        model: 'gemini-3.5-flash-lite',
+        maxInputTokens: row!.usage.maxInputTokens!,
+        maxOutputTokens: 500,
+        thinkingBudgetTokens: AI_THINKING_ALLOWANCE_TOKENS.HIGH,
+        usdToGbpRate: defaults.usdToGbpRate,
+      }),
+    )
+
+    // A larger explicit budget still raises the reservation above the level's allowance.
+    const more = fetchReturning(200, textResponse(GOOD_OUTPUT))
+    await runAiRequest({
+      ...deps(more.fn, '2028-11-11T09:00:00Z'),
+      purpose: 'summary',
+      sources: ['email'],
+      build: emailPrompt,
+      output: Output,
+      limits: { maxOutputTokens: 500, thinkingLevel: 'MINIMAL', thinkingBudgetTokens: 10_000 },
+    })
+    expect((await ledger(period))[1]!.usage.thinkingAllowanceTokens).toBe(10_000)
   })
 
   it('reconciles at the reserved amount when usage is missing', async () => {

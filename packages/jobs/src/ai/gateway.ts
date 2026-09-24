@@ -57,6 +57,7 @@ import {
   geminiGenerateContent,
   geminiTranscribe,
   geminiTranscriptOutputTokenBudget,
+  isGeminiApiKeyUsable,
   normalizeGeminiAudioMimeType,
   type GeminiAudioMime,
   type GeminiFailure,
@@ -78,17 +79,27 @@ export interface AiGatewayDeps {
   models?: AiModelOverrides
 }
 
-export type AiDisabledReason = 'no_api_key' | 'disabled_in_settings'
+/** `invalid_api_key`: a key is set but contains whitespace inside it, so no call could use it. */
+export type AiDisabledReason = 'no_api_key' | 'invalid_api_key' | 'disabled_in_settings'
 
 export type AiEnabledState =
   | { enabled: true; settings: AiBudgetSettings }
   | { enabled: false; reason: AiDisabledReason; settings: AiBudgetSettings | null }
 
-/** AI is usable only when a key is configured and the owner has not switched it off. */
+/**
+ * The key as the gateway sends it: surrounding whitespace (such as a trailing newline from a
+ * pasted secret) is removed once here, and the same value is checked and sent.
+ */
+function gatewayApiKey(raw: string | null | undefined): string {
+  return typeof raw === 'string' ? raw.trim() : ''
+}
+
+/** AI is usable only when a usable key is configured and the owner has not switched it off. */
 export async function aiEnabled(deps: Pick<AiGatewayDeps, 'db' | 'apiKey'>): Promise<AiEnabledState> {
-  if (typeof deps.apiKey !== 'string' || deps.apiKey.trim() === '') {
-    return { enabled: false, reason: 'no_api_key', settings: null }
-  }
+  const apiKey = gatewayApiKey(deps.apiKey)
+  if (apiKey === '') return { enabled: false, reason: 'no_api_key', settings: null }
+  // Same rule as the client, so "enabled" never means "every call is refused".
+  if (!isGeminiApiKeyUsable(apiKey)) return { enabled: false, reason: 'invalid_api_key', settings: null }
   const settings = await withService(deps.db, (tx) => getAiBudgetSettings(tx))
   return settings.enabled
     ? { enabled: true, settings }
@@ -163,7 +174,10 @@ export const AiRequestLimitsSchema = z.object({
   /** Ceiling on the estimated input tokens; larger prompts are refused before reserving. */
   maxInputTokens: z.number().int().min(1).max(1_000_000).default(60_000),
   thinkingLevel: z.enum(AI_THINKING_LEVELS).optional(),
-  /** Thinking tokens to reserve for; defaults to the allowance for the thinking level. */
+  /**
+   * Thinking tokens to reserve for. It only raises the reservation: the request still sends the
+   * thinking level, so the reservation never drops below that level's allowance.
+   */
   thinkingBudgetTokens: z.number().int().min(0).max(65_536).optional(),
   temperature: z.number().min(0).max(2).optional(),
   timeoutMs: z.number().int().min(1_000).max(600_000).optional(),
@@ -378,8 +392,10 @@ export async function runAiRequest<T>(input: RunAiRequestInput<T>): Promise<AiGa
   }
   const thinkingLevel: AiThinkingLevel | null =
     model.thinking === 'level' ? (limits.thinkingLevel ?? model.defaultThinkingLevel ?? 'MINIMAL') : null
-  const thinkingAllowance =
-    limits.thinkingBudgetTokens ?? (thinkingLevel ? AI_THINKING_ALLOWANCE_TOKENS[thinkingLevel] : 0)
+  const thinkingAllowance = Math.max(
+    thinkingLevel ? AI_THINKING_ALLOWANCE_TOKENS[thinkingLevel] : 0,
+    limits.thinkingBudgetTokens ?? 0,
+  )
   const maxMicros = estimateMaxCostMicrosGbp({
     model,
     maxInputTokens,
@@ -409,7 +425,7 @@ export async function runAiRequest<T>(input: RunAiRequestInput<T>): Promise<AiGa
   let result: GeminiResult
   try {
     result = await geminiGenerateContent(
-      { apiKey: input.apiKey!, fetch: input.fetch },
+      { apiKey: gatewayApiKey(input.apiKey), fetch: input.fetch },
       {
         model: model.id,
         systemInstruction: prompt.systemInstruction,
@@ -551,7 +567,7 @@ export async function runAiTranscription(input: RunAiTranscriptionInput): Promis
   let result: GeminiTranscribeResult
   try {
     result = await geminiTranscribe(
-      { apiKey: input.apiKey!, fetch: input.fetch },
+      { apiKey: gatewayApiKey(input.apiKey), fetch: input.fetch },
       {
         model: model.id,
         audio: input.audio,

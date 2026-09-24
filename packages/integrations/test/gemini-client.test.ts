@@ -11,6 +11,7 @@ import {
   geminiGenerateContent,
   geminiTranscribe,
   geminiTranscriptOutputTokenBudget,
+  isGeminiApiKeyUsable,
   isGeminiConnectFailure,
   normalizeGeminiAudioMimeType,
   type GeminiFetch,
@@ -218,6 +219,21 @@ describe('geminiGenerateContent', () => {
       expect(r).toMatchObject({ outcome: 'not_sent', code: 'invalid_request' })
     }
     expect(fn).not.toHaveBeenCalled()
+  })
+
+  it('exports the key rule it applies, so callers can report a refused key as unusable', async () => {
+    const { fn } = mockFetch(() => jsonResponse(TEXT_RESPONSE))
+    for (const key of ['', '   ', `${KEY}\n`, ' key', 'a key', null, undefined, 42]) {
+      expect(isGeminiApiKeyUsable(key), JSON.stringify(key)).toBe(false)
+      if (typeof key !== 'string') continue
+      const r = await geminiGenerateContent(
+        { apiKey: key, fetch: fn },
+        { model: 'gemini-3.5-flash-lite', userText: 'x', maxOutputTokens: 10 },
+      )
+      expect(r).toMatchObject({ outcome: 'not_sent', code: 'missing_api_key' })
+    }
+    expect(fn).not.toHaveBeenCalled()
+    expect(isGeminiApiKeyUsable(KEY)).toBe(true)
   })
 
   it('treats connection-phase failures as not sent and anything after sending as ambiguous', async () => {

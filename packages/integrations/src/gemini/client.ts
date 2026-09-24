@@ -340,8 +340,16 @@ function okResult(status: number, json: GeminiGenerateResponse, text: string): G
   }
 }
 
+/**
+ * Whether the client will send this key. The key is sent as-is, so any whitespace (including a
+ * trailing newline) makes it unusable; callers that report "AI enabled" must use this same rule.
+ */
+export function isGeminiApiKeyUsable(apiKey: unknown): apiKey is string {
+  return typeof apiKey === 'string' && apiKey.trim().length > 0 && !/\s/.test(apiKey)
+}
+
 function checkKey(config: GeminiClientConfig): boolean {
-  return typeof config.apiKey === 'string' && config.apiKey.trim().length > 0 && !/\s/.test(config.apiKey)
+  return isGeminiApiKeyUsable(config.apiKey)
 }
 
 /** Build the generateContent body for a text request (exported for tests). */
