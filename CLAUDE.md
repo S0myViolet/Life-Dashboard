@@ -36,6 +36,9 @@ integration works unless it was actually exercised against the real provider.
   Node-only code is fine in `test/` files, `apps/web` server code and `scripts/`.
 - `apps/web` uses `@/` for app paths.
 - Never commit secrets. Never log tokens, mail bodies, journal text, or full captured conversations.
+- Test fixtures must not contain credential-shaped literals (`sk_live_…`, `GOCSPX-…`, `AKIA…`, `ghp_…`,
+  `-----BEGIN … PRIVATE KEY-----`): GitHub push protection rejects them even when fake. Build such
+  strings at runtime (e.g. `` `sk_${'live'}_…` ``) and label them synthetic.
 - Never fabricate data: no fake zeros, no "no events" when a source failed. Use the `DataState`
   and `ConnectionStatus` vocab in `packages/core/src/catalog.ts`.
 - Demo/fixture data must be labelled (`DataState` `demo`) and must never appear in real-account mode.
