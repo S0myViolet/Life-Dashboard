@@ -125,6 +125,15 @@ async function expectNoHorizontalScroll(page: Page) {
 
 test.beforeEach(() => reset())
 
+// Leave the shared e2e database as other specs expect it (first-run owner settings, no plan data).
+test.afterAll(() => {
+  sql(`delete from public.daily_plans; delete from public.tasks; delete from public.habits;`)
+  sql(
+    `update public.owner_settings set timezone = 'Europe/London', timezone_confirmed = false,
+       available_hours = null`,
+  )
+})
+
 test('first visit drafts today’s plan with priorities, reasons and nothing in the past', async ({
   page,
 }) => {

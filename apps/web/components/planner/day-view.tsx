@@ -233,7 +233,9 @@ export function DayView({ view }: { view: PlanDayView }) {
         )}
       </Card>
 
-      {timeMode ? (
+      {/* Both sections can appear: a plan keeps owner-accepted items from before the owner
+          set or cleared available hours (timed items in list mode and vice versa). */}
+      {timeMode || view.timeline.length > 0 ? (
         <Card aria-labelledby="plan-timeline">
           <CardHeader title="Timeline" id="plan-timeline" />
           <p className="mb-3 flex items-start gap-2 text-xs text-ink-muted">
@@ -282,13 +284,15 @@ export function DayView({ view }: { view: PlanDayView }) {
             </ol>
           )}
         </Card>
-      ) : (
+      ) : null}
+
+      {!timeMode || view.list.length > 0 ? (
         <Card aria-labelledby="plan-list">
           <CardHeader
-            title="Suggested order"
+            title={timeMode ? 'Without a set time' : 'Suggested order'}
             id="plan-list"
             meta={
-              view.capacity
+              !timeMode && view.capacity
                 ? `Total ${plannerDurationLabel(view.capacity.demandMinutes)}`
                 : undefined
             }
@@ -305,7 +309,7 @@ export function DayView({ view }: { view: PlanDayView }) {
             </ol>
           )}
         </Card>
-      )}
+      ) : null}
 
       {view.smallTasks.length > 0 ? (
         <Card aria-labelledby="plan-small">

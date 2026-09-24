@@ -267,6 +267,26 @@ describe('day view', () => {
       ],
     })
     expect(v.timeline.map((e) => e.type)).toEqual(['event', 'block'])
+    const unsafe = buildPlanDayView({
+      localDate: DATE,
+      today: DATE,
+      timezone: TZ,
+      now: at('08:00'),
+      plan: plan(blocks),
+      events: [
+        // SYNTHETIC FIXTURE: an imported event carrying a script URL must not become a link.
+        {
+          id: 'x',
+          title: 'Bad',
+          source: 'Other',
+          url: 'javascript:alert(1)',
+          start: at('11:00'),
+          end: at('11:30'),
+        },
+      ],
+    })
+    const bad = unsafe.timeline.find((e) => e.type === 'event')!
+    expect(bad.type === 'event' && bad.event.url).toBeNull()
     const ev = v.timeline[0]!
     expect(ev.type === 'event' && ev.event).toMatchObject({
       timeLabel: '09:00–09:15',

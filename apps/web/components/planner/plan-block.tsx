@@ -243,7 +243,7 @@ export function PlanBlock({
                 <input
                   type="time"
                   name="startTime"
-                  step={300}
+                  step={60}
                   defaultValue={block.startTime}
                   required
                   className="min-h-11 rounded-lg border border-line-strong bg-surface px-2 text-sm text-ink sm:min-h-9"
@@ -257,7 +257,7 @@ export function PlanBlock({
                 name="minutes"
                 min={5}
                 max={720}
-                step={5}
+                step={1}
                 inputMode="numeric"
                 defaultValue={block.minutes}
                 required

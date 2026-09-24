@@ -18,7 +18,9 @@ export interface PlannerCandidateSource {
   load(tx: Tx, ctx: PlannerCandidateSourceContext): Promise<PlannerCandidateInput[]>
 }
 
+// Caps keep one plan's input bounded (the planner validates at most 2000 candidates).
 const MAX_TASKS = 500
+const MAX_ROUTINES = 200
 
 interface TaskCandidateRow {
   id: string
@@ -46,7 +48,9 @@ export const plannerTaskSource: PlannerCandidateSource = {
              source, created_at, project_id
       from public.tasks
       where status = 'open'
-      order by created_at, id
+      -- If the cap is ever reached, keep the tasks with the most deadline/priority pressure.
+      order by coalesce(due_at, (due_date + 1)::timestamptz) nulls last, priority nulls last,
+               created_at, id
       limit ${MAX_TASKS}
     `
     return rows.map((r) => ({
@@ -86,6 +90,7 @@ export const plannerHabitSource: PlannerCandidateSource = {
           where c.habit_id = h.id and c.local_date = ${ctx.localDate}::date
         )
       order by h.created_at, h.id
+      limit ${MAX_ROUTINES}
     `
     return rows.map((r) => ({
       id: r.id,
@@ -118,7 +123,8 @@ export const plannerReadingGoalSource: PlannerCandidateSource = {
           select 1 from public.reading_logs l
           where l.book_id = g.book_id and l.local_date = ${ctx.localDate}::date
         )
-      order by g.created_at, g.id
+      order by g.target_date nulls last, g.created_at, g.id
+      limit ${MAX_ROUTINES}
     `
     return rows.map((r) => ({
       id: r.id,

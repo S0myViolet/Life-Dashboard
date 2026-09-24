@@ -171,7 +171,8 @@ export function plannerValidateRestore(
 ): PlannerEditResult<null> {
   const block = ctx.blocks.find((b) => b.id === blockId)
   if (!block) return fail('not_found', 'That plan item no longer exists.')
-  if (block.state !== 'dismissed') return fail('not_editable', 'Only dismissed items can be restored.')
+  if (block.state !== 'dismissed')
+    return fail('not_editable', 'Only dismissed items can be restored.')
   const span = spanOf(block)
   if (!span) return { ok: true, value: null }
   const checked = validateSpan(ctx, span, new Set([block.id]), false)

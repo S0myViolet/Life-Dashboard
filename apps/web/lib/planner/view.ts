@@ -161,6 +161,20 @@ function timeRange(start: Date | null, end: Date | null, tz: string): string | n
   return `${localTimeInZone(start, tz)}–${localTimeInZone(end, tz)}`
 }
 
+/**
+ * Links to original calendar events come from imported (untrusted) data: only http(s) URLs
+ * are rendered, so a `javascript:` or `data:` URL can never become a clickable link.
+ */
+export function planSafeExternalUrl(url: string | null | undefined): string | null {
+  if (!url) return null
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? parsed.toString() : null
+  } catch {
+    return null
+  }
+}
+
 export function planMinutesLabel(minutes: number, estimated: boolean): string {
   return estimated ? `Estimate · ${plannerDurationLabel(minutes)}` : plannerDurationLabel(minutes)
 }
@@ -298,7 +312,7 @@ export function buildPlanDayView(input: {
     ...(input.events ?? []).map((e) => ({
       type: 'event' as const,
       start: e.start.getTime(),
-      event: { ...e, timeLabel: timeRange(e.start, e.end, tz)! },
+      event: { ...e, url: planSafeExternalUrl(e.url), timeLabel: timeRange(e.start, e.end, tz)! },
     })),
   ].sort((a, b) => a.start - b.start || (a.type === 'event' ? -1 : 1))
 

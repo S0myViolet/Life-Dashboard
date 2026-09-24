@@ -352,12 +352,22 @@ export async function plannerPreviewRevision(
  */
 export async function plannerReplan(
   tx: Tx,
-  opts: { now: Date; localDate: string; sources?: readonly PlannerCandidateSource[] },
+  opts: {
+    now: Date
+    localDate: string
+    sources?: readonly PlannerCandidateSource[]
+    /** 'briefing' when the 11:00 briefing refreshes the proposal (Milestone 2). */
+    source?: 'replan' | 'briefing'
+  },
 ): Promise<{ plan: PlannerPlan; revision: PlanRevision | null; created: boolean }> {
   const localDate = CalendarDateSchema.parse(opts.localDate)
   const locked = await lockPlan(tx, localDate)
   if (!locked) {
-    const { plan, created } = await plannerEnsurePlan(tx, { ...opts, localDate, source: 'manual' })
+    const { plan, created } = await plannerEnsurePlan(tx, {
+      ...opts,
+      localDate,
+      source: opts.source === 'briefing' ? 'briefing' : 'manual',
+    })
     if (created) return { plan, revision: null, created }
     // Another request created it between our read and insert: replan that one.
     return plannerReplan(tx, opts)
@@ -419,7 +429,7 @@ export async function plannerReplan(
       mode = ${draft.mode},
       timezone = ${settings.timezone},
       generated_at = ${opts.now}::timestamptz,
-      source = 'replan',
+      source = ${opts.source ?? 'replan'},
       revision = revision + 1
     where id = ${locked.id}::uuid
   `
