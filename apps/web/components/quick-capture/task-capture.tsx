@@ -18,12 +18,10 @@ export function TaskCapture({
   today,
   tomorrow,
   tz,
-  autoFocus,
 }: {
   today: string
   tomorrow: string
   tz: string
-  autoFocus?: boolean
 }) {
   const [state, action, pending] = useActionState(createTaskAction, TASKS_FORM_IDLE)
   const formKey = state.status === 'idle' ? 'initial' : state.stamp
@@ -37,7 +35,6 @@ export function TaskCapture({
         today={today}
         tomorrow={tomorrow}
         tz={tz}
-        autoFocus={autoFocus}
       />
       <div aria-live="polite" className="text-sm">
         <FormStatus state={state} />
@@ -61,7 +58,6 @@ function TaskCaptureForm({
   today,
   tomorrow,
   tz,
-  autoFocus,
 }: {
   state: TasksFormState
   action: (formData: FormData) => void
@@ -69,7 +65,6 @@ function TaskCaptureForm({
   today: string
   tomorrow: string
   tz: string
-  autoFocus?: boolean
 }) {
   const values = state.status === 'error' ? state.values : {}
   const errors = state.status === 'error' ? state.fieldErrors : {}
@@ -81,12 +76,12 @@ function TaskCaptureForm({
   useEffect(() => {
     const form = formRef.current
     if (!form) return
-    if (state.status === 'saved' || (state.status === 'idle' && autoFocus)) {
+    if (state.status === 'saved') {
       form.querySelector<HTMLInputElement>('input[name="title"]')?.focus()
     } else if (state.status === 'error') {
       form.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus()
     }
-  }, [state, autoFocus])
+  }, [state])
 
   return (
     <form

@@ -2,7 +2,8 @@
 
 /**
  * Quick capture: Task, Reading, Note and Journal as keyboard-operable tabs (arrow keys, Home and
- * End move between tabs; Tab moves into the panel). Only the chosen panel is rendered.
+ * End move between tabs; Tab moves into the panel). Every panel stays mounted and the others are
+ * hidden, so half-typed text survives a switch to another tab and back.
  */
 import Link from 'next/link'
 import { useRef, useState } from 'react'
@@ -32,13 +33,10 @@ export function QuickCaptureTabs({
   books: QuickCaptureBook[]
 }) {
   const [tab, setTab] = useState<TabKey>('task')
-  // After the owner switches tabs, move focus into the new panel's first field.
-  const [switched, setSwitched] = useState(false)
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({})
 
   function choose(next: TabKey, focusTab: boolean) {
     setTab(next)
-    setSwitched(true)
     if (focusTab) tabRefs.current[next]?.focus()
   }
 
@@ -90,30 +88,34 @@ export function QuickCaptureTabs({
           )
         })}
       </div>
-      <div
-        role="tabpanel"
-        id={`qc-panel-${tab}`}
-        aria-labelledby={`qc-tab-${tab}`}
-        className="mt-3"
-      >
-        {tab === 'task' ? (
-          <TaskCapture today={today} tomorrow={tomorrow} tz={tz} autoFocus={switched} />
-        ) : tab === 'reading' ? (
-          <ReadingCapture books={books} />
-        ) : tab === 'note' ? (
-          <NoteCapture />
-        ) : (
-          <div className="space-y-2 text-sm text-ink-muted" data-testid="quick-journal">
-            <p>
-              Type today&rsquo;s entry or record it; recordings are transcribed for you to edit.
-            </p>
-            <Link href="/capture/journal" className={buttonClass('primary')}>
-              <Mic aria-hidden className="size-4" />
-              Open today&rsquo;s journal
-            </Link>
-          </div>
-        )}
-      </div>
+      {TABS.map((t) => (
+        <div
+          key={t.key}
+          role="tabpanel"
+          id={`qc-panel-${t.key}`}
+          aria-labelledby={`qc-tab-${t.key}`}
+          hidden={t.key !== tab}
+          className="mt-3"
+        >
+          {t.key === 'task' ? (
+            <TaskCapture today={today} tomorrow={tomorrow} tz={tz} />
+          ) : t.key === 'reading' ? (
+            <ReadingCapture books={books} />
+          ) : t.key === 'note' ? (
+            <NoteCapture />
+          ) : (
+            <div className="space-y-2 text-sm text-ink-muted" data-testid="quick-journal">
+              <p>
+                Type today&rsquo;s entry or record it; recordings are transcribed for you to edit.
+              </p>
+              <Link href="/capture/journal" className={buttonClass('primary')}>
+                <Mic aria-hidden className="size-4" />
+                Open today&rsquo;s journal
+              </Link>
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   )
 }

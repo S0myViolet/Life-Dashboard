@@ -15,7 +15,7 @@ export function CaptureJump({ targetId }: { targetId: string }) {
       onClick={(event) => {
         const section = document.getElementById(targetId)
         const field = section?.querySelector<HTMLElement>(
-          '[role="tabpanel"] input:not([type="hidden"]), [role="tabpanel"] textarea, [role="tabpanel"] select',
+          '[role="tabpanel"]:not([hidden]) :is(input:not([type="hidden"]), textarea, select)',
         )
         if (!section || !field) return
         event.preventDefault()

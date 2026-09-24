@@ -77,7 +77,7 @@ export async function loadHomeToday(now: Date, tz: string): Promise<HomeTodayVie
         filter: 'today',
         now,
         tz,
-        limit: HOME_TODAY_TASK_LIMIT + 50,
+        limit: 500,
       }),
       done: await listTasks(tx, { filter: 'done', limit: 20 }),
     })),

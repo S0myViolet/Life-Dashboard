@@ -32,7 +32,14 @@ export async function NeedsAttentionModule({ settings }: { settings: OwnerSettin
     <ModuleCard
       id="needs-attention"
       title={title}
-      status={count > 0 ? <Pill tone="caution">{count}</Pill> : null}
+      status={
+        count > 0 ? (
+          <Pill tone="caution">
+            {count}
+            <span className="sr-only"> {count === 1 ? 'item' : 'items'}</span>
+          </Pill>
+        ) : null
+      }
       href="/plan/tasks"
       hrefLabel="Tasks"
       wide
