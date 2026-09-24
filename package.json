@@ -1,0 +1,30 @@
+{
+  "name": "personal-home",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Private personal dashboard for one owner.",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @personal-home/web dev",
+    "build": "pnpm -r --if-present build",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "lint": "pnpm -r --if-present lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "pnpm -r --if-present test",
+    "test:db": "pnpm --filter @personal-home/db test",
+    "test:e2e": "pnpm --filter @personal-home/web test:e2e",
+    "db:local": "node scripts/local-db.mjs",
+    "functions:check": "node scripts/functions-check.mjs"
+  },
+  "devDependencies": {
+    "prettier": "3.9.9",
+    "typescript": "6.0.3",
+    "deno": "2.9.6",
+    "typescript-eslint": "8.70.1",
+    "eslint": "9.39.5"
+  }
+}

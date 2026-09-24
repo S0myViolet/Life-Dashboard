@@ -1,0 +1,7 @@
+pnpm-lock.yaml
+.next
+dist
+coverage
+supabase/functions/_shared/core
+supabase/functions/_shared/db
+docs/PRODUCT_BRIEF.md

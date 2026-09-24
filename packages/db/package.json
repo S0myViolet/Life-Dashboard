@@ -1,0 +1,28 @@
+{
+  "name": "@personal-home/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Postgres access layer: owner-scoped transactions (RLS enforced) and service transactions for jobs.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "lint": "eslint src test"
+  },
+  "dependencies": {
+    "@personal-home/core": "workspace:*",
+    "postgres": "3.4.9",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.2",
+    "eslint": "9.39.5",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.70.1",
+    "vitest": "5.0.1"
+  }
+}
