@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import { CAPTURE_STATES } from '@personal-home/core'
 import {
+  CAPTURE_RETENTION_NOTE,
   CAPTURE_STATE_COPY,
   captureConversationLabel,
   captureCoverageSummary,
@@ -102,6 +103,15 @@ describe('captureCoverageSummary', () => {
     })
     expect(never).toContain('1 message saved')
     expect(never).toContain('No capture has seen every message from the first to the last yet')
+  })
+})
+
+describe('retention copy', () => {
+  it('does not claim a purge runs: no job calls it until the retention job arrives', () => {
+    expect(CAPTURE_RETENTION_NOTE).toContain('30 days')
+    expect(CAPTURE_RETENTION_NOTE).toContain('not scheduled yet')
+    expect(CAPTURE_RETENTION_NOTE).toContain('Milestone 2')
+    expect(CAPTURE_RETENTION_NOTE).not.toMatch(/is kept for 30 days;|after that only/)
   })
 })
 

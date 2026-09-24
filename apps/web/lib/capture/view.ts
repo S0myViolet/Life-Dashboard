@@ -2,7 +2,7 @@
  * Plain-language copy for capture states and coverage. Pure, so it is unit tested
  * and shared by the Chrome helper settings page and the Projects page.
  */
-import type { CaptureCoverage, CaptureState, ConnectionStatus } from '@personal-home/core'
+import { CAPTURE_LIMITS, type CaptureCoverage, type CaptureState, type ConnectionStatus } from '@personal-home/core'
 
 export type CaptureTone = 'neutral' | 'positive' | 'caution' | 'danger' | 'accent'
 
@@ -41,6 +41,17 @@ export const CAPTURE_STATE_COPY: Record<
     connection: 'error',
   },
 }
+
+/**
+ * Retention as it actually is today. The purge helper (db capturePurgeRawText)
+ * exists, but no scheduled job calls it until the retention.purge job arrives
+ * in Milestone 2, so the page must not say the text is already deleted.
+ */
+export const CAPTURE_RETENTION_NOTE =
+  `Raw conversation text is meant to be kept for ${CAPTURE_LIMITS.rawTextRetentionDays} days, after which only ` +
+  'fingerprints, times and summaries would remain. That clean-up is not scheduled yet (it arrives with the ' +
+  'retention job in Milestone 2), so for now raw text is kept until you remove the conversation. Removing a ' +
+  'conversation deletes everything collected from it.'
 
 export function captureResumeLabel(state: CaptureState): string {
   return state === 'paused' ? 'Resume' : 'Reconnect'

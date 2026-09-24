@@ -108,8 +108,10 @@ Shared links, temporary chats and other pages cannot be selected.
   (`/backend-api`, `/api/organizations/…`), never forges requests, never scrolls or clicks in
   your conversations, and never tries to get past a sign-in page or verification check.
 
-Nothing already saved is ever deleted because a page did not show it. Raw text is kept by the
-dashboard for 30 days; hashes, times and summaries remain after that.
+Nothing already saved is ever deleted because a page did not show it. Raw text is meant to be
+kept by the dashboard for 30 days (hashes, times and summaries would remain after that), but the
+purge is not scheduled yet: it arrives with the retention job in Milestone 2. Until then raw text
+stays until you remove the conversation in Settings → Chrome helper.
 
 ## Terms of use (read before using revisits)
 

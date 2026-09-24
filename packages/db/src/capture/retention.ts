@@ -6,7 +6,9 @@
  *
  * The clock starts when a text version was first captured. Seeing the same text
  * again later does not restore it (the hash proves it is unchanged).
- * Service transaction; intended for the `retention.purge` job.
+ * Service transaction; intended for the `retention.purge` job. NOT scheduled
+ * yet: no job handler calls it until retention.purge arrives (Milestone 2), and
+ * the Settings copy says so (apps/web/lib/capture/view.ts CAPTURE_RETENTION_NOTE).
  */
 import { CAPTURE_LIMITS } from '@personal-home/core'
 import type { Tx } from '../client.ts'

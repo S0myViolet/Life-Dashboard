@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
-import { CAPTURE_LIMITS } from '@personal-home/core'
 import { PageHeader } from '@/components/shell/app-shell'
 import { Card, CardHeader } from '@/components/ui/card'
 import { CaptureConversationList } from '@/components/capture/conversation-list'
@@ -8,6 +7,7 @@ import { DeviceList } from '@/components/capture/device-list'
 import { PairingPanel } from '@/components/capture/pairing-panel'
 import { captureConfiguredDashboardOrigin } from '@/lib/capture/config'
 import { loadChromeHelperPage } from '@/lib/capture/data'
+import { CAPTURE_RETENTION_NOTE } from '@/lib/capture/view'
 import { requireOwner } from '@/lib/server/session'
 
 export const metadata = { title: 'Chrome helper' }
@@ -77,11 +77,7 @@ export default async function ChromeHelperPage() {
               a verification check or looks different than expected, collection of that conversation
               pauses and the last good data is kept until you choose Reconnect.
             </p>
-            <p>
-              Raw conversation text is kept for {CAPTURE_LIMITS.rawTextRetentionDays} days; after
-              that only fingerprints, times and summaries remain. Removing a conversation deletes
-              everything collected from it.
-            </p>
+            <p>{CAPTURE_RETENTION_NOTE}</p>
             <p>
               Background revisits (the helper reopening selected conversations every 30 minutes) are
               an opt-in prototype that is off by default. ChatGPT&apos;s and Claude&apos;s terms
