@@ -137,7 +137,7 @@ export async function updateTaskFromForm(
   formData: FormData,
   now: Date,
 ): Promise<TasksFormState> {
-  const id = IdSchema.safeParse(formData.get('id'))
+  const id = IdSchema.safeParse(formData.get('taskId'))
   if (!id.success) return formError(formData, TASK_FORM_FIELDS, {}, NOT_FOUND)
   const parsed = parseTaskForm(formData, 'update')
   if (!parsed.ok) return formError(formData, TASK_FORM_FIELDS, parsed.fieldErrors)
@@ -264,7 +264,7 @@ export async function createHabitFromForm(tx: Tx, formData: FormData): Promise<T
 }
 
 export async function updateHabitFromForm(tx: Tx, formData: FormData): Promise<TasksFormState> {
-  const id = IdSchema.safeParse(formData.get('id'))
+  const id = IdSchema.safeParse(formData.get('habitId'))
   if (!id.success) return formError(formData, HABIT_FORM_FIELDS, {}, NOT_FOUND)
   const parsed = parseHabitForm(formData)
   if (!parsed.ok) return formError(formData, HABIT_FORM_FIELDS, parsed.fieldErrors)

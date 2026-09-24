@@ -308,8 +308,20 @@ test('reminders: due ones can be dismissed; new ones use London time; tasks get 
 
   // The reminder's link opens the task's edit sheet.
   await reminders.getByRole('link', { name: 'Open task: Buy flowers' }).click()
-  await expect(page.getByRole('dialog', { name: 'Edit task' })).toBeVisible()
-  await expect(page.getByLabel('Reminder', { exact: true })).toHaveValue('keep')
+  const sheet = page.getByRole('dialog', { name: 'Edit task' })
+  await expect(sheet).toBeVisible()
+  await expect(sheet.getByLabel('Title', { exact: true })).toHaveValue('Buy flowers')
+  await expect(sheet.getByLabel('Reminder', { exact: true })).toHaveValue('keep')
+  // Keeping it while moving the due time leaves the reminder where it was.
+  await sheet.getByLabel('Time (optional)').fill('11:00')
+  await sheet.getByRole('button', { name: 'Save changes' }).click()
+  await expect(sheet).toBeHidden()
+  expect(
+    sql(`select to_char(t.due_at at time zone 'Europe/London', 'HH24:MI'),
+                to_char(r.remind_at at time zone 'Europe/London', 'HH24:MI')
+         from public.tasks t join public.reminders r on r.subject_id = t.id
+         where t.title = 'Buy flowers'`),
+  ).toBe('11:00|09:00')
 })
 
 test.describe('on a 390px phone', () => {

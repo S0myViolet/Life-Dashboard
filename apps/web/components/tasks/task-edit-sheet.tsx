@@ -130,7 +130,7 @@ function EditBody({
 
   return (
     <form ref={formRef} action={action} noValidate className="space-y-4">
-      <input type="hidden" name="id" value={task.id} />
+      <input type="hidden" name="taskId" value={task.id} />
       <div>
         <label htmlFor="edit-title" className={labelClass}>
           Title

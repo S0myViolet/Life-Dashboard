@@ -4,7 +4,9 @@
  * the core zod schemas (and the owner's timezone) before writing.
  *
  * Form input names match the repository field names, so a field error from
- * either layer can be shown next to the right input.
+ * either layer can be shown next to the right input. Hidden record ids are
+ * posted as `taskId` / `habitId`, never `id`: a control named "id" shadows the
+ * form element's own `id` property.
  */
 import {
   REMINDER_RECURRENCES,
@@ -67,7 +69,7 @@ export function formValues(formData: FormData, names: readonly string[]): Record
 }
 
 export const TASK_FORM_FIELDS = [
-  'id',
+  'taskId',
   'title',
   'details',
   'projectId',
@@ -152,7 +154,7 @@ export function parseTaskForm(
   }
 }
 
-export const REMINDER_FORM_FIELDS = ['id', 'title', 'date', 'time', 'recurrence'] as const
+export const REMINDER_FORM_FIELDS = ['title', 'date', 'time', 'recurrence'] as const
 
 export function parseReminderForm(formData: FormData): FormParse<ReminderInput> {
   const recurrenceRaw = (str(formData, 'recurrence') ?? '').trim()
@@ -173,7 +175,7 @@ export function parseReminderForm(formData: FormData): FormParse<ReminderInput> 
   return { ok: true, value: { title: str(formData, 'title') ?? '', date, time, recurrence } }
 }
 
-export const HABIT_FORM_FIELDS = ['id', 'title', 'details', 'weekdays'] as const
+export const HABIT_FORM_FIELDS = ['habitId', 'title', 'details', 'weekdays'] as const
 
 export function parseHabitForm(
   formData: FormData,

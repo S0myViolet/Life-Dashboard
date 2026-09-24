@@ -89,7 +89,7 @@ function HabitFormBody({
 
   return (
     <form ref={formRef} action={action} noValidate className="space-y-3">
-      {habit ? <input type="hidden" name="id" value={habit.id} /> : null}
+      {habit ? <input type="hidden" name="habitId" value={habit.id} /> : null}
       <div>
         <label htmlFor={`${prefix}-title`} className={labelClass}>
           {mode === 'create' ? 'New habit' : 'Name'}
