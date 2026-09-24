@@ -24,9 +24,11 @@ test('iPhone width shows the five-item bottom navigation and no sidebar', async 
     .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height))) {
     expect(box).toBeGreaterThanOrEqual(44)
   }
-  await expect(page.locator('[data-home-module]')).toHaveCount(7)
+  // Visible modules only: a streamed module waits hidden until React reveals it in place.
+  await expect(page.locator('[data-home-module]:visible')).toHaveCount(7)
+  await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0)
   const moduleLinks = await page
-    .locator('[data-home-module] a')
+    .locator('[data-home-module]:visible a')
     .evaluateAll((els) =>
       els.map((e) => ({ text: e.textContent?.trim(), h: e.getBoundingClientRect().height })),
     )

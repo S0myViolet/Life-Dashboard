@@ -138,7 +138,8 @@ test('home layout: hiding and reordering persist across reloads and shape Home',
   await expect(rows.nth(4)).toHaveAttribute('data-hidden', 'true')
 
   await page.goto('/')
-  const modules = page.locator('[data-home-module]')
+  // Visible modules only: a streamed module waits hidden (in arrival order) until React reveals it.
+  const modules = page.locator('[data-home-module]:visible')
   await expect(modules).toHaveCount(6)
   expect(
     await modules.evaluateAll((els) => els.map((e) => e.getAttribute('data-home-module'))),

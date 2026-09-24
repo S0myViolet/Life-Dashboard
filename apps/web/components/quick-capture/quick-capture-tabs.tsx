@@ -84,7 +84,7 @@ export function QuickCaptureTabs({
                   : 'text-ink-muted hover:text-ink'
               }`}
             >
-              <Icon aria-hidden className="size-4 shrink-0" strokeWidth={1.8} />
+              <Icon aria-hidden className="hidden size-4 shrink-0 sm:block" strokeWidth={1.8} />
               <span className="truncate">{t.label}</span>
             </button>
           )

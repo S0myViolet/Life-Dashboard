@@ -20,7 +20,12 @@ import { ReplanButton } from './replan-button'
 export function PlanModule({ settings }: { settings: OwnerSettings }) {
   const hours = summarizeAvailableHours(settings.availableHours)
   return (
-    <div data-home-module="todays-plan" className="space-y-2 lg:col-span-2">
+    // On phones every link in the module is a 44px touch target, including the planner card's
+    // header link (the shared CardHeader link is ~24px tall).
+    <div
+      data-home-module="todays-plan"
+      className="space-y-2 lg:col-span-2 max-sm:[&_a]:inline-flex max-sm:[&_a]:min-h-11 max-sm:[&_a]:items-center"
+    >
       <TodaysPlanCard />
       <Suspense fallback={null}>
         <PlanChangesNotice settings={settings} />
@@ -34,10 +39,7 @@ export function PlanModule({ settings }: { settings: OwnerSettings }) {
         ) : hours ? (
           <>Planning around your available hours: {hours}.</>
         ) : (
-          <>
-            No available hours are set, so plans are an ordered list with effort estimates rather
-            than a timed schedule.
-          </>
+          <>No available hours are set, so the plan has no times.</>
         )}{' '}
         <Link href="/settings/hours" className={homeLinkClass}>
           {hours ? 'Change hours' : 'Set available hours'}

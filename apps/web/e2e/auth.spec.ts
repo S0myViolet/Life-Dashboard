@@ -49,7 +49,8 @@ test('test sign-in opens Home with a greeting and the date in the owner timezone
   }
   const text = await page.getByRole('main').innerText()
   expect(text).not.toMatch(/nothing needs attention|you'?re all caught up|no events today/i)
-  expect(text).toMatch(/Nothing is feeding this section yet/)
+  // Needs attention names the sources that are not connected yet instead of claiming all clear.
+  expect(text).toMatch(/Deadlines from email and calendars are not connected yet \(Milestone 2\)/)
 })
 
 test('a signed-in non-owner is sent to /not-authorized and sees no owner data', async ({

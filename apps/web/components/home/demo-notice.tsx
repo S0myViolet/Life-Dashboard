@@ -25,7 +25,15 @@ export async function DemoNotice() {
       <p className="min-w-0 flex-1 basis-60">
         {deployed
           ? 'Demo rows (starting with “[demo]”) were found in this account. They are examples, not your data; remove them with the seed script’s --remove option.'
-          : 'Rows starting with “[demo]” are labelled examples, not your own data. Remove them with node scripts/seed-demo.mjs --remove.'}
+          : 'Rows starting with “[demo]” are labelled examples, not your own data. Remove them with '}
+        {deployed ? null : (
+          <>
+            <code className="whitespace-nowrap rounded bg-surface px-1 font-mono text-xs">
+              node scripts/seed-demo.mjs --remove
+            </code>
+            .
+          </>
+        )}
       </p>
     </section>
   )
