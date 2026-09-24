@@ -424,7 +424,7 @@ describe('runDispatcher', () => {
 describe('default handler registry', () => {
   it('has a real handler for every enabled schedule, and every other schedule stays disabled', () => {
     const registry = createDefaultJobHandlerRegistry()
-    expect(registeredJobKinds(registry)).toEqual(['briefing.evening', 'briefing.morning'])
+    expect(registeredJobKinds(registry)).toEqual(['ai.reconcile', 'briefing.evening', 'briefing.morning'])
     for (const def of JOB_SCHEDULE_DEFINITIONS) {
       if (def.enabled) expect(registry[def.kind], def.name).toBeDefined()
       else expect(registry[def.kind], def.name).toBeUndefined()

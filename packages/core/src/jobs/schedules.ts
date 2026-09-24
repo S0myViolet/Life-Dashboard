@@ -5,8 +5,8 @@
  * Only schedules whose handlers exist are enabled. The others are listed so the
  * intended cadence is visible (brief §4 defaults), but stay disabled until a real
  * handler is registered — there are no placeholder handlers that pretend to sync.
- * Event-driven kinds (capture.summarize, ai.reconcile, push.deliver,
- * plan.daily_draft) are enqueued on demand and have no schedule.
+ * Event-driven kinds (capture.summarize, push.deliver, plan.daily_draft) are
+ * enqueued on demand and have no schedule.
  */
 import { z } from 'zod'
 import { JobKindSchema, type JobKind } from '../catalog.ts'
@@ -65,6 +65,14 @@ export const JOB_SCHEDULE_DEFINITIONS: readonly JobScheduleDefinition[] = Object
       kind: 'briefing.evening',
       cadence: 'daily_local_time',
       localTime: '22:00',
+      enabled: true,
+    },
+    // Brief §8: stale AI reservations become ambiguous (still counted), never released.
+    {
+      name: 'ai.reconcile',
+      kind: 'ai.reconcile',
+      cadence: 'interval',
+      intervalSeconds: 3_600,
       enabled: true,
     },
     // Brief §4 cadences. Disabled until their handlers exist (Milestones 2–3).

@@ -514,7 +514,9 @@ describe('briefing content and setup states', () => {
     const t = await createTestDatabase()
     dbs.push(t)
     const s = await tick(t, '2026-09-24T10:00:00Z')
-    expect(s.schedules?.skipped.map((x) => x.reason)).toEqual(['no_owner', 'no_owner'])
+    expect(
+      s.schedules?.skipped.filter((x) => x.name.startsWith('briefing.')).map((x) => x.reason),
+    ).toEqual(['no_owner', 'no_owner'])
     await withService(t.db, (tx) =>
       enqueueJob(
         tx,
@@ -542,7 +544,11 @@ describe('briefing content and setup states', () => {
     dbs.push(t)
     // Deployed on 1 June: the schedules are enabled, but nobody has signed in yet.
     const deployed = await tick(t, '2026-06-01T08:00:00Z')
-    expect(deployed.schedules?.skipped.map((x) => x.reason)).toEqual(['no_owner', 'no_owner'])
+    expect(
+      deployed.schedules?.skipped
+        .filter((x) => x.name.startsWith('briefing.'))
+        .map((x) => x.reason),
+    ).toEqual(['no_owner', 'no_owner'])
     // The owner signs in at 08:30 BST on 5 June and confirms Europe/London.
     await claimOwner(t, '2026-06-05T07:30:00Z')
     await t.db`update public.owner_settings set timezone_confirmed = true`
@@ -562,7 +568,7 @@ describe('briefing content and setup states', () => {
     await claimOwner(t)
     // Fresh settings: the Europe/London placeholder, not confirmed.
     const first = await tick(t, '2026-06-10T08:00:00Z')
-    expect(first.schedules?.skipped).toEqual([
+    expect(first.schedules?.skipped.filter((x) => x.name.startsWith('briefing.'))).toEqual([
       { name: 'briefing.evening', reason: 'timezone_unconfirmed' },
       { name: 'briefing.morning', reason: 'timezone_unconfirmed' },
     ])
