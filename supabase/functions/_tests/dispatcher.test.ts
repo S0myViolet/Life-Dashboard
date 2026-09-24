@@ -167,16 +167,26 @@ Deno.test('fails closed when DISPATCHER_SECRET is missing or too short', async (
   }
 })
 
-Deno.test('reports a missing database URL as not configured', async () => {
-  const { handle } = guardedHandler({
-    getDb: () => {
-      throw new DispatcherConfigError('SUPABASE_DB_URL')
-    },
-  })
-  const res = await handle(post({ [DISPATCHER_SECRET_HEADER]: SECRET }))
-  assert.equal(res.status, 503)
-  assert.deepEqual(await res.json(), { ok: false, error: 'not_configured' })
-})
+Deno.test(
+  'reports a missing or unusable database URL as not configured, without details',
+  async () => {
+    const failures = [
+      new DispatcherConfigError('SUPABASE_DB_URL'),
+      new Error('Invalid URL postgres://postgres:hunter2-db-password@db.example:5432/postgres'),
+    ]
+    for (const failure of failures) {
+      const { handle, logs } = guardedHandler({
+        getDb: () => {
+          throw failure
+        },
+      })
+      const res = await handle(post({ [DISPATCHER_SECRET_HEADER]: SECRET }))
+      assert.equal(res.status, 503)
+      assert.deepEqual(await res.json(), { ok: false, error: 'not_configured' })
+      assert.deepEqual(logs, [{ event: 'dispatcher_not_configured', setting: 'SUPABASE_DB_URL' }])
+    }
+  },
+)
 
 Deno.test({
   name: 'an authenticated call runs the dispatcher and publishes the 11:00 briefing once',
