@@ -168,3 +168,8 @@ Recordings are uploaded in chunks of 1 MB or less, which stays under serverless 
 - Notes save with an optimistic version check. A change made on only one side merges automatically. When both sides changed the same field, the owner chooses between this device's version, the saved version, or a prefilled merge.
 - Drafts live in IndexedDB until synced. Their status shows as *Saved on this device*, *Synced* or *Waiting to sync*, and signing out clears them.
 - Search uses Postgres full-text search: every word must match, words match as prefixes, and there is no stemming. Searches are sent as POST requests, so search words never appear in URLs or access logs.
+
+### D-35 · Home and demo data
+- Every Home module reads saved data inside its own Suspense boundary, and each data source runs in its own transaction. When one source fails, Home says which one and still shows the rest. **Needs attention** always ends by noting which sources it checked, so it is never read as a full all-clear while mail and calendars are unconnected.
+- When tasks change after today's plan was drafted, Home offers **Replan remaining day**. The plan is never replaced without that step.
+- Demo rows are marked with a `[demo]` prefix. `scripts/seed-demo.mjs` writes only to a local database (localhost, no production or Vercel environment) and `--remove` deletes every demo row. Home shows a *Demo data* banner whenever demo rows exist, and turns it into a warning if they are ever found on Vercel.
