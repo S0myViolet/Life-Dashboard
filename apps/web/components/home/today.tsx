@@ -35,13 +35,15 @@ function CalendarNote() {
   return (
     <div className="flex items-start gap-2 border-t border-line pt-3 text-xs text-ink-muted">
       <CalendarDays aria-hidden className="mt-0.5 size-4 shrink-0" strokeWidth={1.8} />
-      <p>
-        Calendar events are not shown yet: Google and Outlook calendars arrive with the Milestone 2
-        connections (read-only, with links back to the original).{' '}
+      <div className="flex flex-wrap items-center gap-x-2">
+        <p>
+          Calendar events are not shown yet: Google and Outlook calendars arrive with the Milestone
+          2 connections (read-only, with links back to the original).
+        </p>
         <Link href="/plan" className={homeLinkClass}>
           Today&rsquo;s plan
         </Link>
-      </p>
+      </div>
     </div>
   )
 }

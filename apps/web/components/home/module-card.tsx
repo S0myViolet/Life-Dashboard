@@ -69,12 +69,14 @@ export const homeLinkClass =
  */
 export function TimezoneUnusable({ what }: { what: string }) {
   return (
-    <p role="alert" className="text-danger">
-      Your saved timezone can&rsquo;t be used here, so {what} can&rsquo;t be worked out.{' '}
+    <div className="flex flex-wrap items-center gap-x-2">
+      <p role="alert" className="text-danger">
+        Your saved timezone can&rsquo;t be used here, so {what} can&rsquo;t be worked out.
+      </p>
       <Link href="/settings/timezone" className={homeLinkClass}>
         Choose your timezone again
       </Link>
-    </p>
+    </div>
   )
 }
 

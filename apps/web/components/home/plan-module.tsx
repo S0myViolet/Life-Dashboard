@@ -30,21 +30,24 @@ export function PlanModule({ settings }: { settings: OwnerSettings }) {
       <Suspense fallback={null}>
         <PlanChangesNotice settings={settings} />
       </Suspense>
-      <p className="px-1 text-xs text-ink-muted" data-testid="plan-hours">
+      <div
+        className="flex flex-wrap items-center gap-x-2 px-1 text-xs text-ink-muted"
+        data-testid="plan-hours"
+      >
         {settings.availableHoursInvalid ? (
-          <span className="text-caution">
+          <p className="text-caution">
             Your saved available hours could not be read. Set them again so the planner can use
             them.
-          </span>
+          </p>
         ) : hours ? (
-          <>Planning around your available hours: {hours}.</>
+          <p>Planning around your available hours: {hours}.</p>
         ) : (
-          <>No available hours are set, so the plan has no times.</>
-        )}{' '}
+          <p>No available hours are set, so the plan has no times.</p>
+        )}
         <Link href="/settings/hours" className={homeLinkClass}>
           {hours ? 'Change hours' : 'Set available hours'}
         </Link>
-      </p>
+      </div>
     </div>
   )
 }

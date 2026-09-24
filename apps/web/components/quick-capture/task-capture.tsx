@@ -116,7 +116,9 @@ function TaskCaptureForm({
         />
         <FieldError id="qc-task-title-error" message={errors.title} />
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+      {/* Phones: date | time, the Today/Tomorrow shortcuts, then a full-width Add button.
+          Wider screens: date | time | Add on one row, the shortcuts under the date. */}
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
         <div>
           <label htmlFor="qc-task-date" className={labelClass}>
             Due date <span className="font-normal text-ink-faint">(optional)</span>
@@ -162,41 +164,48 @@ function TaskCaptureForm({
         <button
           type="submit"
           disabled={pending}
-          className={buttonClass('primary', 'col-span-2 sm:col-span-1')}
+          className={buttonClass(
+            'primary',
+            'order-last col-span-2 sm:order-none sm:col-span-1 sm:col-start-3 sm:row-start-1 sm:self-end',
+          )}
         >
           <Plus aria-hidden className="size-4" />
           {pending ? 'Adding…' : 'Add task'}
         </button>
-      </div>
-      <div className="flex flex-wrap gap-1" role="group" aria-label="Quick due dates">
-        {(
-          [
-            ['Today', today],
-            ['Tomorrow', tomorrow],
-          ] as const
-        ).map(([label, value]) => (
-          <button
-            key={label}
-            type="button"
-            aria-pressed={dueDate === value}
-            onClick={() => setDueDate(value)}
-            className="min-h-11 rounded-lg px-3 text-sm text-accent hover:bg-accent-soft aria-pressed:bg-accent-soft aria-pressed:font-medium sm:min-h-8"
-          >
-            {label}
-          </button>
-        ))}
-        {dueDate || dueTime ? (
-          <button
-            type="button"
-            onClick={() => {
-              setDueDate('')
-              setDueTime('')
-            }}
-            className="min-h-11 rounded-lg px-3 text-sm text-ink-muted hover:bg-surface-muted sm:min-h-8"
-          >
-            No date
-          </button>
-        ) : null}
+        <div
+          className="col-span-2 -mt-1 flex flex-wrap gap-1 sm:col-span-3"
+          role="group"
+          aria-label="Quick due dates"
+        >
+          {(
+            [
+              ['Today', today],
+              ['Tomorrow', tomorrow],
+            ] as const
+          ).map(([label, value]) => (
+            <button
+              key={label}
+              type="button"
+              aria-pressed={dueDate === value}
+              onClick={() => setDueDate(value)}
+              className="min-h-11 rounded-lg px-3 text-sm text-accent hover:bg-accent-soft aria-pressed:bg-accent-soft aria-pressed:font-medium sm:min-h-8"
+            >
+              {label}
+            </button>
+          ))}
+          {dueDate || dueTime ? (
+            <button
+              type="button"
+              onClick={() => {
+                setDueDate('')
+                setDueTime('')
+              }}
+              className="min-h-11 rounded-lg px-3 text-sm text-ink-muted hover:bg-surface-muted sm:min-h-8"
+            >
+              No date
+            </button>
+          ) : null}
+        </div>
       </div>
     </form>
   )

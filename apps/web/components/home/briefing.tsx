@@ -93,17 +93,19 @@ export async function BriefingModule({ settings }: { settings: OwnerSettings }) 
         </div>
       ) : view.timezoneConfirmed ? (
         <p data-testid="briefing-none">
-          No briefing has been published yet. Briefings are scheduled for the {view.scheduleLabel},{' '}
-          {settings.timezone}.
+          No briefing has been published yet. The {view.scheduleLabel} run on {settings.timezone}{' '}
+          time.
         </p>
       ) : (
-        <p data-testid="briefing-none">
-          No briefing yet. Your first briefing is published at 11:00 once your timezone is
-          confirmed.{' '}
+        <div className="flex flex-wrap items-center gap-x-2">
+          <p data-testid="briefing-none">
+            No briefing yet. Your first briefing is published at 11:00 once your timezone is
+            confirmed.
+          </p>
           <Link href="/settings/timezone" className={homeLinkClass}>
             Confirm timezone
           </Link>
-        </p>
+        </div>
       )}
       {view.newerProblem ? <p className="text-caution">{view.newerProblem}</p> : null}
       {view.nextLabel ? <p className="text-xs text-ink-muted">{view.nextLabel}.</p> : null}

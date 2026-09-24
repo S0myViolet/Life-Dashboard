@@ -39,18 +39,21 @@ export default async function ProjectsPage() {
             const linked = conversations.filter((c) => c.projectId === p.id)
             return (
               <Card key={p.id} as="article" aria-labelledby={`project-${p.id}`}>
-                <CardHeader
-                  title={p.name}
-                  id={`project-${p.id}`}
-                  meta={
-                    <span className="inline-flex gap-1">
-                      <Pill>{PROJECT_KIND_LABELS[p.kind]}</Pill>
-                      <Pill tone={p.status === 'active' ? 'positive' : 'neutral'}>
-                        {PROJECT_STATUS_LABELS[p.status]}
-                      </Pill>
-                    </span>
-                  }
-                />
+                {/* The name wraps rather than truncating: on a phone the pills leave little room. */}
+                <div className="mb-3 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                  <h2
+                    id={`project-${p.id}`}
+                    className="min-w-0 break-words text-[15px] font-semibold tracking-tight text-ink"
+                  >
+                    {p.name}
+                  </h2>
+                  <span className="inline-flex gap-1">
+                    <Pill>{PROJECT_KIND_LABELS[p.kind]}</Pill>
+                    <Pill tone={p.status === 'active' ? 'positive' : 'neutral'}>
+                      {PROJECT_STATUS_LABELS[p.status]}
+                    </Pill>
+                  </span>
+                </div>
                 {p.goal ? <p className="mb-2 text-sm text-ink-muted">{p.goal}</p> : null}
                 <h3 className="mt-2 text-xs font-medium uppercase tracking-wide text-ink-faint">
                   Linked conversations

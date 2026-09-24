@@ -117,15 +117,17 @@ function AttentionRow({ item }: { item: HomeAttentionItem }) {
 /** Always shown: which sources are not feeding this list yet. */
 function NotConnectedNote() {
   return (
-    <p className="border-t border-line pt-3 text-xs text-ink-muted" data-testid="attention-sources">
-      Checked your tasks, reminders and people. Deadlines from email and calendars are not connected
-      yet (Milestone 2), so this list is not a full all-clear.{' '}
-      <Link
-        href="/settings/connections"
-        className="inline-flex min-h-11 items-center font-medium text-accent hover:text-accent-strong sm:min-h-0"
-      >
+    <div
+      className="flex flex-wrap items-center gap-x-2 border-t border-line pt-3 text-xs text-ink-muted"
+      data-testid="attention-sources"
+    >
+      <p>
+        Checked your tasks, reminders and people. Deadlines from email and calendars are not
+        connected yet (Milestone 2), so this list is not a full all-clear.
+      </p>
+      <Link href="/settings/connections" className={homeLinkClass}>
         Connections
       </Link>
-    </p>
+    </div>
   )
 }
