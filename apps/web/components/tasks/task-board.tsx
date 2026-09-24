@@ -6,7 +6,15 @@
  * Completing and reopening update the list optimistically; the server's
  * re-render then replaces the optimistic state.
  */
-import { useCallback, useEffect, useMemo, useOptimistic, useState, useTransition } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useOptimistic,
+  useRef,
+  useState,
+  useTransition,
+} from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { ChevronRight } from 'lucide-react'
 import { TASK_DUE_GROUP_LABELS, type TaskDueGroup } from '@personal-home/core'
@@ -32,24 +40,30 @@ function reduce(tasks: TaskView[], change: OptimisticChange): TaskView[] {
   })
 }
 
-/** Where focus goes when a row leaves its list: the next row, else the previous, else the heading. */
+/**
+ * Where focus goes when a row leaves its list: the next row, else the previous,
+ * else the group heading, else the add-task title (never lost to <body>).
+ */
 function focusAfterLeaving(button: HTMLElement) {
   const li = button.closest('li')
   const section = button.closest('section, details')
-  const sibling =
+  const target =
     li?.nextElementSibling?.querySelector<HTMLElement>('[data-task-toggle]') ??
     li?.previousElementSibling?.querySelector<HTMLElement>('[data-task-toggle]') ??
     section?.querySelector<HTMLElement>('h2, summary') ??
-    document.getElementById('add-title')
+    null
+  const fallback = () => document.getElementById('add-title')?.focus()
   requestAnimationFrame(() => {
-    if (sibling?.isConnected) {
-      if (sibling.tagName === 'H2' && !sibling.hasAttribute('tabindex')) {
-        sibling.setAttribute('tabindex', '-1')
-      }
-      sibling.focus()
+    if (target?.isConnected) {
+      if (target.tagName === 'H2') target.setAttribute('tabindex', '-1')
+      target.focus()
     } else {
-      document.getElementById('add-title')?.focus()
+      fallback()
     }
+    // The target itself may leave with the re-render (e.g. the last open task).
+    setTimeout(() => {
+      if (!document.activeElement || document.activeElement === document.body) fallback()
+    }, 150)
   })
 }
 
@@ -64,23 +78,31 @@ export function TaskBoard({
   const [, startTransition] = useTransition()
   const { toast, show, dismiss, timeoutMs } = useToast()
   const [editingId, setEditingId] = useState<string | null>(initialEditId)
+  // A ?task=<id> link followed while already on this page opens that task too.
+  const [seenParam, setSeenParam] = useState(initialEditId)
+  if (initialEditId !== seenParam) {
+    setSeenParam(initialEditId)
+    if (initialEditId) setEditingId(initialEditId)
+  }
   const router = useRouter()
   const pathname = usePathname()
 
   const editing = editingId ? (data.tasks.find((t) => t.id === editingId) ?? null) : null
 
-  // A ?task=<id> link to a task that is gone: say so rather than silently showing nothing.
+  // A ?task=<id> link to a task that is gone: say so rather than silently showing
+  // nothing. Checked once per link, so deleting the linked task is not reported.
+  const handledParam = useRef<string | null>(null)
   useEffect(() => {
-    if (initialEditId && !data.tasks.some((t) => t.id === initialEditId)) {
+    if (!initialEditId || handledParam.current === initialEditId) return
+    handledParam.current = initialEditId
+    if (!data.tasks.some((t) => t.id === initialEditId)) {
       show({
         message: 'That task no longer exists or is older than the list shows.',
         tone: 'error',
       })
       router.replace(pathname, { scroll: false })
     }
-    // Once, on arrival.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [initialEditId, data.tasks, pathname, router, show])
 
   const closeEditor = useCallback(() => {
     setEditingId(null)
@@ -133,7 +155,7 @@ export function TaskBoard({
             key === 'overdue' ? 'text-danger' : 'text-ink'
           }`}
         >
-          {TASK_DUE_GROUP_LABELS[key]}
+          {TASK_DUE_GROUP_LABELS[key]}{' '}
           <span className="text-sm font-normal text-ink-faint">
             {list.length}
             <span className="sr-only"> {list.length === 1 ? 'task' : 'tasks'}</span>

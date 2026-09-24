@@ -224,10 +224,7 @@ function CheckOff({
       >
         {habit.title}
       </span>
-      <span className="sr-only">
-        {habit.doneToday ? ', done today' : ', not done today'}
-        {extra ? ' (not scheduled today)' : ''}
-      </span>
+      {extra ? <span className="sr-only"> (not scheduled today)</span> : null}
     </button>
   )
 }

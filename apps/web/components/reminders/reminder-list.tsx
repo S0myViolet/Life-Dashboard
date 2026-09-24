@@ -122,9 +122,10 @@ function ReminderItem({
           {r.taskId ? (
             <Link
               href={taskHref(r.taskId)}
+              aria-label={`Open task: ${r.title}`}
               className="inline-flex min-h-11 items-center text-accent hover:text-accent-strong sm:min-h-0"
             >
-              Open task<span className="sr-only">: {r.title}</span>
+              Open task
             </Link>
           ) : null}
         </p>
@@ -221,7 +222,7 @@ function AddReminderForm({
     'aria-describedby': errors[name] ? `reminder-${name}-error` : undefined,
   })
   return (
-    <form ref={formRef} action={action} className="mt-2 space-y-3">
+    <form ref={formRef} action={action} noValidate className="mt-2 space-y-3">
       <div>
         <label htmlFor="reminder-title" className={labelClass}>
           Remind me to

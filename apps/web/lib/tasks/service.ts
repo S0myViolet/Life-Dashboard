@@ -7,7 +7,14 @@
 import 'server-only'
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
-import { CalendarDateSchema, localDateInZone } from '@personal-home/core'
+import {
+  CalendarDateSchema,
+  HabitCreateInputSchema,
+  ReminderInputSchema,
+  TaskCreateInputSchema,
+  TaskUpdateInputSchema,
+  localDateInZone,
+} from '@personal-home/core'
 import {
   createHabit,
   createReminder,
@@ -55,6 +62,23 @@ export async function requireTasksTimeZone(tx: Tx): Promise<string> {
 const IdSchema = z.uuid()
 const NOT_FOUND = 'It may have been deleted. Reload the page and try again.'
 
+/** Every field problem at once (the repositories report only the first). */
+function schemaFieldErrors(
+  schema: z.ZodType,
+  value: unknown,
+  fields: readonly string[],
+): Record<string, string> | null {
+  const r = schema.safeParse(value)
+  if (r.success) return null
+  const out: Record<string, string> = {}
+  for (const issue of r.error.issues) {
+    const field = issue.path.length ? String(issue.path[0]) : 'form'
+    const key = fields.includes(field) ? field : 'form'
+    out[key] ??= issue.message
+  }
+  return out
+}
+
 function formError(
   formData: FormData,
   fields: readonly string[],
@@ -96,8 +120,10 @@ export async function createTaskFromForm(
 ): Promise<TasksFormState> {
   const parsed = parseTaskForm(formData, 'create')
   if (!parsed.ok) return formError(formData, TASK_FORM_FIELDS, parsed.fieldErrors)
-  const tz = await requireTasksTimeZone(tx)
   const { fields, reminder } = parsed.value
+  const problems = schemaFieldErrors(TaskCreateInputSchema, fields, TASK_FORM_FIELDS)
+  if (problems) return formError(formData, TASK_FORM_FIELDS, problems)
+  const tz = await requireTasksTimeZone(tx)
   const r = await createTask(tx, fields, { tz, now, reminder })
   if (!r.ok) {
     if (r.reason === 'not_found') return formError(formData, TASK_FORM_FIELDS, {}, NOT_FOUND)
@@ -115,8 +141,10 @@ export async function updateTaskFromForm(
   if (!id.success) return formError(formData, TASK_FORM_FIELDS, {}, NOT_FOUND)
   const parsed = parseTaskForm(formData, 'update')
   if (!parsed.ok) return formError(formData, TASK_FORM_FIELDS, parsed.fieldErrors)
-  const tz = await requireTasksTimeZone(tx)
   const { fields, reminder } = parsed.value
+  const problems = schemaFieldErrors(TaskUpdateInputSchema, fields, TASK_FORM_FIELDS)
+  if (problems) return formError(formData, TASK_FORM_FIELDS, problems)
+  const tz = await requireTasksTimeZone(tx)
   const r = await updateTask(tx, id.data, fields, { tz, now, reminder })
   if (!r.ok) {
     if (r.reason === 'not_found') return formError(formData, TASK_FORM_FIELDS, {}, NOT_FOUND)
@@ -178,6 +206,8 @@ export async function createReminderFromForm(
 ): Promise<TasksFormState> {
   const parsed = parseReminderForm(formData)
   if (!parsed.ok) return formError(formData, REMINDER_FORM_FIELDS, parsed.fieldErrors)
+  const problems = schemaFieldErrors(ReminderInputSchema, parsed.value, REMINDER_FORM_FIELDS)
+  if (problems) return formError(formData, REMINDER_FORM_FIELDS, problems)
   const tz = await requireTasksTimeZone(tx)
   const r = await createReminder(tx, parsed.value, { tz, now })
   if (!r.ok) {
@@ -223,6 +253,8 @@ export async function removeReminder(tx: Tx, id: unknown): Promise<TasksActionRe
 export async function createHabitFromForm(tx: Tx, formData: FormData): Promise<TasksFormState> {
   const parsed = parseHabitForm(formData)
   if (!parsed.ok) return formError(formData, HABIT_FORM_FIELDS, parsed.fieldErrors)
+  const problems = schemaFieldErrors(HabitCreateInputSchema, parsed.value, HABIT_FORM_FIELDS)
+  if (problems) return formError(formData, HABIT_FORM_FIELDS, problems)
   const r = await createHabit(tx, parsed.value)
   if (!r.ok) {
     if (r.reason === 'not_found') return formError(formData, HABIT_FORM_FIELDS, {}, NOT_FOUND)
@@ -236,6 +268,8 @@ export async function updateHabitFromForm(tx: Tx, formData: FormData): Promise<T
   if (!id.success) return formError(formData, HABIT_FORM_FIELDS, {}, NOT_FOUND)
   const parsed = parseHabitForm(formData)
   if (!parsed.ok) return formError(formData, HABIT_FORM_FIELDS, parsed.fieldErrors)
+  const problems = schemaFieldErrors(HabitCreateInputSchema, parsed.value, HABIT_FORM_FIELDS)
+  if (problems) return formError(formData, HABIT_FORM_FIELDS, problems)
   const r = await updateHabit(tx, id.data, parsed.value)
   if (!r.ok) {
     if (r.reason === 'not_found') return formError(formData, HABIT_FORM_FIELDS, {}, NOT_FOUND)

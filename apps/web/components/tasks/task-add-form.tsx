@@ -92,7 +92,13 @@ function AddFormBody({
   }, [state])
 
   return (
-    <form ref={formRef} action={action} aria-labelledby="add-task-heading" className="space-y-3">
+    <form
+      ref={formRef}
+      action={action}
+      noValidate
+      aria-labelledby="add-task-heading"
+      className="space-y-3"
+    >
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <label htmlFor="add-title" className="sr-only">
