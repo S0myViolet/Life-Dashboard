@@ -1,2 +1,2 @@
 // Area barrel — briefings.
-export {}
+export * from './handler.ts'
