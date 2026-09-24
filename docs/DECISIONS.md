@@ -123,6 +123,19 @@ update stored messages but can never shrink them.
 - Nothing is deleted because a page did not show it. A message too long to send is left out and counted, never truncated.
 - There is one live pairing code at a time, valid for 10 minutes and usable once. The helper's permissions are `storage` and `alarms`, the two chat hosts, and the dashboard host requested at pairing.
 
+### D-26 · What "whole conversation" means
+A capture counts as complete only when every message between the first and the last was actually
+observed. The helper reports `contiguous` and `missingCount` from the thread positions it saw
+(ChatGPT turn wrappers, Claude row indexes and `aria-setsize`). A snapshot without that proof,
+including one from an older helper, is never marked complete. The dashboard names any gap,
+for example "12 turns not seen".
+
+### D-27 · Pairing and token hardening
+- A failed pairing attempt counts only against the live code it names.
+- Each source address may fail 10 times in 10 minutes, then receives 429 with `Retry-After`. Addresses are stored only as hashes.
+- The device token is stored in Chrome extension storage set to `TRUSTED_CONTEXTS`, so the content scripts on chatgpt.com and claude.ai cannot read it. Pairing refuses to proceed unless that setting succeeded. The token remains unencrypted on disk inside the Chrome profile.
+- Text the database cannot store (NUL characters, lone surrogates) is cleaned before saving. A payload that still fails validation gets a 422, which the helper drops instead of retrying.
+
 ---
 
 ## Milestone 1
