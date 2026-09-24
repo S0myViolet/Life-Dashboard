@@ -37,8 +37,10 @@ create function public.is_owner() returns boolean
 language sql stable security definer
 set search_path = ''
 as $$
+  -- auth.jwt() ->> 'sub' is Supabase's current recommendation (auth.uid() is deprecated).
   select exists (
-    select 1 from private.owner o where o.user_id = (select auth.uid())
+    select 1 from private.owner o
+    where o.user_id = nullif((select auth.jwt()) ->> 'sub', '')::uuid
   )
 $$;
 

@@ -8,18 +8,13 @@
  */
 import { randomBytes, randomUUID } from 'node:crypto'
 import postgres from 'postgres'
+import { inject } from 'vitest'
 import { createDb, withOwner, type Db, type OwnerClaims, type Tx } from '../src/client.ts'
 import { claimOwner } from '../src/owner.ts'
 
 const PORT = Number(process.env.PH_PG_PORT ?? 54329)
 
 export function serverUrl(db = 'postgres'): string {
-  const base = process.env.TEST_DATABASE_URL
-  if (base) {
-    const u = new URL(base)
-    u.pathname = `/${db}`
-    return u.toString()
-  }
   return `postgres://postgres@127.0.0.1:${PORT}/${db}`
 }
 
@@ -30,7 +25,8 @@ export interface TestDatabase {
   drop(): Promise<void>
 }
 
-export async function createTestDatabase(template = 'ph_template'): Promise<TestDatabase> {
+/** Clone the run's template (see global-setup.ts) into a fresh, uniquely named database. */
+export async function createTestDatabase(template: string = inject('templateDb')): Promise<TestDatabase> {
   const name = `ph_test_${randomBytes(6).toString('hex')}`
   const admin = postgres(serverUrl('postgres'), { max: 1, onnotice: () => {} })
   try {

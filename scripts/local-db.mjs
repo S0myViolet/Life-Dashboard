@@ -6,12 +6,13 @@
  *   node scripts/local-db.mjs stop
  *   node scripts/local-db.mjs status
  *   node scripts/local-db.mjs url       # print the superuser connection URL
- *   node scripts/local-db.mjs template  # (re)build database `ph_template` = Supabase shim + all migrations
+ *   node scripts/local-db.mjs template  # build/reuse `ph_tpl_<hash>` = Supabase shim + all migrations
  *   node scripts/local-db.mjs reset     # stop and delete the cluster
  *
- * If you already run `supabase start`, point tests at it with TEST_DATABASE_URL
- * instead; this script is only a convenience for machines without Docker.
+ * Any Postgres 15+ already listening on 127.0.0.1:$PH_PG_PORT (trust auth for user
+ * `postgres`) is reused, so git worktrees share one server.
  */
+import { createHash } from 'node:crypto'
 import { execFileSync, spawnSync } from 'node:child_process'
 import {
   existsSync,
@@ -26,7 +27,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const BASE = join(ROOT, '.tmp', 'pg')
+const BASE = process.env.PH_PG_DIR ?? join(ROOT, '.tmp', 'pg')
 const DATA = join(BASE, 'data')
 const SOCK = join(BASE, 'socket')
 const LOG = join(BASE, 'postgres.log')
@@ -79,6 +80,7 @@ function isRunning() {
 }
 
 export function start() {
+  if (isRunning()) return url()
   mkdirSync(BASE, { recursive: true })
   ensureOwnership(join(ROOT, '.tmp'))
   ensureOwnership(BASE)
@@ -164,17 +166,55 @@ export function migrationFiles() {
     .map((f) => join(dir, f))
 }
 
-/** Rebuild `ph_template`: Supabase shim + every migration, in filename order. */
-export function buildTemplate(name = 'ph_template') {
+function shimFile() {
+  return join(ROOT, 'supabase', 'tests', 'shim', 'supabase_shim.sql')
+}
+
+/** Content hash of the shim + every migration, so identical schemas share one template. */
+export function schemaHash() {
+  const h = createHash('sha256')
+  for (const file of [shimFile(), ...migrationFiles()]) {
+    h.update(file.slice(ROOT.length))
+    h.update('\0')
+    h.update(readFileSync(file))
+    h.update('\0')
+  }
+  return h.digest('hex').slice(0, 12)
+}
+
+function databaseExists(name) {
+  const out = psql('postgres', `select 1 from pg_database where datname = '${name}'`)
+  return out.includes('1')
+}
+
+/**
+ * Build (or reuse) a template database = Supabase shim + all migrations.
+ * The name is content-addressed (`ph_tpl_<hash>`), built under a new name and
+ * renamed when complete, so parallel test runs never see a half-built template
+ * or drop one another's template.
+ */
+export function buildTemplate(explicitName) {
   start()
-  psql(
-    'postgres',
-    `select pg_terminate_backend(pid) from pg_stat_activity where datname = '${name}' and pid <> pg_backend_pid()`,
-  )
-  psql('postgres', `drop database if exists ${name}`)
-  psql('postgres', `create database ${name}`)
-  psql(name, join(ROOT, 'supabase', 'tests', 'shim', 'supabase_shim.sql'), { file: true })
-  for (const file of migrationFiles()) psql(name, file, { file: true })
+  const name = explicitName ?? `ph_tpl_${schemaHash()}`
+  if (!explicitName && databaseExists(name)) return url(name)
+  const building = `${name}_b${process.pid}`
+  psql('postgres', `drop database if exists ${building}`)
+  psql('postgres', `create database ${building}`)
+  try {
+    psql(building, shimFile(), { file: true })
+    for (const file of migrationFiles()) psql(building, file, { file: true })
+  } catch (err) {
+    psql('postgres', `drop database if exists ${building}`)
+    throw err
+  }
+  try {
+    if (explicitName) psql('postgres', `drop database if exists ${name} with (force)`)
+    psql('postgres', `alter database ${building} rename to ${name}`)
+  } catch (err) {
+    // Another process finished the same template first: use theirs.
+    psql('postgres', `drop database if exists ${building}`)
+    if (!databaseExists(name)) throw err
+  }
   return url(name)
 }
 
@@ -196,6 +236,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         break
       case 'template':
         console.log(buildTemplate(process.argv[3]))
+        break
+      case 'template-name':
+        console.log(`ph_tpl_${schemaHash()}`)
         break
       case 'reset':
         stop()
