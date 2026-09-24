@@ -1,2 +1,4 @@
 // Area barrel — people (Milestone 1).
-export {}
+export * from './people.ts'
+export * from './dates.ts'
+export * from './cadence.ts'
