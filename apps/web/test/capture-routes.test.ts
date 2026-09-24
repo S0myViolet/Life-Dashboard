@@ -21,6 +21,14 @@ import { POST as snapshotRoute } from '@/app/api/capture/v1/snapshots/route'
 import { POST as statusRoute } from '@/app/api/capture/v1/status/route'
 import { getDb } from '@/lib/server/db'
 
+// The db harness reads inject('templateDb'); its type lives in packages/db/test/global-setup.ts,
+// which this app's tsconfig does not include.
+declare module 'vitest' {
+  export interface ProvidedContext {
+    templateDb: string
+  }
+}
+
 const ORIGIN = `chrome-extension://${'abcdefghijklmnop'.repeat(2)}`
 const OTHER_ORIGIN = `chrome-extension://${'ponmlkjihgfedcba'.repeat(2)}`
 const CHAT_ID = '0b6a1f5e-9a3c-4c1e-8f2d-3a4b5c6d7e8f'
