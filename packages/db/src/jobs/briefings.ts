@@ -127,7 +127,10 @@ export async function listRecentBriefings(tx: Tx, limit = 14): Promise<BriefingR
 }
 
 /** The latest published briefing (optionally of one kind), e.g. for Home. */
-export async function getLatestPublishedBriefing(tx: Tx, kind?: BriefingKind): Promise<BriefingRow | null> {
+export async function getLatestPublishedBriefing(
+  tx: Tx,
+  kind?: BriefingKind,
+): Promise<BriefingRow | null> {
   const [row] = await tx<BriefingRow[]>`
     select * from public.briefings
     where status = 'published' and (${kind ?? null}::text is null or kind = ${kind ?? null})

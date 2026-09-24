@@ -34,7 +34,12 @@ import {
   type Db,
 } from '@personal-home/db'
 import { materialiseDueSchedules, type ScheduleSummary } from './materialise.ts'
-import { registeredJobKinds, type JobContext, type JobHandler, type JobHandlerRegistry } from './types.ts'
+import {
+  registeredJobKinds,
+  type JobContext,
+  type JobHandler,
+  type JobHandlerRegistry,
+} from './types.ts'
 
 export const DISPATCHER_DEFAULTS = {
   leaseMs: 60_000,
@@ -140,7 +145,8 @@ function rejectOnAbort(signal: AbortSignal): Promise<never> {
 }
 
 function positive(name: string, value: number): number {
-  if (!(Number.isFinite(value) && value > 0)) throw new RangeError(`${name} must be a positive number`)
+  if (!(Number.isFinite(value) && value > 0))
+    throw new RangeError(`${name} must be a positive number`)
   return value
 }
 
@@ -148,12 +154,21 @@ export async function runDispatcher(o: RunDispatcherOptions): Promise<Dispatcher
   const now = o.now ?? (() => new Date())
   const mono = o.monotonicNow ?? (() => performance.now())
   const budgetMs = positive('budgetMs', o.budgetMs)
-  if (!Number.isInteger(o.maxJobs) || o.maxJobs < 0) throw new RangeError('maxJobs must be a non-negative integer')
-  if (!o.workerId || o.workerId.length > 200) throw new RangeError('workerId must be 1–200 characters')
+  if (!Number.isInteger(o.maxJobs) || o.maxJobs < 0)
+    throw new RangeError('maxJobs must be a non-negative integer')
+  if (!o.workerId || o.workerId.length > 200)
+    throw new RangeError('workerId must be 1–200 characters')
   const leaseMs = positive('leaseMs', o.leaseMs ?? DISPATCHER_DEFAULTS.leaseMs)
-  const defaultTimeoutMs = positive('defaultJobTimeoutMs', o.defaultJobTimeoutMs ?? DISPATCHER_DEFAULTS.defaultJobTimeoutMs)
-  const heartbeatMs = positive('heartbeatIntervalMs', o.heartbeatIntervalMs ?? Math.max(100, Math.floor(leaseMs / 3)))
-  if (heartbeatMs >= leaseMs) throw new RangeError('heartbeatIntervalMs must be shorter than leaseMs')
+  const defaultTimeoutMs = positive(
+    'defaultJobTimeoutMs',
+    o.defaultJobTimeoutMs ?? DISPATCHER_DEFAULTS.defaultJobTimeoutMs,
+  )
+  const heartbeatMs = positive(
+    'heartbeatIntervalMs',
+    o.heartbeatIntervalMs ?? Math.max(100, Math.floor(leaseMs / 3)),
+  )
+  if (heartbeatMs >= leaseMs)
+    throw new RangeError('heartbeatIntervalMs must be shorter than leaseMs')
   const reserveMs = o.finalizeReserveMs ?? DISPATCHER_DEFAULTS.finalizeReserveMs
   const log = o.log ?? (() => {})
   const { db, handlers, workerId } = o
@@ -176,7 +191,9 @@ export async function runDispatcher(o: RunDispatcherOptions): Promise<Dispatcher
   // A handler whose timeout cannot fit in the budget would never be claimed: fail loudly.
   const tooSlow = kinds.filter((k) => timeoutFor(handlers[k]!) + reserveMs > budgetMs)
   if (tooSlow.length > 0) {
-    throw new RangeError(`job timeout plus finalizeReserveMs exceeds budgetMs for: ${tooSlow.join(', ')}`)
+    throw new RangeError(
+      `job timeout plus finalizeReserveMs exceeds budgetMs for: ${tooSlow.join(', ')}`,
+    )
   }
 
   const runOnDead = async (job: JobRow, error: string) => {
@@ -217,7 +234,9 @@ export async function runDispatcher(o: RunDispatcherOptions): Promise<Dispatcher
     const scheduleHeartbeat = () => {
       hbTimer = setTimeout(() => {
         heartbeat()
-          .catch((err) => log({ event: 'heartbeat_error', jobId: job.id, message: sanitizeJobError(err) }))
+          .catch((err) =>
+            log({ event: 'heartbeat_error', jobId: job.id, message: sanitizeJobError(err) }),
+          )
           .finally(() => {
             if (!finished && !controller.signal.aborted) scheduleHeartbeat()
           })
@@ -240,11 +259,16 @@ export async function runDispatcher(o: RunDispatcherOptions): Promise<Dispatcher
       running.catch(() => {})
       const value = await Promise.race([running, rejectOnAbort(controller.signal)])
       stop()
-      const parsed = value == null ? { success: true as const, data: null } : JobJsonObjectSchema.safeParse(value)
+      const parsed =
+        value == null
+          ? { success: true as const, data: null }
+          : JobJsonObjectSchema.safeParse(value)
       if (!parsed.success) {
         throw new JobFailure('Handler returned an invalid result', { retryable: false })
       }
-      const ok = await withService(db, (tx) => completeJob(tx, job, { result: parsed.data, now: now() }))
+      const ok = await withService(db, (tx) =>
+        completeJob(tx, job, { result: parsed.data, now: now() }),
+      )
       outcome = ok ? 'succeeded' : 'lease_lost'
     } catch (err) {
       stop()

@@ -1,0 +1,22 @@
+{
+  "imports": {
+    "@personal-home/core": "../../packages/core/src/index.ts",
+    "@personal-home/db": "../../packages/db/src/index.ts",
+    "@personal-home/integrations": "../../packages/integrations/src/index.ts",
+    "@personal-home/jobs": "../../packages/jobs/src/index.ts",
+    "postgres": "npm:postgres@3.4.9",
+    "zod": "npm:zod@4.6.5"
+  },
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "nodeModulesDir": "none",
+  "lock": false,
+  "lint": {
+    "rules": {
+      "tags": ["recommended"]
+    }
+  }
+}

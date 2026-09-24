@@ -122,7 +122,9 @@ export interface JobOwnerContext {
 
 /** Owner facts the scheduler and briefing handlers need (service read, bypasses RLS). */
 export async function readJobOwnerContext(tx: Tx): Promise<JobOwnerContext> {
-  const [row] = await tx<{ hasOwner: boolean; timezone: string | null; timezoneConfirmed: boolean | null }[]>`
+  const [row] = await tx<
+    { hasOwner: boolean; timezone: string | null; timezoneConfirmed: boolean | null }[]
+  >`
     select
       exists (select 1 from private.owner) as has_owner,
       (select s.timezone from public.owner_settings s limit 1) as timezone,

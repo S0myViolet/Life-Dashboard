@@ -92,19 +92,61 @@ export const BriefingSourceFreshnessSchema = z.object({
 })
 export type BriefingSourceFreshness = z.infer<typeof BriefingSourceFreshnessSchema>
 
-const SECTIONS: Record<BriefingKind, ReadonlyArray<Omit<BriefingSection, 'status' | 'availableIn'>>> = {
+const SECTIONS: Record<
+  BriefingKind,
+  ReadonlyArray<Omit<BriefingSection, 'status' | 'availableIn'>>
+> = {
   morning: [
-    { key: 'important_email', title: 'Important email', description: 'Action requests, explicit deadlines and important updates from connected Gmail and Outlook accounts.' },
-    { key: 'todays_commitments', title: "Today's commitments", description: 'Calendar events, due tasks and reminders for today.' },
-    { key: 'daily_plan', title: 'Proposed plan for today', description: 'Three priorities, a suggested order and what can wait, refreshed from the planner.' },
-    { key: 'project_priorities', title: 'Project priorities', description: 'Priorities drawn from captured ChatGPT and Claude project conversations.' },
-    { key: 'upcoming_renewals', title: 'Upcoming renewals', description: 'Confirmed subscriptions renewing soon.' },
+    {
+      key: 'important_email',
+      title: 'Important email',
+      description:
+        'Action requests, explicit deadlines and important updates from connected Gmail and Outlook accounts.',
+    },
+    {
+      key: 'todays_commitments',
+      title: "Today's commitments",
+      description: 'Calendar events, due tasks and reminders for today.',
+    },
+    {
+      key: 'daily_plan',
+      title: 'Proposed plan for today',
+      description:
+        'Three priorities, a suggested order and what can wait, refreshed from the planner.',
+    },
+    {
+      key: 'project_priorities',
+      title: 'Project priorities',
+      description: 'Priorities drawn from captured ChatGPT and Claude project conversations.',
+    },
+    {
+      key: 'upcoming_renewals',
+      title: 'Upcoming renewals',
+      description: 'Confirmed subscriptions renewing soon.',
+    },
   ],
   evening: [
-    { key: 'project_progress', title: 'Project progress', description: "What moved forward in today's captured project conversations." },
-    { key: 'unresolved_questions', title: 'Unresolved questions', description: 'Open questions left in project conversations.' },
-    { key: 'suggested_next_actions', title: 'Suggested next actions', description: "Suggestions that can inform tomorrow's draft plan without changing accepted tasks." },
-    { key: 'journal_prompts', title: 'Optional journal prompts', description: 'A few optional prompts for the journal.' },
+    {
+      key: 'project_progress',
+      title: 'Project progress',
+      description: "What moved forward in today's captured project conversations.",
+    },
+    {
+      key: 'unresolved_questions',
+      title: 'Unresolved questions',
+      description: 'Open questions left in project conversations.',
+    },
+    {
+      key: 'suggested_next_actions',
+      title: 'Suggested next actions',
+      description:
+        "Suggestions that can inform tomorrow's draft plan without changing accepted tasks.",
+    },
+    {
+      key: 'journal_prompts',
+      title: 'Optional journal prompts',
+      description: 'A few optional prompts for the journal.',
+    },
   ],
 }
 
@@ -113,7 +155,10 @@ const SECTIONS: Record<BriefingKind, ReadonlyArray<Omit<BriefingSection, 'status
  * It lists what each section will contain and when it arrives — no invented
  * email counts, plans or "nothing today" claims.
  */
-export function buildBriefingSkeletonContent(kind: BriefingKind, localDate: string): BriefingContent {
+export function buildBriefingSkeletonContent(
+  kind: BriefingKind,
+  localDate: string,
+): BriefingContent {
   const date = CalendarDateSchema.parse(localDate)
   return {
     version: 1,

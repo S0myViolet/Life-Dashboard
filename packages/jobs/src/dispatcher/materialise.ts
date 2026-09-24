@@ -82,7 +82,11 @@ export async function materialiseDueSchedules(input: {
 
       const payload =
         occurrence.localDate !== null
-          ? { localDate: occurrence.localDate, scheduledFor: occurrence.dueAt.toISOString(), timezone }
+          ? {
+              localDate: occurrence.localDate,
+              scheduledFor: occurrence.dueAt.toISOString(),
+              timezone,
+            }
           : { periodStart: occurrence.dueAt.toISOString() }
       const { created } = await enqueueJob(
         tx,

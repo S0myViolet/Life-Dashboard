@@ -207,7 +207,11 @@ export function addLocalDays(localDate: string, days: number): string {
   const d = new Date(Date.UTC(2000, p.month - 1, p.day))
   d.setUTCFullYear(p.year)
   d.setUTCDate(d.getUTCDate() + days)
-  return formatLocalDate({ year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() })
+  return formatLocalDate({
+    year: d.getUTCFullYear(),
+    month: d.getUTCMonth() + 1,
+    day: d.getUTCDate(),
+  })
 }
 
 /** ISO weekday of a local date: Monday = 1 … Sunday = 7. */
