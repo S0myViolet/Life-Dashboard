@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Personal Home capture</title>
+    <link rel="stylesheet" href="extension.css" />
+    <script type="module" src="popup.js"></script>
+  </head>
+  <body class="popup">
+    <main>
+      <div class="row">
+        <h1>Personal Home capture</h1>
+        <span class="pill" id="version"></span>
+      </div>
+
+      <section aria-labelledby="pairing-heading">
+        <h2 id="pairing-heading">Connection</h2>
+        <p id="pairing-status" role="status">Loading…</p>
+        <div class="row">
+          <button type="button" id="open-options">Options</button>
+          <button type="button" id="sync-now">Sync now</button>
+        </div>
+        <p id="queue-status" class="small muted"></p>
+      </section>
+
+      <section aria-labelledby="current-heading">
+        <h2 id="current-heading">This tab</h2>
+        <p id="current-status" class="muted">Open a ChatGPT or Claude conversation to track it.</p>
+        <button type="button" id="track" class="primary" hidden>Track this conversation</button>
+      </section>
+
+      <section aria-labelledby="collecting-heading">
+        <div class="row">
+          <h2 id="collecting-heading">Collecting</h2>
+          <label class="inline"><input type="checkbox" id="paused-all" /> Pause all</label>
+        </div>
+        <ul id="conversations"></ul>
+      </section>
+
+      <section aria-labelledby="revisit-heading">
+        <h2 id="revisit-heading">Background revisits (prototype)</h2>
+        <p class="note" id="revisit-note">
+          Off by default. When on, the helper reopens each selected conversation every 30 minutes
+          while Chrome runs: one normal background tab per service, visible in your tab strip,
+          closed after one capture or 90 seconds. It stops on any sign-in page or verification
+          check and never clicks through them.
+          <strong>Terms of use:</strong> OpenAI's Terms of Use prohibit automatically or
+          programmatically extracting data or output, and Anthropic's Consumer Terms prohibit
+          accessing the services through automated or non-human means. Using revisits may breach
+          those terms and could put your accounts at risk. Passive capture (only while you have a
+          conversation open) is the default.
+        </p>
+        <label class="inline"
+          ><input type="checkbox" id="revisit-ack" /> I have read this and choose to run the
+          prototype on my own accounts.</label
+        >
+        <div class="row">
+          <p id="revisit-status" class="small muted"></p>
+          <button type="button" id="revisit-toggle">Turn on</button>
+        </div>
+        <ul id="revisit-blocked"></ul>
+      </section>
+
+      <section aria-labelledby="log-heading">
+        <h2 id="log-heading">Recent activity</h2>
+        <ul id="log" class="log"></ul>
+      </section>
+    </main>
+  </body>
+</html>

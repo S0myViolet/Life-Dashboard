@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Personal Home capture helper",
+  "short_name": "PH capture",
+  "description": "Private helper that collects the ChatGPT and Claude conversations you select into your Personal Home dashboard.",
+  "version": "0.1.0",
+  "minimum_chrome_version": "120",
+  "permissions": ["storage", "alarms"],
+  "host_permissions": ["https://chatgpt.com/*", "https://claude.ai/*"],
+  "optional_host_permissions": ["https://*/*", "http://localhost/*", "http://127.0.0.1/*"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://chatgpt.com/*"],
+      "js": ["content-chatgpt.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": ["content-claude.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Personal Home capture",
+    "default_popup": "popup.html"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}
