@@ -113,6 +113,8 @@ const PAIR_ERRORS: Record<string, string> = {
   invalid_device_name: 'Give this browser a short name (1–60 characters).',
   invalid_or_expired_code:
     'The dashboard refused the code: it is wrong, already used, expired or locked after too many attempts. Create a new one in Settings → Chrome helper.',
+  storage_not_private:
+    'This version of Chrome cannot keep the helper’s storage away from web pages, so the helper will not store a dashboard token. Update Chrome, then pair again.',
   too_many_attempts:
     'Too many wrong codes were tried from this network recently. Wait 10 minutes, then try again with a new code.',
   extension_origin_required:
@@ -775,6 +777,8 @@ export class Background {
       return fail('invalid_device_name')
     }
     if (!(await this.chrome.hasHostPermission(originPermissionPattern(origin)))) return fail('permission_missing')
+    // Before the code is spent: the token may only be stored where content scripts cannot read it.
+    if (!(await this.chrome.restrictStorage())) return fail('storage_not_private')
 
     const res = await this.api({ apiOrigin: origin }).pair(code, deviceName)
     if (!res.ok) return fail(res.status === 401 ? 'invalid_or_expired_code' : res.status === 403 ? 'extension_origin_required' : res.error)

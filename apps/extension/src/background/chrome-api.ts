@@ -15,6 +15,12 @@ export interface ChromeApi {
   readonly version: string
   storageGet<K extends StateKey>(keys: K[]): Promise<Pick<StoredState, K>>
   storageSet(patch: Partial<StoredState>): Promise<void>
+  /**
+   * Make chrome.storage.local (and session) readable only by trusted contexts:
+   * this service worker and the extension's own pages, never the content
+   * scripts running inside chatgpt.com / claude.ai. False if Chrome refuses.
+   */
+  restrictStorage(): Promise<boolean>
   alarmExists(name: string): Promise<boolean>
   alarmCreate(name: string, periodInMinutes: number, delayInMinutes: number): Promise<void>
   /** A normal background tab in the owner's current window (visible in the tab strip). */
@@ -41,6 +47,15 @@ export const realChromeApi = (): ChromeApi => ({
   },
   async storageSet(patch) {
     await chrome.storage.local.set(patch)
+  },
+  async restrictStorage() {
+    try {
+      await chrome.storage.local.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' })
+      await chrome.storage.session.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' })
+      return true
+    } catch {
+      return false
+    }
   },
   async alarmExists(name) {
     return (await chrome.alarms.get(name)) !== undefined

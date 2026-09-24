@@ -40,7 +40,7 @@ lines without newlines. The key is public; it is not a secret, but it is not com
 
 | Key | Why |
 |---|---|
-| `permissions: storage` | Device token, selection cache, upload queue and settings in `chrome.storage.local`. |
+| `permissions: storage` | Device token, selection cache, upload queue and settings in `chrome.storage.local`, restricted to the worker and the helper's own pages (not content scripts). |
 | `permissions: alarms` | One 1-minute alarm: selection sync, queue retry, wake/startup catch-up, revisits. |
 | `host_permissions: https://chatgpt.com/*, https://claude.ai/*` | Content scripts on those sites; reading a revisit tab's URL. |
 | `optional_host_permissions` | Your dashboard's address, requested only when you pair (`https://*/*`, or `http://localhost` for development). |
@@ -62,6 +62,33 @@ Not requested: `tabs`, `scripting`, `cookies`, `webRequest`, `history`, `notific
 3. The dashboard returns a device token once. The helper keeps it in `chrome.storage.local`; the
    dashboard stores only its SHA-256 hash. Revoke a browser from Settings → Chrome helper at any
    time; **Unpair** in Options deletes the token and any queued captures from the browser.
+
+### Where the token is kept, and why
+
+By default `chrome.storage.local` is readable and writable by the extension's content scripts,
+which run inside chatgpt.com and claude.ai next to untrusted AI output. The service worker
+therefore calls `chrome.storage.local.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' })` (and
+the same for `session`) every time it starts, and pairing checks that the call succeeded
+**before** it spends the code or stores a token. After that only the service worker and the
+helper's own popup/options pages can use the storage; the content scripts never needed it (they
+message the worker). If Chrome refuses the call, the helper does not pair and says why.
+
+Trade-offs considered:
+
+- `chrome.storage.session` is also limited to trusted contexts, but it lives in memory and is
+  cleared whenever Chrome quits. The token would be lost on every restart, so startup catch-up
+  and the offline queue could not work without pairing again each day. Not chosen.
+- Restricting `local` keeps the token (and the pairing address, queue and selection, which a
+  content script could otherwise rewrite to redirect uploads) out of reach of the pages while
+  surviving restarts. The token is still stored unencrypted in the Chrome profile on disk:
+  anyone who can read your OS account's files can read it. If the laptop is lost, revoke the
+  browser in Settings → Chrome helper.
+
+Checked locally on 2026-09-24 in Chromium 141 (Playwright, a throwaway extension and a synthetic
+page, not the live services): without the call a content script read and wrote
+`chrome.storage.local`; after it, both failed with "Access to storage is not allowed from this
+context", and the setting was still in force after restarting the browser with the same
+profile.
 
 The token can only list the conversations you selected (id, provider, id from the URL, URL, state)
 and upload captures or problem reports for them. It cannot select conversations, read captured

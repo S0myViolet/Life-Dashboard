@@ -39,3 +39,27 @@ describe('realChromeApi().alarmCreate', () => {
     expect(create).toHaveBeenLastCalledWith('ph-tick', { periodInMinutes: 1, delayInMinutes: 0.5 })
   })
 })
+
+describe('realChromeApi().restrictStorage', () => {
+  function stubStorage(local: ReturnType<typeof vi.fn>, session: ReturnType<typeof vi.fn>) {
+    g.chrome = {
+      runtime: { id: 'abcdefghijklmnopabcdefghijklmnop', getManifest: () => ({ version: '0.1.0' }) },
+      storage: { local: { setAccessLevel: local }, session: { setAccessLevel: session } },
+    }
+  }
+
+  it('limits local and session storage to the worker and extension pages (not content scripts)', async () => {
+    const local = vi.fn().mockResolvedValue(undefined)
+    const session = vi.fn().mockResolvedValue(undefined)
+    stubStorage(local, session)
+    expect(await realChromeApi().restrictStorage()).toBe(true)
+    expect(local).toHaveBeenCalledWith({ accessLevel: 'TRUSTED_CONTEXTS' })
+    expect(session).toHaveBeenCalledWith({ accessLevel: 'TRUSTED_CONTEXTS' })
+  })
+
+  it('reports failure when Chrome refuses to restrict local storage', async () => {
+    const local = vi.fn().mockRejectedValue(new Error('This StorageArea is not available for setting access level'))
+    stubStorage(local, vi.fn().mockResolvedValue(undefined))
+    expect(await realChromeApi().restrictStorage()).toBe(false)
+  })
+})

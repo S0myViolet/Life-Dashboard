@@ -6,7 +6,12 @@
 import { Background } from './background.ts'
 import { realChromeApi } from './chrome-api.ts'
 
-const background = new Background(realChromeApi(), (input, init) => fetch(input, init))
+const chromeApi = realChromeApi()
+// Keep chrome.storage (device token, queue, settings) away from content scripts.
+// Chrome remembers the level; it is set again on every start, and pairing
+// checks it before a token is stored.
+void chromeApi.restrictStorage()
+const background = new Background(chromeApi, (input, init) => fetch(input, init))
 
 chrome.runtime.onInstalled.addListener((details) => {
   void background.onInstalled(details.reason)

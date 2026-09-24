@@ -1,8 +1,11 @@
 /**
  * Everything the service worker persists in chrome.storage.local. The worker is
  * stopped after ~30 s idle and its globals are lost, so all state lives here.
- * The device token is stored only here and never leaves the service worker
- * except as a Bearer header to the paired dashboard origin.
+ * The local area is restricted to trusted contexts (the worker and the
+ * extension's own pages; see ChromeApi.restrictStorage) before a token is ever
+ * written, so the content scripts inside chatgpt.com / claude.ai cannot read or
+ * rewrite it. The token never leaves the service worker except as a Bearer
+ * header to the paired dashboard origin; pages get a view without it.
  */
 import type { CaptureProblemState, CaptureProvider, CaptureSelectionItem } from '@personal-home/core'
 import type { ActivityEntry } from '../shared/protocol.ts'

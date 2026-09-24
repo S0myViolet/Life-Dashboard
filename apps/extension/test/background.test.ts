@@ -31,6 +31,9 @@ class FakeChrome implements ChromeApi {
   opened: string[] = []
   notices: number[] = []
   badge: Badge | null = null
+  /** Whether chrome.storage.local accepts TRUSTED_CONTEXTS (Chromium 141 does); calls so far. */
+  restrictable = true
+  restricted = 0
 
   async storageGet<K extends keyof StoredState>(keys: K[]) {
     const out = {} as Pick<StoredState, K>
@@ -38,7 +41,12 @@ class FakeChrome implements ChromeApi {
     return out
   }
   async storageSet(patch: Partial<StoredState>) {
+    if (patch.pairing?.token && this.restricted === 0) throw new Error('token written before storage was restricted')
     this.store = { ...this.store, ...structuredClone(patch) }
+  }
+  async restrictStorage() {
+    if (this.restrictable) this.restricted++
+    return this.restrictable
   }
   async alarmExists(name: string) {
     return this.alarms.has(name)
@@ -194,6 +202,20 @@ describe('pairing', () => {
     expect(JSON.stringify(view)).not.toContain(TOKEN)
     expect(view).toMatchObject({ paired: true, apiOrigin: DASH, conversations: [{ externalId: CHAT_ID }] })
     expect(chrome.alarms.has(TICK_ALARM)).toBe(true)
+  })
+
+  it('keeps the token where content scripts cannot read it, or does not pair at all', async () => {
+    chrome.granted.add('https://home.example.com/*')
+    chrome.restrictable = false
+    const refused = (await bg.onMessage({ type: 'ph:pair', apiOrigin: DASH, code: CODE, deviceName: 'Laptop' }, PAGE)) as PairResult
+    expect(refused).toMatchObject({ ok: false, error: 'storage_not_private' })
+    expect(dash.requests).toHaveLength(0) // the one-time code is not spent
+    expect(chrome.store.pairing).toBeNull()
+
+    chrome.restrictable = true
+    await paired()
+    expect(chrome.restricted).toBeGreaterThan(0)
+    expect(chrome.store.pairing?.token).toBe(TOKEN)
   })
 
   it('validates the address and code before calling anything, and explains a refused code', async () => {
