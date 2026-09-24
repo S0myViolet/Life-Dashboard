@@ -356,6 +356,8 @@ describe('runDispatcher', () => {
     ])
 
     await seedOwner(t.db)
+    // claimed_at defaults to the real clock; the schedule starts no earlier than the claim.
+    await t.db`update private.owner set claimed_at = '2026-09-24T12:12:00Z'`
     const runs = await Promise.all([
       dispatch(t.db, { handlers, schedules, now: at('2026-09-24T12:15:00Z'), workerId: 'a' }),
       dispatch(t.db, { handlers, schedules, now: at('2026-09-24T12:15:00Z'), workerId: 'b' }),

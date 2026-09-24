@@ -625,13 +625,16 @@ describe('schedules', () => {
     try {
       expect(await withService(db.db, (tx) => readJobOwnerContext(tx))).toEqual({
         hasOwner: false,
+        ownerClaimedAt: null,
         timezone: 'Europe/London',
         timezoneConfirmed: false,
       })
       await seedOwner(db.db)
+      await db.db`update private.owner set claimed_at = '2026-06-05T07:30:00Z'`
       await db.db`update public.owner_settings set timezone = 'Asia/Kolkata', timezone_confirmed = true`
       expect(await withService(db.db, (tx) => readJobOwnerContext(tx))).toEqual({
         hasOwner: true,
+        ownerClaimedAt: new Date('2026-06-05T07:30:00Z'),
         timezone: 'Asia/Kolkata',
         timezoneConfirmed: true,
       })

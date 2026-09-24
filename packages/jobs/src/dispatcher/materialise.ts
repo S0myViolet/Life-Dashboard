@@ -22,7 +22,12 @@ import {
 } from '@personal-home/db'
 import type { JobHandlerRegistry } from './types.ts'
 
-export type ScheduleSkipReason = 'no_handler' | 'no_owner' | 'no_timezone'
+export type ScheduleSkipReason =
+  | 'no_handler'
+  | 'no_owner'
+  | 'no_timezone'
+  /** owner_settings.timezone is still the install-time placeholder (brief: confirmed in setup). */
+  | 'timezone_unconfirmed'
 
 export interface ScheduleSummary {
   /** Enabled schedules examined (excluding ones another dispatcher held). */
@@ -62,15 +67,25 @@ export async function materialiseDueSchedules(input: {
         summary.skipped.push({ name: def.name, reason: 'no_owner' })
         continue
       }
-      if (def.cadence === 'daily_local_time' && !timezone) {
-        summary.skipped.push({ name: def.name, reason: 'no_timezone' })
-        continue
+      if (def.cadence === 'daily_local_time') {
+        if (!timezone) {
+          summary.skipped.push({ name: def.name, reason: 'no_timezone' })
+          continue
+        }
+        // Local times computed from the placeholder zone would publish (and notify) at the
+        // wrong hour, and their (kind, local date) row would block the correct one later.
+        if (!owner.timezoneConfirmed) {
+          summary.skipped.push({ name: def.name, reason: 'timezone_unconfirmed' })
+          continue
+        }
       }
 
       const occurrence = latestDueOccurrence(def, now, timezone)
       const due = shouldMaterialiseOccurrence({
         occurrence,
-        enabledSince: row.enabledSince,
+        // The schedule starts when it was enabled or when the owner was claimed, whichever
+        // is later: nothing is published for dates before there was an owner.
+        enabledSince: laterOf(row.enabledSince, owner.ownerClaimedAt),
         lastOccurrenceAt: row.lastOccurrenceAt,
       })
       if (!due) {
@@ -108,4 +123,8 @@ export async function materialiseDueSchedules(input: {
     }
     return summary
   })
+}
+
+function laterOf(a: Date, b: Date | null): Date {
+  return b && b.getTime() > a.getTime() ? b : a
 }

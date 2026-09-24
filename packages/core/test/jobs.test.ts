@@ -355,6 +355,9 @@ describe('briefings', () => {
     expect(JSON.stringify(a.sections).replaceAll('Milestone 2', '')).not.toMatch(/\d/)
     const e = buildBriefingSkeletonContent('evening', '2026-09-24')
     expect(e.sections.map((s) => s.key)).toContain('journal_prompts')
+    // The same content is published on time, late, as an outage catch-up or by a manual
+    // run, so it makes no claim about timing (lateness is the row's is_late label).
+    for (const c of [a, e]) expect(c.summary).not.toMatch(/on schedule|on time|\blate\b/i)
     // JSON keys are camelCase so the postgres.camel transform returns them unchanged.
     expect(JSON.stringify(a)).not.toMatch(/"[a-z]+_[a-z_]+":/)
     expect(buildBriefingSourceFreshness().sources).toEqual([])

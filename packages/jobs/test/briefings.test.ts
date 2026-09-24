@@ -44,12 +44,27 @@ afterEach(async () => {
 
 const registry = createJobHandlerRegistry(briefingJobHandlers)
 
+/** The simulated clocks below start in March 2026; the owner is claimed before all of them. */
+const OWNER_CLAIMED_AT = '2026-01-01T00:00:00Z'
+
+async function claimOwner(t: TestDatabase, claimedAt = OWNER_CLAIMED_AT) {
+  await seedOwner(t.db)
+  // claimed_at defaults to the real clock; align it with the simulated one.
+  await t.db`update private.owner set claimed_at = ${claimedAt}::timestamptz`
+}
+
 async function setup(timezone = 'Europe/London'): Promise<TestDatabase> {
   const t = await createTestDatabase()
   dbs.push(t)
-  await seedOwner(t.db)
+  await claimOwner(t)
   await t.db`update public.owner_settings set timezone = ${timezone}, timezone_confirmed = true`
   return t
+}
+
+/** The content published on a row makes no claim that contradicts its late label. */
+function expectNoTimingClaim(row: BriefingRow | undefined) {
+  expect(row?.status).toBe('published')
+  expect(JSON.stringify(row?.content)).not.toMatch(/on schedule|on time/i)
 }
 
 async function setTimezone(t: TestDatabase, timezone: string) {
@@ -369,6 +384,7 @@ describe('late publication and outages', () => {
       notify: false,
       publishedAt: new Date('2026-09-24T21:31:00Z'),
     })
+    expectNoTimingClaim(evening)
   })
 
   it('after a 3-day outage publishes only the latest due briefing per kind, late and silent', async () => {
@@ -390,6 +406,7 @@ describe('late publication and outages', () => {
       'morning:2026-06-01:on-time:notify',
       'morning:2026-06-03:late:silent', // only the latest missed morning
     ])
+    for (const r of all.filter((x) => x.isLate)) expectNoTimingClaim(r)
     // Back to normal at 11:00 on 4 June.
     await tick(t, '2026-06-04T10:00:00Z')
     all = await rows(t, 'morning')
@@ -490,6 +507,7 @@ describe('briefing content and setup states', () => {
       scheduledFor: new Date('2026-09-26T21:15:00Z'),
     })
     expect(row).toMatchObject({ isLate: true, notify: false })
+    expectNoTimingClaim(row)
   })
 
   it('does nothing before an owner exists and rejects malformed payloads', async () => {
@@ -517,5 +535,51 @@ describe('briefing content and setup states', () => {
     await tick(t, '2026-09-24T21:00:00Z')
     expect((await rows(t)).map((r) => `${r.kind}:${r.localDate}`)).toEqual(['evening:2026-09-24'])
     expect(addLocalDays('2026-09-24', 1)).toBe('2026-09-25')
+  })
+
+  it('does not publish briefings dated before the owner claimed the dashboard', async () => {
+    const t = await createTestDatabase()
+    dbs.push(t)
+    // Deployed on 1 June: the schedules are enabled, but nobody has signed in yet.
+    const deployed = await tick(t, '2026-06-01T08:00:00Z')
+    expect(deployed.schedules?.skipped.map((x) => x.reason)).toEqual(['no_owner', 'no_owner'])
+    // The owner signs in at 08:30 BST on 5 June and confirms Europe/London.
+    await claimOwner(t, '2026-06-05T07:30:00Z')
+    await t.db`update public.owner_settings set timezone_confirmed = true`
+    await tick(t, '2026-06-05T08:00:00Z') // 09:00 BST
+    expect(await rows(t)).toEqual([]) // nothing for 4 June, a day without an owner
+    await tick(t, '2026-06-05T10:00:00Z') // 11:00 BST
+    expect(
+      (await rows(t)).map(
+        (r) => `${r.kind}:${r.localDate}:${r.isLate ? 'late' : 'on-time'}:${r.notify}`,
+      ),
+    ).toEqual(['morning:2026-06-05:on-time:true'])
+  })
+
+  it('waits for the owner to confirm the timezone before scheduling briefings', async () => {
+    const t = await createTestDatabase()
+    dbs.push(t)
+    await claimOwner(t)
+    // Fresh settings: the Europe/London placeholder, not confirmed.
+    const first = await tick(t, '2026-06-10T08:00:00Z')
+    expect(first.schedules?.skipped).toEqual([
+      { name: 'briefing.evening', reason: 'timezone_unconfirmed' },
+      { name: 'briefing.morning', reason: 'timezone_unconfirmed' },
+    ])
+    await tick(t, '2026-06-10T10:00:00Z') // 11:00 in the placeholder zone
+    expect(await rows(t)).toEqual([])
+
+    // At 07:00 EDT the owner confirms New York.
+    await t.db`update public.owner_settings set timezone = 'America/New_York', timezone_confirmed = true`
+    await tickEvery(t, '2026-06-10T11:00:00Z', '2026-06-11T03:00:00Z', 30)
+    expect(
+      (await rows(t)).map(
+        (r) =>
+          `${r.kind}:${r.localDate}:${r.timezone}:${r.scheduledFor.toISOString()}:${r.isLate ? 'late' : 'on-time'}:${r.notify}`,
+      ),
+    ).toEqual([
+      'evening:2026-06-10:America/New_York:2026-06-11T02:00:00.000Z:on-time:true',
+      'morning:2026-06-10:America/New_York:2026-06-10T15:00:00.000Z:on-time:true',
+    ])
   })
 })

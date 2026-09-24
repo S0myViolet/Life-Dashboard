@@ -77,6 +77,8 @@ async function seedOwner(db: Db, timezone = 'Europe/London'): Promise<void> {
     { result: string }[]
   >`select private.claim_owner(${id}::uuid, ${OWNER_EMAIL}) as result`
   assert.equal(row?.result, 'claimed')
+  // claimed_at defaults to the real clock; the tests below simulate an earlier one.
+  await db`update private.owner set claimed_at = '2026-01-01T00:00:00Z'`
   await db`update public.owner_settings set timezone = ${timezone}, timezone_confirmed = true`
 }
 

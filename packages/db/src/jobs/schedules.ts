@@ -115,23 +115,32 @@ export async function recordJobScheduleProgress(
 export interface JobOwnerContext {
   /** A dashboard owner has been claimed. Briefings are pointless before that. */
   hasOwner: boolean
+  /** When the owner was claimed (private.owner.claimed_at); null before that. */
+  ownerClaimedAt: Date | null
   /** owner_settings.timezone (validated IANA name), or null when the row is missing. */
   timezone: string | null
+  /** The owner confirmed `timezone`; until then it is the install-time placeholder. */
   timezoneConfirmed: boolean
 }
 
 /** Owner facts the scheduler and briefing handlers need (service read, bypasses RLS). */
 export async function readJobOwnerContext(tx: Tx): Promise<JobOwnerContext> {
   const [row] = await tx<
-    { hasOwner: boolean; timezone: string | null; timezoneConfirmed: boolean | null }[]
+    {
+      ownerClaimedAt: Date | null
+      timezone: string | null
+      timezoneConfirmed: boolean | null
+    }[]
   >`
     select
-      exists (select 1 from private.owner) as has_owner,
+      (select o.claimed_at from private.owner o limit 1) as owner_claimed_at,
       (select s.timezone from public.owner_settings s limit 1) as timezone,
       (select s.timezone_confirmed from public.owner_settings s limit 1) as timezone_confirmed
   `
+  const ownerClaimedAt = row?.ownerClaimedAt ?? null
   return {
-    hasOwner: row?.hasOwner === true,
+    hasOwner: ownerClaimedAt !== null,
+    ownerClaimedAt,
     timezone: row?.timezone ?? null,
     timezoneConfirmed: row?.timezoneConfirmed === true,
   }

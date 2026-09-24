@@ -153,7 +153,9 @@ const SECTIONS: Record<
 /**
  * Milestone 0 content: deterministic, and explicit that nothing is summarised yet.
  * It lists what each section will contain and when it arrives — no invented
- * email counts, plans or "nothing today" claims.
+ * email counts, plans or "nothing today" claims. It makes no claim about timing:
+ * the same content is published on time, late or as an outage catch-up, and the
+ * row's is_late flag is what labels a late briefing.
  */
 export function buildBriefingSkeletonContent(
   kind: BriefingKind,
@@ -166,7 +168,7 @@ export function buildBriefingSkeletonContent(
     localDate: date,
     title: kind === 'morning' ? 'Morning briefing' : 'Evening project review',
     summary:
-      'This briefing was published on schedule by the Milestone 0 job framework. It does not read email, ' +
+      'This briefing was prepared by the Milestone 0 job framework. It does not read email, ' +
       'calendars, tasks or projects yet, so it contains no summaries. The sections below arrive in Milestone 2.',
     sections: SECTIONS[kind].map((s) => ({ ...s, status: 'planned', availableIn: 'Milestone 2' })),
   }
