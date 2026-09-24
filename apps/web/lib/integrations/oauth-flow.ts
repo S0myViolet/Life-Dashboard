@@ -44,6 +44,7 @@ import {
   type Db,
 } from '@personal-home/db'
 import { OAUTH_STATE_RE, oauthAdapterFromSettings, oauthPkcePair, oauthState } from '@personal-home/integrations'
+import type { OAuthResultError } from './oauth-flow-codes'
 
 export const DEFAULT_CONNECTIONS_PATH = '/settings/connections'
 
@@ -52,22 +53,7 @@ export function safeConnectionsReturnTo(path: string | null | undefined): string
   return path && /^\/settings(\/[a-z0-9-]+)*$/.test(path) ? path : DEFAULT_CONNECTIONS_PATH
 }
 
-export const OAUTH_RESULT_ERRORS = [
-  'needs_setup',
-  'unknown_account',
-  'invalid_request',
-  'state_mismatch',
-  'state_expired',
-  'denied',
-  'provider_error',
-  'client_rejected',
-  'exchange_failed',
-  'no_refresh_token',
-  'identity_failed',
-  'rate_limited',
-  'provider_unavailable',
-] as const
-export type OAuthResultError = (typeof OAUTH_RESULT_ERRORS)[number]
+export { OAUTH_RESULT_ERRORS, type OAuthResultError } from './oauth-flow-codes'
 
 export interface OAuthDeps {
   db: Db
