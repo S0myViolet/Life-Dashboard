@@ -23,7 +23,9 @@
     "react-dom": "19.3.0",
     "server-only": "0.0.1",
     "web-push": "3.6.7",
-    "zod": "4.6.5"
+    "zod": "4.6.5",
+    "@personal-home/integrations": "workspace:*",
+    "@personal-home/jobs": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

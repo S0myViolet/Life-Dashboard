@@ -1,13 +1,11 @@
 {
-  "name": "@personal-home/db",
+  "name": "@personal-home/jobs",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Postgres access layer: owner-scoped transactions (RLS enforced) and service transactions for jobs.",
+  "description": "Background job handlers and the dispatcher loop. Tested in Node with Vitest, executed by the Supabase Edge Function in Deno.",
   "exports": {
-    ".": "./src/index.ts",
-    "./*": "./src/*.ts",
-    "./testing": "./test/harness.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
@@ -16,7 +14,8 @@
   },
   "dependencies": {
     "@personal-home/core": "workspace:*",
-    "postgres": "3.4.9",
+    "@personal-home/db": "workspace:*",
+    "@personal-home/integrations": "workspace:*",
     "zod": "4.6.5"
   },
   "devDependencies": {

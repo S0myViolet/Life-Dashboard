@@ -1,2 +1,7 @@
 export * from './client.ts'
 export * from './owner.ts'
+export * from './jobs/index.ts'
+export * from './ai/index.ts'
+export * from './capture/index.ts'
+export * from './connections/index.ts'
+export * from './settings/index.ts'

@@ -9,7 +9,12 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
-  transpilePackages: ['@personal-home/core', '@personal-home/db'],
+  transpilePackages: [
+    '@personal-home/core',
+    '@personal-home/db',
+    '@personal-home/integrations',
+    '@personal-home/jobs',
+  ],
   poweredByHeader: false,
   async headers() {
     return [

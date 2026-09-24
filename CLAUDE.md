@@ -10,7 +10,9 @@ integration works unless it was actually exercised against the real provider.
 | Path | What |
 |---|---|
 | `packages/core` | Pure domain logic + zod schemas. **No I/O**, no Node-only APIs. Runs in Node, browsers and Deno. |
-| `packages/db` | Postgres access (`postgres` driver). `withOwner` (RLS-enforced, role `authenticated`) and `withService` (jobs/trusted flows). Repositories live here. |
+| `packages/db` | Postgres access (`postgres` driver). `withOwner` (RLS-enforced, role `authenticated`) and `withService` (jobs/trusted flows). Repositories live here. Test harness: `@personal-home/db/testing`. |
+| `packages/integrations` | Provider HTTP clients/adapters (Google, Microsoft, Lunch Flow, ...). Network only via an injected `fetch`; no DB. |
+| `packages/jobs` | Job handlers + dispatcher loop. Vitest in Node; executed by the Deno Edge Function. |
 | `apps/web` | Next.js 16 App Router + Tailwind v4 PWA. |
 | `apps/extension` | Chrome MV3 capture helper (esbuild). |
 | `supabase/migrations` | SQL migrations, applied in filename order. |
@@ -26,7 +28,13 @@ integration works unless it was actually exercised against the real provider.
   `middleware.ts` is now `proxy.ts`. `params`, `searchParams`, `cookies()`, `headers()` are async.
 - TypeScript is pinned to 6.0.x (typescript-eslint does not support 7 yet). ESLint 9.
 - Imports inside `packages/*` use **explicit `.ts` extensions** for relative paths (Deno compatibility).
-  `apps/web` imports workspace packages as `@personal-home/core` / `@personal-home/db` and uses `@/` for app paths.
+- Cross-package imports use the package root only (`@personal-home/core`, never `@personal-home/core/x`).
+  Each package re-exports its areas through `src/<area>/index.ts` barrels; keep exported names area-prefixed
+  enough to avoid collisions (e.g. `captureReconcile`, `CaptureSnapshot`).
+- `src/` of every package must run in Deno and browsers: no `node:*` imports, no `Buffer`, no `process`
+  (use `globalThis.crypto`, `TextEncoder`, `Uint8Array`, `btoa/atob`; pass config in as arguments).
+  Node-only code is fine in `test/` files, `apps/web` server code and `scripts/`.
+- `apps/web` uses `@/` for app paths.
 - Never commit secrets. Never log tokens, mail bodies, journal text, or full captured conversations.
 - Never fabricate data: no fake zeros, no "no events" when a source failed. Use the `DataState`
   and `ConnectionStatus` vocab in `packages/core/src/catalog.ts`.
