@@ -7,6 +7,7 @@ import {
   connectionDecryptToken,
   connectionEncryptToken,
   connectionEncryptionKey,
+  connectionFailure,
   type EncryptionKey,
 } from '@personal-home/core'
 import {
@@ -375,6 +376,46 @@ describe('sync.google background access check', () => {
       lastErrorCode: 'config.missing_settings',
       lastErrorMessage: 'Background jobs are missing server settings: GOOGLE_OAUTH_CLIENT_SECRET',
     })
+  })
+
+  it('missing server settings never overwrite an account that needs a reconnect', async () => {
+    const id = await seed({
+      provider: 'google',
+      externalId: 'g-cfg-revoked',
+      refreshToken: '1//x',
+      accessExpiresAt: null,
+    })
+    await withService(t.db, (tx) =>
+      connectionApplyEvent(tx, id, {
+        type: 'attempt_failed',
+        at: clock,
+        failure: connectionFailure('auth', 'invalid_grant', 'Google refused the refresh token'),
+      }),
+    )
+    const { ctx, calls } = jobCtx(() => jsonResponse({}), {
+      env: env({ GOOGLE_OAUTH_CLIENT_ID: undefined, GOOGLE_OAUTH_CLIENT_SECRET: undefined }),
+    })
+    expect(
+      await connectionHandlers['sync.google'](ctx, job('sync.google', { connectionId: id })),
+    ).toMatchObject({ status: 'failed' })
+    expect(calls).toHaveLength(0)
+    expect(await get(id)).toMatchObject({
+      status: 'needs_reconnect',
+      lastErrorCode: 'auth.invalid_grant',
+      nextAttemptAt: null,
+    })
+  })
+
+  it('a provider that is not set up and has no accounts to check is not a failed job', async () => {
+    // A Google account exists; Microsoft is intentionally not configured and has none.
+    await seed({ provider: 'google', externalId: 'g-only', refreshToken: '1//x' })
+    const { ctx, calls } = jobCtx(() => jsonResponse({}), {
+      env: env({ MICROSOFT_CLIENT_ID: undefined, MICROSOFT_CLIENT_SECRET: undefined }),
+    })
+    expect(await connectionHandlers['sync.microsoft'](ctx, job('sync.microsoft'))).toEqual({
+      status: 'succeeded',
+    })
+    expect(calls).toHaveLength(0)
   })
 
   it('tokens that no longer decrypt (wrong key) become a configuration error, not a crash', async () => {

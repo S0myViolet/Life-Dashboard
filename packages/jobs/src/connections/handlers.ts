@@ -111,10 +111,18 @@ function makeHandler(provider: OAuthConnectProvider): ConnectionJobHandler {
         : (await withService(ctx.db, (tx) => connectionsDue(tx, provider, ctx.now()))).map(
             (c) => c.id,
           )
+      // Not set up and nothing due to check: that is needs_setup, not a failed job.
+      if (ids.length === 0) return { status: 'succeeded' }
       for (const id of ids) {
         await withService(ctx.db, async (tx) => {
           const row = await connectionGet(tx, id)
-          if (row?.provider === provider && row.status !== 'paused')
+          // Same filter as connectionsDue: a paused account stays paused, and one that
+          // needs a reconnect keeps saying so (and keeps its Reconnect button).
+          if (
+            row?.provider === provider &&
+            row.status !== 'paused' &&
+            row.status !== 'needs_reconnect'
+          )
             await connectionApplyEvent(tx, id, { type: 'attempt_failed', at: ctx.now(), failure })
         })
       }
