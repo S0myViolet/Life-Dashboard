@@ -175,7 +175,7 @@ async function saveReadingLog(input: ReadingLogInput): Promise<LogReadingResult>
   if (!parsed.success) {
     return {
       ok: false,
-      error: 'Enter a page, pages read, a percentage or minutes.',
+      error: parsed.error.issues[0]?.message ?? 'Check the reading log.',
       fieldErrors: zodFieldErrors(parsed.error),
     }
   }

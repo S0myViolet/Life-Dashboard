@@ -11,7 +11,7 @@ export function importantDateText(d: { month: number; day: number; year: number 
   return `${d.day} ${monthName(d.month)}${d.year != null ? ` ${d.year}` : ''}`
 }
 
-/** 'today', 'tomorrow · turns 36', 'in 12 days (Sat 28 Feb 2027; no 29 Feb this year)'. */
+/** 'today', 'tomorrow · turns 36', 'in 12 days (Sun, 28 Feb 2027) · marked on 28 Feb — no 29 Feb this year'. */
 export function occurrenceText(
   label: string,
   next: ImportantDateOccurrence,
