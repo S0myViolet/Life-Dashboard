@@ -19,6 +19,7 @@ import {
   emptyExtract,
   localKeyFor,
   looksLikeChallenge,
+  MEDIA,
   nearBottom,
   nearTop,
   safeKey,
@@ -60,6 +61,17 @@ function turnId(turn: Element): string | undefined {
   )
 }
 
+/**
+ * A turn's place in the thread for coverage: its persistent wrapper's id (the
+ * wrappers list every turn, mounted or not), else its turn id or ordinal.
+ */
+function turnPosition(turn: Element, tid: string | undefined, ordinal: number | undefined): string | undefined {
+  const wrapper = turn.closest(WRAPPER)?.getAttribute('data-turn-id-container')
+  if (wrapper) return `w:${wrapper}`
+  if (tid) return `t:${tid}`
+  return ordinal !== undefined ? `n:${ordinal}` : undefined
+}
+
 function contentText(el: Element, role: CaptureRole): string {
   const roots = outermost(el, role === 'assistant' ? '.markdown' : '.whitespace-pre-wrap')
   if (roots.length === 0) return renderedText(el)
@@ -84,6 +96,8 @@ export function extractChatGPT(doc: Document): PageExtract {
 
   const perTurn = new Map<Element, ExtractedMessage[]>()
   const messages: ExtractedMessage[] = []
+  const positions: (string | undefined)[] = []
+  const renderedPositions: string[] = []
   let recognised = 0
 
   for (const turn of turns) {
@@ -94,6 +108,7 @@ export function extractChatGPT(doc: Document): PageExtract {
     const elements = (turn.matches(MESSAGE) ? [turn] : outermost(turn, MESSAGE)).filter((el) =>
       isRole(el.getAttribute('data-message-author-role')),
     )
+    const mediaOnly = elements.length === 0 && turn.querySelector(MEDIA) !== null
     if (elements.length === 0 && isRole(turnRole)) {
       recognised++
       const text = contentText(turn, turnRole)
@@ -122,6 +137,14 @@ export function extractChatGPT(doc: Document): PageExtract {
     })
     perTurn.set(turn, list)
     messages.push(...list)
+    // Seen for coverage: every message has text (a turn can mount before its
+    // body hydrates), or it holds only media, which is never collected as text.
+    const position = turnPosition(turn, tid, ordinal)
+    positions.push(position)
+    const withText = list.filter((m) => m.text.length > 0).length
+    if (position && ((withText > 0 && withText === list.length) || (withText === 0 && mediaOnly))) {
+      renderedPositions.push(position)
+    }
   }
 
   const stopVisible = doc.querySelector(STOP) !== null
@@ -154,6 +177,25 @@ export function extractChatGPT(doc: Document): PageExtract {
   const firstMounted = scroller !== null && nearTop(scroller) && hasText(firstEl, perTurn)
   const lastMounted = scroller !== null && nearBottom(scroller) && hasText(lastEl, perTurn)
 
+  // The whole thread's outline: the persistent wrappers when the page has them;
+  // otherwise only a single view that shows both ends (a virtualised window is
+  // contiguous, so everything between them is mounted too).
+  let threadPositions: string[] | null = null
+  if (wrappers.length > 0) {
+    threadPositions = wrappers.map((w) => `w:${w.getAttribute('data-turn-id-container')}`)
+  } else if (firstMounted && lastMounted && positions.every((p) => p !== undefined)) {
+    threadPositions = positions as string[]
+  }
+
   const title = cleanTitle(doc.title, 'chatgpt')
-  return { status: 'ok', messages, firstMounted, lastMounted, streaming, ...(title ? { title } : {}) }
+  return {
+    status: 'ok',
+    messages,
+    firstMounted,
+    lastMounted,
+    streaming,
+    renderedPositions,
+    threadPositions,
+    ...(title ? { title } : {}),
+  }
 }

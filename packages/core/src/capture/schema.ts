@@ -36,6 +36,15 @@ export const CaptureCoverageSchema = z.strictObject({
   observedFirstMessage: z.boolean(),
   /** True only if the latest observation was at the end of the thread. */
   observedLastMessage: z.boolean(),
+  /**
+   * True only if every message between the first and the last was actually
+   * rendered at some point during the page visit (no gaps). Seeing the top and
+   * the bottom of a virtualised thread does not prove the middle was seen.
+   * Absent (older helpers) counts as false.
+   */
+  contiguous: z.boolean().optional(),
+  /** Thread positions the page listed but the helper never saw rendered (absent: unknown). */
+  missingCount: count.optional(),
   /** Messages mounted in the page at the latest observation. */
   renderedCount: count,
   /** Messages collected while the page was open (virtualised threads mount a window at a time). */

@@ -4,6 +4,7 @@ import {
   captureContentChanged,
   captureContentFingerprint,
   captureContentHash,
+  captureCoverageIsComplete,
   capturePrepareSnapshot,
   captureReconcile,
   captureSortMessages,
@@ -41,6 +42,7 @@ function snap(capturedAt: string, messages: Msg[], coverage: Partial<CaptureCove
       mode: 'passive',
       observedFirstMessage: true,
       observedLastMessage: true,
+      contiguous: true,
       renderedCount: messages.length,
       accumulatedCount: messages.length,
       streamingInProgress: messages.some((m) => m.isStreaming),
@@ -252,9 +254,17 @@ describe('captureReconcile: basics', () => {
     expect(prepared.capturedAt).toBe(at(10))
   })
 
-  it('only claims completeness with first and last observed, nothing streaming or omitted', async () => {
+  it('only claims completeness with first and last observed, no gaps, nothing streaming or omitted', async () => {
     const m = [{ key: 'u1', role: 'user' as const, text: 'x', orderHint: 1 }]
     expect((await step(EMPTY, snap(at(0), m))).plan.complete).toBe(true)
+    // First and last seen, but the middle of a virtualised thread was never mounted.
+    expect((await step(EMPTY, snap(at(0), m, { contiguous: false, missingCount: 28 }))).plan.complete).toBe(false)
+    expect((await step(EMPTY, snap(at(0), m, { missingCount: 3 }))).plan.complete).toBe(false)
+    // A helper that does not say whether there were gaps is not trusted with a completeness claim.
+    const legacy = snap(at(0), m)
+    delete legacy.coverage.contiguous
+    expect(captureCoverageIsComplete(legacy.coverage)).toBe(false)
+    expect((await step(EMPTY, legacy)).plan.complete).toBe(false)
     expect((await step(EMPTY, snap(at(0), m, { observedFirstMessage: false }))).plan.complete).toBe(false)
     expect((await step(EMPTY, snap(at(0), m, { observedLastMessage: false }))).plan.complete).toBe(false)
     expect((await step(EMPTY, snap(at(0), m, { streamingInProgress: true }))).plan.complete).toBe(false)
@@ -401,6 +411,7 @@ function generateHistory(seed: number, steps = 14): History {
       snap(t, window, {
         observedFirstMessage: start === 0,
         observedLastMessage: end === convo.length,
+        contiguous: start === 0 && end === convo.length,
       }),
     )
   }

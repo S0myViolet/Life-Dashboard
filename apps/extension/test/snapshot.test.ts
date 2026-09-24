@@ -20,6 +20,8 @@ function observation(messages: ObservedMessage[], extra: Partial<PageObservation
     messages,
     observedFirstMessage: true,
     observedLastMessage: true,
+    contiguous: true,
+    missingCount: 0,
     renderedCount: messages.length,
     streamingInProgress: false,
     ...extra,
@@ -56,6 +58,14 @@ describe('buildSnapshots', () => {
     expect(s.messages).toHaveLength(4)
     expect(captureCoverageIsComplete(s.coverage)).toBe(true)
     expect(s.coverage).toMatchObject({ accumulatedCount: 4, renderedCount: 4, mode: 'passive' })
+  })
+
+  it('never reports a complete page when messages between the first and last were not seen', () => {
+    for (const gap of [{ contiguous: false, missingCount: 28 }, { contiguous: false }] as const) {
+      const [s] = build(observation(msgs(12), gap)).snapshots
+      expect(s!.coverage).toMatchObject({ observedFirstMessage: true, observedLastMessage: true, ...gap })
+      expect(captureCoverageIsComplete(CaptureSnapshotSchema.parse(s).coverage)).toBe(false)
+    }
   })
 
   it('splits more than 2000 messages into chunks that each admit they are partial', () => {

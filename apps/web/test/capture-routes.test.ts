@@ -99,6 +99,7 @@ function snapshot(messages: CaptureSnapshot['messages'], overrides: Partial<Capt
       mode: 'passive',
       observedFirstMessage: true,
       observedLastMessage: true,
+      contiguous: true,
       renderedCount: messages.length,
       accumulatedCount: messages.length,
       streamingInProgress: false,

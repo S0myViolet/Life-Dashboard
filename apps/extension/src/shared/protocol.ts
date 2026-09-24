@@ -33,6 +33,10 @@ export interface PageObservation {
   messages: ObservedMessage[]
   observedFirstMessage: boolean
   observedLastMessage: boolean
+  /** Every position of the thread was rendered at some point during this visit (no gaps). */
+  contiguous: boolean
+  /** Thread positions the page listed but never rendered during this visit (absent: unknown). */
+  missingCount?: number
   renderedCount: number
   streamingInProgress: boolean
 }

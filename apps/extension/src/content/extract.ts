@@ -40,6 +40,19 @@ export interface PageExtract {
   lastMounted: boolean
   streaming: boolean
   title?: string
+  /**
+   * Thread positions (ChatGPT turn wrapper ids, Claude row indexes) that are
+   * mounted and fully rendered in this read: every message in them has text,
+   * or they hold only media/attachments, which are never collected.
+   */
+  renderedPositions: string[]
+  /**
+   * Every position of the whole thread in order, when this read can tell
+   * (ChatGPT's persistent turn wrappers; Claude's aria-setsize, or the rows up
+   * to the last one while it is mounted; a single view of the whole thread).
+   * null when unknown. Coverage is gap-free only if every one was rendered.
+   */
+  threadPositions: string[] | null
 }
 
 export const emptyExtract = (status: ExtractStatus): PageExtract => ({
@@ -48,7 +61,12 @@ export const emptyExtract = (status: ExtractStatus): PageExtract => ({
   firstMounted: false,
   lastMounted: false,
   streaming: false,
+  renderedPositions: [],
+  threadPositions: null,
 })
+
+/** Non-text content (images, generated media, attachment previews) that is never collected as text. */
+export const MEDIA = 'img, picture, video, audio, canvas, svg, iframe, object'
 
 export function safeKey(value: string | null | undefined): string | undefined {
   if (!value) return undefined

@@ -358,6 +358,10 @@ export class Background {
         messages,
         observedFirstMessage: observation.observedFirstMessage === true,
         observedLastMessage: observation.observedLastMessage === true,
+        contiguous: observation.contiguous === true,
+        ...(Number.isInteger(observation.missingCount) && observation.missingCount! >= 0
+          ? { missingCount: observation.missingCount }
+          : {}),
         streamingInProgress: observation.streamingInProgress === true,
         renderedCount: Number.isInteger(observation.renderedCount) ? Math.max(0, observation.renderedCount) : 0,
         capturedAt: safeInstant(observation.capturedAt, now),

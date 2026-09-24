@@ -58,23 +58,35 @@ interface CoverageInput {
   } | null
 }
 
-/** One honest sentence about how much of the conversation has actually been collected. */
+/**
+ * One honest sentence about how much of the conversation has actually been
+ * collected. "Every message" is claimed only when the latest capture was
+ * complete: first and last message seen, and every message between them seen
+ * during the same page visit (no gaps; see core captureCoverageIsComplete).
+ */
 export function captureCoverageSummary(c: CoverageInput): string {
   if (!c.lastCapturedAt || c.messageCount === 0) {
     return 'Nothing collected yet. Open the conversation in Chrome with the helper paired.'
   }
   const stored = `${c.messageCount} message${c.messageCount === 1 ? '' : 's'} saved`
   if (c.lastSeenCompleteAt && c.lastSeenCompleteAt.getTime() >= c.lastCapturedAt.getTime()) {
-    return `${stored}. The latest capture saw the whole conversation from first to last message.`
+    return `${stored}. The latest capture saw every message from the first to the last.`
   }
   const cov = c.lastSnapshot?.coverage ?? {}
   const parts: string[] = []
   if (cov.observedFirstMessage === false) parts.push('the start was not in view (scroll to the top once to collect older messages)')
   if (cov.observedLastMessage === false) parts.push('the end was not in view')
+  const missing = cov.missingCount ?? 0
+  if (missing > 0 || (cov.contiguous !== true && cov.observedFirstMessage && cov.observedLastMessage)) {
+    const count = missing > 0 ? ` (${missing} turn${missing === 1 ? '' : 's'} not seen)` : ''
+    parts.push(
+      `some messages between the first and the last were never in view${count}; scroll through the whole conversation once, without jumping to the top or bottom`,
+    )
+  }
   if (cov.streamingInProgress) parts.push('a reply was still being written')
   if ((cov.omittedCount ?? 0) > 0) parts.push(`${cov.omittedCount} message(s) were too large to send`)
   const detail = parts.length > 0 ? ` In the latest capture ${parts.join('; ')}.` : ''
-  const complete = c.lastSeenCompleteAt ? '' : ' The whole conversation has not been seen in one view yet.'
+  const complete = c.lastSeenCompleteAt ? '' : ' No capture has seen every message from the first to the last yet.'
   return `${stored}.${detail}${complete}`
 }
 

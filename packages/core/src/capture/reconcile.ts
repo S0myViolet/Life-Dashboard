@@ -122,7 +122,7 @@ export interface CaptureReconcilePlan {
   reason: string | null
   /** Set only for problem page states: the conversation moves to this state. */
   nextCaptureState: CaptureState | null
-  /** The page showed the first and last message with nothing streaming. */
+  /** The page showed every message from the first to the last, with nothing streaming. */
   complete: boolean
   ops: CaptureOp[]
   stats: CaptureReconcileStats
@@ -134,12 +134,19 @@ export interface CaptureReconcilePlan {
 // Preparation (async: hashing)
 // ---------------------------------------------------------------------------
 
-/** True when the snapshot can vouch for the whole conversation as rendered. */
+/**
+ * True when the snapshot can vouch for the whole conversation as rendered: the
+ * first and last message were seen, every message between them was seen (no
+ * gaps; a helper that does not say so is not trusted), nothing was streaming
+ * and nothing was left out.
+ */
 export function captureCoverageIsComplete(coverage: CaptureCoverage): boolean {
   return (
     coverage.pageState === 'ok' &&
     coverage.observedFirstMessage &&
     coverage.observedLastMessage &&
+    coverage.contiguous === true &&
+    (coverage.missingCount ?? 0) === 0 &&
     !coverage.streamingInProgress &&
     (coverage.omittedCount ?? 0) === 0
   )

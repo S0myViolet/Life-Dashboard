@@ -154,6 +154,8 @@ const observation = (url = CHAT_URL, count = 2, sessionId = 'visit-1'): PageObse
   })),
   observedFirstMessage: true,
   observedLastMessage: true,
+  contiguous: true,
+  missingCount: 0,
   renderedCount: count,
   streamingInProgress: false,
 })
@@ -250,11 +252,19 @@ describe('collecting', () => {
       schemaVersion: 1,
       provider: 'chatgpt',
       conversation: { externalId: CHAT_ID, url: CHAT_URL },
-      coverage: { mode: 'passive', pageState: 'ok', observedFirstMessage: true },
+      coverage: { mode: 'passive', pageState: 'ok', observedFirstMessage: true, contiguous: true, missingCount: 0 },
     })
     expect(chrome.store.queue).toHaveLength(0)
     const view = (await bg.onMessage({ type: 'ph:get-state' }, PAGE)) as HelperStateView
     expect(view.conversations[0]!.lastResult).toBe('applied: 2 new, 0 edited')
+  })
+
+  it('never upgrades a gap in the page visit into a gap-free claim', async () => {
+    await paired()
+    const gapped = { ...observation(), contiguous: 'yes', missingCount: 28 } as unknown as PageObservation
+    await bg.onMessage({ type: 'ph:observation', observation: gapped }, contentSender(2))
+    const upload = dash.requests.find((r) => r.path === '/api/capture/v1/snapshots')!
+    expect((upload.body as CaptureSnapshot).coverage).toMatchObject({ contiguous: false, missingCount: 28 })
   })
 
   it('refuses observations for unselected conversations', async () => {

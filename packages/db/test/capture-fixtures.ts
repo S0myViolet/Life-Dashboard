@@ -47,6 +47,7 @@ export function makeSnapshot(
       mode: 'passive',
       observedFirstMessage: true,
       observedLastMessage: true,
+      contiguous: true,
       renderedCount: messages.length,
       accumulatedCount: messages.length,
       streamingInProgress: messages.some((m) => m.isStreaming),

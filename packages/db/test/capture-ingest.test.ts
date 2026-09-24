@@ -139,6 +139,31 @@ describe('captureIngestSnapshot', () => {
     expect(conv?.lastSnapshot?.coverage.observedFirstMessage).toBe(false)
   })
 
+  it('first and last seen with a gap in between never records a complete capture', async () => {
+    // A virtualised thread opened at the bottom, jumped to the top and back: 12 of 60 seen.
+    const all = thread(60)
+    const seen = [...all.slice(0, 6), ...all.slice(54)]
+    const gapped = makeSnapshot(at(0), seen, {
+      coverage: { contiguous: false, missingCount: 48, renderedCount: 6, accumulatedCount: 12 },
+    })
+    expect(await ingest(gapped)).toMatchObject({ outcome: 'applied', newMessages: 12 })
+    let [conv] = await withOwner(t.db, owner, (tx) => captureListConversations(tx))
+    expect(conv).toMatchObject({ messageCount: 12, lastSeenCompleteAt: null, lastCapturedAt: new Date(at(0)) })
+    expect(conv?.lastSnapshot?.coverage).toMatchObject({ contiguous: false, missingCount: 48 })
+
+    // A helper that does not report contiguity is not trusted with a completeness claim either.
+    const legacy = makeSnapshot(at(1), seen)
+    delete legacy.coverage.contiguous
+    await ingest(legacy)
+    ;[conv] = await withOwner(t.db, owner, (tx) => captureListConversations(tx))
+    expect(conv?.lastSeenCompleteAt).toBeNull()
+
+    // Scrolling through everything once does.
+    await ingest(makeSnapshot(at(2), all))
+    ;[conv] = await withOwner(t.db, owner, (tx) => captureListConversations(tx))
+    expect(conv).toMatchObject({ messageCount: 60, lastSeenCompleteAt: new Date(at(2)) })
+  })
+
   it('an edited message gets exactly one new version row and the old one is superseded', async () => {
     const base = thread(2)
     await ingest(makeSnapshot(at(0), base))

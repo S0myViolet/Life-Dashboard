@@ -6,7 +6,11 @@
  * added next to their neighbours, known ones get their latest settled text,
  * and messages that unmount are kept. Coverage is honest: the first message
  * counts as observed only if it was actually mounted and rendered at some
- * point; the last message only if the latest observation showed it.
+ * point; the last message only if the latest observation showed it; and the
+ * thread counts as gap-free (`contiguous`) only if every position the page
+ * lists (ChatGPT turn wrappers, Claude rows) was rendered at some point during
+ * this visit. Seeing the top and then the bottom is not enough: jumping between
+ * them never mounts the middle of a virtualised thread.
  */
 import type { ObservedMessage, PageObservation } from '../shared/protocol.ts'
 import type { ExtractedMessage, PageExtract } from './extract.ts'
@@ -20,6 +24,10 @@ export class CaptureAccumulator {
   private readonly entries = new Map<string, Entry>()
   private sawFirst = false
   private lastMounted = false
+  /** Thread positions rendered at some point during this visit. */
+  private seen = new Set<string>()
+  /** The whole thread's positions, from the latest read that could tell. */
+  private outline: string[] | null = null
   private streaming = false
   private rendered = 0
   private title: string | undefined
@@ -39,6 +47,7 @@ export class CaptureAccumulator {
   observe(extract: PageExtract): boolean {
     if (extract.status !== 'ok') return false
     let changed = false
+    let edited = false
     const window = extract.messages.filter((m) => m.text.length > 0)
 
     window.forEach((m, i) => {
@@ -56,10 +65,30 @@ export class CaptureAccumulator {
         prev.role !== m.role ||
         (m.orderHint !== undefined && prev.orderHint !== m.orderHint)
       ) {
+        edited ||= prev.text !== m.text && !prev.isStreaming && !m.isStreaming
         existing.message = { ...m, orderHint: m.orderHint ?? prev.orderHint }
         changed = true
       }
     })
+
+    // A settled message changed (an edit, or a branch switch that swaps what
+    // Claude shows at the same row positions): rows that are not mounted now
+    // may have changed too, so they must be seen again before coverage is whole.
+    if (edited) {
+      this.seen = new Set(extract.renderedPositions)
+      changed = true
+    }
+    for (const p of extract.renderedPositions) {
+      if (!this.seen.has(p)) {
+        this.seen.add(p)
+        changed = true
+      }
+    }
+    const outline = extract.threadPositions
+    if (outline && (!this.outline || outline.length !== this.outline.length || outline.some((p, i) => p !== this.outline![i]))) {
+      this.outline = [...outline]
+      changed = true
+    }
 
     if (extract.firstMounted && !this.sawFirst) {
       this.sawFirst = true
@@ -128,8 +157,14 @@ export class CaptureAccumulator {
     this.sentVersion = this.version
   }
 
+  /** Positions the page lists that were never rendered during this visit (null: the page does not say). */
+  get missingCount(): number | null {
+    return this.outline ? this.outline.filter((p) => !this.seen.has(p)).length : null
+  }
+
   toObservation(now: Date): PageObservation | null {
     if (this.entries.size === 0) return null
+    const missing = this.missingCount
     return {
       url: this.url,
       ...(this.title ? { title: this.title } : {}),
@@ -138,6 +173,8 @@ export class CaptureAccumulator {
       messages: this.messages(),
       observedFirstMessage: this.sawFirst,
       observedLastMessage: this.lastMounted,
+      contiguous: missing === 0 && this.outline !== null && this.outline.length > 0,
+      ...(missing !== null ? { missingCount: missing } : {}),
       renderedCount: this.rendered,
       streamingInProgress: this.isStreaming,
     }

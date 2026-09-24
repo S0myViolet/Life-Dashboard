@@ -83,9 +83,14 @@ Shared links, temporary chats and other pages cannot be selected.
   the same message. In ChatGPT an edited prompt or regenerated reply gets new message ids, so it
   is stored as a new message next to the original; the earlier branch is kept, never deleted.
 - Order hints (ChatGPT `conversation-turn-N`, Claude `data-index`), capture time, the page
-  title, and honest coverage: whether the first and last message were actually seen, how many
-  messages were rendered and accumulated, whether a reply was still streaming, and whether the
-  capture was passive or a revisit.
+  title, and honest coverage: whether the first and last message were actually seen, whether
+  every message between them was seen during the same page visit (`contiguous`, with the number
+  of turns never seen when the page lists them), how many messages were rendered and
+  accumulated, whether a reply was still streaming, and whether the capture was passive or a
+  revisit. The page lists the whole thread through ChatGPT's persistent
+  `[data-turn-id-container]` turn wrappers and Claude's `data-index` rows with `aria-setsize`
+  (or the rows up to the last one while it is mounted). Without that list the helper claims no
+  gap-free view unless a single view shows the whole thread.
 
 ### What is NOT collected
 
@@ -94,8 +99,10 @@ Shared links, temporary chats and other pages cannot be selected.
   unrendered content, anything never shown on screen.
 - History you did not scroll through. Both apps draw long conversations a window at a time and
   unmount the rest. The helper accumulates each window as it mounts, so **scroll through a long
-  conversation once** (top to bottom) to collect it all. The dashboard says when the start or end
-  has not been seen.
+  conversation once** (top to bottom) to collect it all. Jumping straight to the top or bottom
+  (Home/End, dragging the scrollbar) skips the middle; the dashboard then says that messages
+  between the first and the last were never in view, and it says when the start or end has not
+  been seen.
 - Replies that are still streaming (they are collected once finished).
 - Cookies, tokens or passwords. The helper never calls ChatGPT's or Claude's internal APIs
   (`/backend-api`, `/api/organizations/…`), never forges requests, never scrolls or clicks in
@@ -183,9 +190,14 @@ Run each step on **both** services, and record pass/fail with dates in
    of the reply finishing, Settings → Chrome helper shows two more saved messages and a fresh
    "Last captured".
 3. **Long conversations.** Open a conversation with 50+ messages cold (it opens at the bottom).
-   The dashboard should say the start was not in view. Scroll slowly to the top and back down;
-   the saved count should reach the full length and "saw the whole conversation" appear.
-   Then reload and scroll only partway: the saved count must not shrink.
+   The dashboard should say the start was not in view. Press Home (or drag the scrollbar) to jump
+   to the top, then End: the dashboard must say that messages in between were never in view and
+   must not say "saw every message". Now scroll steadily to the top and back down without
+   pausing; the saved count should reach the full length (compare it with the conversation) and
+   "saw every message from the first to the last" appear. Then reload and scroll only partway:
+   the saved count must not shrink. If the saved count is lower than the real length while the
+   dashboard claims every message, the page's thread list (turn wrappers / `aria-setsize`)
+   differs from the research notes: report it.
 4. **Edited messages.** Edit an earlier prompt (and regenerate a reply). Claude: the same message
    gains a new version. ChatGPT: the new branch appears as new messages next to the original.
    Switch back to the earlier branch with the `<` arrow: no duplicates, no deletions.

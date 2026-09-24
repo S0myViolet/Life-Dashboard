@@ -96,6 +96,8 @@ export function buildSnapshots(input: BuildSnapshotsInput): BuiltSnapshots {
     mode: input.mode,
     observedFirstMessage: obs.observedFirstMessage && first,
     observedLastMessage: obs.observedLastMessage && last,
+    contiguous: obs.contiguous === true,
+    ...(obs.missingCount !== undefined ? { missingCount: Math.min(Math.max(0, obs.missingCount), 1_000_000) } : {}),
     renderedCount: Math.min(obs.renderedCount, 1_000_000),
     accumulatedCount: Math.min(total, 1_000_000),
     streamingInProgress: obs.streamingInProgress,

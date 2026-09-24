@@ -36,6 +36,38 @@ describe('captureCoverageSummary', () => {
     ).toMatch(/^Nothing collected yet/)
   })
 
+  it('never claims every message when the first and last were seen with a gap between them', () => {
+    const gapped = captureCoverageSummary({
+      messageCount: 12,
+      lastCapturedAt: at('2026-09-24T10:00:00Z'),
+      lastSeenCompleteAt: null,
+      lastSnapshot: {
+        outcome: 'applied',
+        reason: null,
+        mode: 'passive',
+        coverage: { observedFirstMessage: true, observedLastMessage: true, contiguous: false, missingCount: 48 },
+      },
+    })
+    expect(gapped).toContain('12 messages saved')
+    expect(gapped).toContain('some messages between the first and the last were never in view (48 turns not seen)')
+    expect(gapped).toContain('No capture has seen every message')
+    expect(gapped).not.toMatch(/saw (the whole conversation|every message)/)
+
+    // Older helpers that did not report gaps: the gap is not ruled out.
+    const legacy = captureCoverageSummary({
+      messageCount: 12,
+      lastCapturedAt: at('2026-09-24T10:00:00Z'),
+      lastSeenCompleteAt: null,
+      lastSnapshot: {
+        outcome: 'applied',
+        reason: null,
+        mode: 'passive',
+        coverage: { observedFirstMessage: true, observedLastMessage: true },
+      },
+    })
+    expect(legacy).toContain('some messages between the first and the last were never in view;')
+  })
+
   it('claims the whole conversation only when the latest capture saw first to last', () => {
     const complete = captureCoverageSummary({
       messageCount: 12,
@@ -44,7 +76,7 @@ describe('captureCoverageSummary', () => {
       lastSnapshot: null,
     })
     expect(complete).toContain('12 messages saved')
-    expect(complete).toContain('whole conversation')
+    expect(complete).toContain('saw every message from the first to the last')
 
     const partial = captureCoverageSummary({
       messageCount: 40,
@@ -60,7 +92,7 @@ describe('captureCoverageSummary', () => {
     expect(partial).toContain('40 messages saved')
     expect(partial).toContain('the start was not in view')
     expect(partial).toContain('still being written')
-    expect(partial).not.toContain('saw the whole conversation')
+    expect(partial).not.toContain('saw every message')
 
     const never = captureCoverageSummary({
       messageCount: 1,
@@ -69,7 +101,7 @@ describe('captureCoverageSummary', () => {
       lastSnapshot: null,
     })
     expect(never).toContain('1 message saved')
-    expect(never).toContain('has not been seen in one view yet')
+    expect(never).toContain('No capture has seen every message from the first to the last yet')
   })
 })
 

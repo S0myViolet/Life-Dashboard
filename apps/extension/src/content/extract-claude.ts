@@ -12,7 +12,8 @@
  *     panel), legacy .font-claude-message; markdown .standard-markdown /
  *     .progressive-markdown (nested while streaming, so only outermost ones);
  *   - streaming: data-is-streaming="true" on the response or an ancestor;
- *   - aria-setsize on rows (when present) is the total row count.
+ *   - aria-setsize on rows (when present) is the total row count, so coverage
+ *     can tell which rows were never mounted.
  */
 import { capturePositionKey, type CaptureRole } from '@personal-home/core'
 import {
@@ -20,6 +21,7 @@ import {
   emptyExtract,
   localKeyFor,
   looksLikeChallenge,
+  MEDIA,
   nearBottom,
   nearTop,
   type ExtractedMessage,
@@ -55,12 +57,16 @@ function setSize(rows: Element[]): number | null {
   return null
 }
 
+const rowIndex = (row: Element): number | null => {
+  const index = Number(row.getAttribute('data-index'))
+  return Number.isInteger(index) && index >= 0 && index <= 1e7 ? index : null
+}
+
 export function extractClaude(doc: Document): PageExtract {
   const scroller = doc.querySelector(SCROLLER)
   const scope: Element | Document = scroller ?? doc
-  const rows = outermost(scope, ROW).filter(
-    (row) => row.querySelector(`${USER}, ${ASSISTANT}, [data-is-streaming]`) !== null,
-  )
+  const allRows = outermost(scope, ROW)
+  const rows = allRows.filter((row) => row.querySelector(`${USER}, ${ASSISTANT}, [data-is-streaming]`) !== null)
 
   if (rows.length === 0) {
     if (doc.querySelector(`${USER}, ${ASSISTANT}`) !== null) return emptyExtract('structure_changed')
@@ -74,20 +80,23 @@ export function extractClaude(doc: Document): PageExtract {
 
   const messages: ExtractedMessage[] = []
   const indexes: number[] = []
+  const renderedPositions: string[] = []
   let firstRowHasText = false
   rows.forEach((row, position) => {
-    const index = Number(row.getAttribute('data-index'))
-    if (!Number.isInteger(index) || index < 0 || index > 1e7) return
+    const index = rowIndex(row)
+    if (index === null) return
     const user = row.querySelector(USER)
     const assistant = row.querySelector(ASSISTANT)
     const found: { role: CaptureRole; el: Element }[] = []
     if (user) found.push({ role: 'user', el: user })
     if (assistant) found.push({ role: 'assistant', el: assistant })
     let rowHasText = false
+    let rowComplete = found.length > 0
     found.forEach(({ role, el }, i) => {
       const text = role === 'assistant' ? assistantText(el) : renderedText(el)
       const key = capturePositionKey(index, role, 0)
       rowHasText ||= text.length > 0
+      rowComplete &&= text.length > 0
       messages.push({
         key,
         localKey: localKeyFor(key, role, ''),
@@ -98,8 +107,16 @@ export function extractClaude(doc: Document): PageExtract {
       })
     })
     indexes.push(index)
+    if (rowComplete) renderedPositions.push(String(index))
     if (position === 0) firstRowHasText = rowHasText
   })
+  // Rows without a message (attachment-only prompts) hold nothing collectable;
+  // once they show their content they count as seen for coverage.
+  for (const row of allRows) {
+    const index = rowIndex(row)
+    if (index === null || rows.includes(row)) continue
+    if (renderedText(row).length > 0 || row.querySelector(MEDIA) !== null) renderedPositions.push(String(index))
+  }
 
   if (messages.length === 0) return emptyExtract('structure_changed')
 
@@ -116,6 +133,22 @@ export function extractClaude(doc: Document): PageExtract {
     scroller !== null && nearBottom(scroller) && lastRowHasText && (total === null || maxIndex >= total - 1)
   const streaming = doc.querySelector('[data-is-streaming="true"]') !== null
 
+  // Rows are numbered from 0, so the thread is rows 0..total-1 (aria-setsize),
+  // or 0..last while the last row is mounted.
+  const allIndexes = allRows.map(rowIndex).filter((i): i is number => i !== null)
+  const lastIndex = total !== null ? total - 1 : lastMounted ? Math.max(...allIndexes) : null
+  const threadPositions =
+    lastIndex !== null && lastIndex < 100_000 ? Array.from({ length: lastIndex + 1 }, (_, i) => String(i)) : null
+
   const title = cleanTitle(doc.title, 'claude')
-  return { status: 'ok', messages, firstMounted, lastMounted, streaming, ...(title ? { title } : {}) }
+  return {
+    status: 'ok',
+    messages,
+    firstMounted,
+    lastMounted,
+    streaming,
+    renderedPositions,
+    threadPositions,
+    ...(title ? { title } : {}),
+  }
 }
