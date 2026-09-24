@@ -324,6 +324,22 @@ test('reminders: due ones can be dismissed; new ones use London time; tasks get 
   ).toBe('11:00|09:00')
 })
 
+test('an unreadable owner timezone shows an honest error, not an empty list', async ({ page }) => {
+  // Postgres knows 'Factory' but the JavaScript runtime does not.
+  sql(`insert into public.tasks (title) values ('Still saved');
+       update public.owner_settings set timezone = 'Factory';`)
+  await signIn(page, '/plan/tasks')
+  await expect(page.getByRole('heading', { level: 1, name: 'Tasks' })).toBeVisible()
+  await expect(page.getByText('This section could not be loaded').first()).toBeVisible()
+  await expect(page.getByText('No open tasks')).toHaveCount(0)
+  await expect(page.getByText('Nothing due today.')).toHaveCount(0)
+  await expect(page.getByText('Still saved')).toHaveCount(0)
+
+  sql(`update public.owner_settings set timezone = '${TZ}'`)
+  await page.getByRole('button', { name: 'Try again' }).first().click()
+  await expect(page.getByText('Still saved')).toBeVisible()
+})
+
 test.describe('on a 390px phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
 
