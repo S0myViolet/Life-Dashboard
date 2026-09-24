@@ -50,6 +50,25 @@ test.describe('timezone confirmation', () => {
   })
 })
 
+test('confirming the default timezone in Settings keeps it and hides the Home banner', async ({
+  page,
+}) => {
+  await signInAsOwner(page, '/settings/timezone')
+  await expect(page.getByText('Not confirmed yet', { exact: true })).toBeVisible()
+  await expect(page.getByLabel('Timezone', { exact: true })).toHaveValue('Europe/London')
+  await page.getByRole('button', { name: 'Confirm timezone' }).click()
+  await expect(page.getByText('Timezone set to Europe/London.')).toBeVisible()
+  expect(sql('select timezone, timezone_confirmed from public.owner_settings')).toBe(
+    'Europe/London|t',
+  )
+  await page.reload()
+  await expect(page.getByText('Confirmed', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Save timezone' })).toBeVisible()
+  await page.goto('/')
+  await expect(page.getByTestId('home-date')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Confirm your timezone' })).toHaveCount(0)
+})
+
 test('home layout: hiding and reordering persist across reloads and shape Home', async ({
   page,
 }) => {

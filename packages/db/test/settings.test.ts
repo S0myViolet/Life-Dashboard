@@ -111,14 +111,16 @@ describe('updateTimezone', () => {
     expect(unresolved).toEqual([])
   })
 
-  it('throws SettingsTimezoneNotRecognisedError when the database has no spelling of a zone', async () => {
-    // Intl accepts these backward-compatible names; this Postgres build ships tzdata without them.
+  it('throws SettingsTimezoneNotRecognisedError when the database has no spelling of a zone', async (ctx) => {
+    // Intl accepts these backward-compatible names; some Postgres builds (including the
+    // local one used here) ship tzdata without them. Skip where the database has them all.
     const names = new Set(await asOwner((tx) => listTimezoneNames(tx)))
-    const missing = ['GB', 'US/Eastern'].find((n) => !names.has(n))
-    expect(missing, 'needs a zone that Intl knows and Postgres lacks').toBeDefined()
+    const missing = ['GB', 'US/Eastern', 'US/Pacific', 'NZ', 'Japan'].find((n) => !names.has(n))
+    if (!missing) ctx.skip()
     await expect(asOwner((tx) => updateTimezone(tx, missing!, true))).rejects.toThrow(
       SettingsTimezoneNotRecognisedError,
     )
+    expect((await asOwner((tx) => getOwnerSettings(tx)))?.timezone).toBe('Europe/London')
   })
 
   it('does nothing for a stranger and is denied for anon', async () => {

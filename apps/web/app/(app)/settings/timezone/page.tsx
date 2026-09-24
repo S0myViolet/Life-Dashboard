@@ -59,7 +59,11 @@ export default async function TimezoneSettingsPage() {
         </p>
       </Card>
       <Card aria-label="Change timezone">
-        <TimezoneForm current={settings.timezone} groups={groups} />
+        <TimezoneForm
+          current={settings.timezone}
+          confirmed={settings.timezoneConfirmed}
+          groups={groups}
+        />
       </Card>
     </>
   )

@@ -10,9 +10,12 @@ import { FormMessage } from './settings-list'
 
 export function TimezoneForm({
   current,
+  confirmed,
   groups,
 }: {
   current: string
+  /** False until the owner has explicitly confirmed or chosen a timezone. */
+  confirmed: boolean
   groups: { region: string; zones: string[] }[]
 }) {
   const [state, action, pending] = useActionState(saveTimezoneAction, IDLE_STATE)
@@ -70,7 +73,7 @@ export function TimezoneForm({
           )}
         </div>
         <button type="submit" className={buttonClass('primary')} disabled={pending}>
-          {pending ? 'Saving…' : 'Save timezone'}
+          {pending ? 'Saving…' : confirmed ? 'Save timezone' : 'Confirm timezone'}
         </button>
         <FormMessage state={state} />
       </form>
