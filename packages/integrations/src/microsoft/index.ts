@@ -1,2 +1,2 @@
 // Area barrel — microsoft.
-export {}
+export * from './adapter.ts'
