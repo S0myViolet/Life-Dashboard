@@ -20,7 +20,10 @@ import {
   saveJournalEntry,
   saveJournalTranscript,
   saveNote,
-  setNotePinned,
+  searchJournalEntries,
+  searchNotes,
+  type JournalSearchHit,
+  type NoteSearchHit,
   type JournalTranscriptDiscardResult,
 } from '@personal-home/db'
 import { ownerTransaction } from '@/lib/server/db'
@@ -52,18 +55,6 @@ export async function deleteNoteAction(id: unknown): Promise<{ status: 'deleted'
   return asOwner(async (tx) => ((await deleteNote(tx, parsed.data)) ? { status: 'deleted' as const } : { status: 'not_found' as const }))
 }
 
-export async function setNotePinnedAction(
-  id: unknown,
-  pinned: unknown,
-): Promise<{ status: 'saved'; version: number } | { status: 'not_found' } | Unauthorized | Failed> {
-  const parsed = z.object({ id: z.uuid(), pinned: z.boolean() }).safeParse({ id, pinned })
-  if (!parsed.success) return { status: 'not_found' }
-  return asOwner(async (tx) => {
-    const note = await setNotePinned(tx, parsed.data.id, parsed.data.pinned)
-    return note ? { status: 'saved' as const, version: note.version } : { status: 'not_found' as const }
-  })
-}
-
 export async function saveJournalEntryAction(input: unknown): Promise<JournalEntrySaveResult> {
   return asOwner((tx) => saveJournalEntry(tx, input as Parameters<typeof saveJournalEntry>[1]))
 }
@@ -76,4 +67,22 @@ export async function discardJournalTranscriptAction(
   input: unknown,
 ): Promise<JournalTranscriptDiscardResult | Unauthorized | Failed> {
   return asOwner((tx) => discardJournalTranscript(tx, input as Parameters<typeof discardJournalTranscript>[1]))
+}
+
+const SearchQuerySchema = z.string().trim().min(1).max(200)
+
+/**
+ * Full-text search over notes and journal entries. A POST (Server Action) rather than a GET form,
+ * so what the owner searches for never appears in URLs, browser history or access logs.
+ */
+export async function searchCaptureAction(
+  query: unknown,
+): Promise<{ status: 'ok'; notes: NoteSearchHit[]; journal: JournalSearchHit[] } | { status: 'invalid' } | Unauthorized | Failed> {
+  const parsed = SearchQuerySchema.safeParse(query)
+  if (!parsed.success) return { status: 'invalid' }
+  return asOwner(async (tx) => ({
+    status: 'ok' as const,
+    notes: await searchNotes(tx, parsed.data, { limit: 30 }),
+    journal: await searchJournalEntries(tx, parsed.data, { limit: 20 }),
+  }))
 }

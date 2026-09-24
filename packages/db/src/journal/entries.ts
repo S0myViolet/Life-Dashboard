@@ -87,7 +87,15 @@ export async function getJournalEntry(tx: Tx, localDate: string): Promise<Journa
   return row ? toJournalEntryView(row) : null
 }
 
+/**
+ * Lock a day's entry for a transcript review change. Its recordings are locked FIRST, in id order:
+ * transcription attempts lock a recording and then its entry, so taking the locks in the same
+ * order here means the two can never deadlock.
+ */
 async function lockJournalEntry(tx: Tx, localDate: string): Promise<JournalEntryView | null> {
+  const [ref] = await tx<{ id: string }[]>`select id from public.journal_entries where local_date = ${localDate}::date`
+  if (!ref) return null
+  await tx`select id from public.journal_recordings where entry_id = ${ref.id}::uuid order by id for update`
   const [row] = await tx<EntryDbRow[]>`
     select id, local_date, body, prompts::text as prompts, origin, transcript_status, transcript_draft, version, created_at, updated_at
     from public.journal_entries where local_date = ${localDate}::date

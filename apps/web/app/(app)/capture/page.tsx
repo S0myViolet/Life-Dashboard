@@ -1,23 +1,22 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
-import { Search } from 'lucide-react'
 import { journalExcerpt } from '@personal-home/core'
-import { getJournalEntry, listJournalRecordings, listNotes, searchJournalEntries, searchNotes } from '@personal-home/db'
+import { getJournalEntry, listJournalRecordings, listNotes } from '@personal-home/db'
 import { PageHeader } from '@/components/shell/app-shell'
-import { Button, ButtonLink } from '@/components/ui/button'
+import { ButtonLink } from '@/components/ui/button'
 import { Card, CardHeader } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Pill } from '@/components/ui/status-pill'
 import { NewNoteButton } from '@/components/notes/new-note-button'
 import { NoteList } from '@/components/notes/note-list'
 import { PendingDrafts } from '@/components/notes/pending-drafts'
-import { SearchResults } from '@/components/notes/search-results'
+import { CaptureSearch } from '@/components/notes/capture-search'
 import { requireOwner, withOwnerTx } from '@/lib/server/session'
 import { formatLocalDate, ownerTimezone, ownerToday } from './_lib/data'
 
 export const metadata = { title: 'Capture' }
 
-type SearchParams = Promise<{ q?: string | string[]; view?: string | string[] }>
+type SearchParams = Promise<{ view?: string | string[] }>
 
 function Skeleton({ title }: { title: string }) {
   return (
@@ -94,47 +93,16 @@ async function JournalTodayCard() {
   )
 }
 
-async function SearchSection({ q }: { q: string }) {
-  const { notes, journal } = await withOwnerTx(async (tx) => ({
-    notes: await searchNotes(tx, q, { limit: 30 }),
-    journal: await searchJournalEntries(tx, q, { limit: 20 }),
-  }))
-  return <SearchResults query={q} notes={notes} journal={journal} />
-}
-
 export default async function CapturePage({ searchParams }: { searchParams: SearchParams }) {
   await requireOwner()
   const sp = await searchParams
-  const q = (typeof sp.q === 'string' ? sp.q : '').trim().slice(0, 200)
   const view = sp.view === 'pinned' ? 'pinned' : 'recent'
 
   return (
     <>
       <PageHeader title="Capture" subtitle="Notes and journal" actions={<NewNoteButton />} />
       <PendingDrafts />
-      <form role="search" action="/capture" method="get" className="mb-5 flex gap-2">
-        <label htmlFor="capture-search" className="sr-only">
-          Search notes and journal
-        </label>
-        <input
-          id="capture-search"
-          name="q"
-          type="search"
-          defaultValue={q}
-          maxLength={200}
-          placeholder="Search notes and journal"
-          className="min-h-11 min-w-0 flex-1 rounded-xl border border-line-strong bg-surface px-3 text-sm text-ink"
-        />
-        <Button type="submit">
-          <Search aria-hidden className="size-4" />
-          Search
-        </Button>
-      </form>
-      {q ? (
-        <Suspense key={q} fallback={<Skeleton title="Searching…" />}>
-          <SearchSection q={q} />
-        </Suspense>
-      ) : (
+      <CaptureSearch>
         <div className="grid items-start gap-4 lg:grid-cols-[1fr_20rem]">
           <Suspense fallback={<Skeleton title="Notes" />}>
             <NotesSection view={view} />
@@ -143,7 +111,7 @@ export default async function CapturePage({ searchParams }: { searchParams: Sear
             <JournalTodayCard />
           </Suspense>
         </div>
-      )}
+      </CaptureSearch>
     </>
   )
 }

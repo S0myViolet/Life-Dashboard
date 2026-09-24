@@ -4,11 +4,11 @@
  */
 import { journalRecordingFileExtension } from '@personal-home/core'
 import { readJournalRecordingAudio } from '@personal-home/db'
-import { fail, parseRecordingId, requireOwnerRoute } from '../../../_lib/http'
+import { fail, guarded, parseRecordingId, requireOwnerRoute } from '../../../_lib/http'
 
 type Ctx = { params: Promise<{ id: string }> }
 
-export async function GET(request: Request, ctx: Ctx) {
+export const GET = guarded(async (request: Request, ctx: Ctx) => {
   const auth = await requireOwnerRoute(request, { mutating: false })
   if ('response' in auth) return auth.response
   const id = parseRecordingId((await ctx.params).id)
@@ -26,4 +26,4 @@ export async function GET(request: Request, ctx: Ctx) {
       'Cache-Control': 'private, no-store',
     },
   })
-}
+})

@@ -248,6 +248,9 @@ class DraftEngine {
   discard(kind: DraftKind, targetId: string): void {
     const key = draftKey(kind, targetId)
     this.setDraft(key, null, true)
+    // Used after a delete (here or elsewhere): forget the server copy too, so returning to this
+    // page never shows a note that no longer exists.
+    this.servers.delete(key)
     this.notify(key)
   }
 
@@ -350,9 +353,16 @@ class DraftEngine {
     return !this.drafts.has(key)
   }
 
-  /** Keys of drafts that still need attention (for "n unsynced drafts" notices). */
-  pendingKeys(): string[] {
-    return [...this.drafts.values()].map((d) => d.key)
+  /**
+   * Drafts that need the owner's attention: a sync already failed (or the device is offline), a
+   * conflict, a note deleted elsewhere, or rejected content. A draft that is simply about to sync
+   * is not listed, so the notice does not flicker while typing.
+   */
+  attentionKeys(): string[] {
+    const offline = typeof navigator !== 'undefined' && navigator.onLine === false
+    return [...this.drafts.values()]
+      .filter((d) => d.state !== 'pending' || d.attempts > 0 || offline)
+      .map((d) => d.key)
   }
 }
 

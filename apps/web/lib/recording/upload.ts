@@ -135,7 +135,8 @@ export async function uploadJournalRecording(rec: UploadableRecording, deps: Upl
         let sent = total - missing.length
         deps.onProgress?.({ phase: 'uploading', sentChunks: sent, totalChunks: total })
         for (const seq of missing) {
-          const [start, end] = journalChunkRange(bytes.byteLength, chunkBytes, seq)
+          // Slice with the size the server registered, so a resumed upload always matches it.
+          const [start, end] = journalChunkRange(bytes.byteLength, recording.chunkBytes, seq)
           const res = await request(
             deps,
             `${base}/${rec.id}/chunks/${seq}`,

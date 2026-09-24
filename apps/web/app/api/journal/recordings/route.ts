@@ -4,9 +4,9 @@
  * the chunks the server already has, which is where a resumed upload continues).
  */
 import { createJournalRecording } from '@personal-home/db'
-import { fail, json, readJson, requireOwnerRoute } from '../_lib/http'
+import { fail, guarded, json, readJson, requireOwnerRoute } from '../_lib/http'
 
-export async function POST(request: Request) {
+export const POST = guarded(async (request: Request) => {
   const auth = await requireOwnerRoute(request, { mutating: true })
   if ('response' in auth) return auth.response
   const body = await readJson(request)
@@ -26,4 +26,4 @@ export async function POST(request: Request) {
     case 'invalid':
       return fail('invalid', 400, { issues: result.issues })
   }
-}
+})

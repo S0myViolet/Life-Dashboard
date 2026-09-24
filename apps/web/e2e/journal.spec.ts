@@ -82,7 +82,7 @@ test('typing while the server is unreachable is kept on the device, survives a r
 
   await page.reload()
   await expect(page.getByLabel('Entry', { exact: true })).toHaveValue('Written without a connection.')
-  await expect(page.getByText(/saved on this device and (waiting|not yet)/i)).toBeVisible()
+  await expect(page.getByText(/saved on this device and not synced yet/i)).toBeVisible()
 
   await page.unroute('**/capture/journal/**', blockPosts)
   await expect(page.getByTestId('sync-status').first()).toHaveText('Synced', { timeout: 30_000 })

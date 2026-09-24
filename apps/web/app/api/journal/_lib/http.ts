@@ -20,6 +20,23 @@ export function fail(error: string, status: number, extra: Record<string, unknow
   return json({ error, ...extra }, status)
 }
 
+/**
+ * Wrap a route handler so an unexpected failure (e.g. the database is unreachable) becomes a plain
+ * 500 and is never handed to the framework's error logger: a Postgres constraint error's detail can
+ * quote the failing row, which may hold journal text or audio.
+ */
+export function guarded<A extends unknown[]>(
+  handler: (...args: A) => Promise<Response>,
+): (...args: A) => Promise<Response> {
+  return async (...args: A) => {
+    try {
+      return await handler(...args)
+    } catch {
+      return fail('server_error', 500)
+    }
+  }
+}
+
 /** Browsers send Origin (and Sec-Fetch-Site) on these requests; anything cross-site is refused. */
 export function isSameOrigin(request: Request): boolean {
   const site = request.headers.get('sec-fetch-site')

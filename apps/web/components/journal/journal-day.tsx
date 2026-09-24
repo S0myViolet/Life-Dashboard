@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { JournalEntryView, JournalRecordingView } from '@personal-home/core'
+import { idbDelete } from '@/lib/drafts/idb'
 import { journalSnapshot, journalTransport } from '@/lib/drafts/transports'
 import { useDraft } from '@/lib/drafts/use-draft'
 import {
@@ -16,7 +17,7 @@ import type { RecordedAudio } from '@/lib/recording/use-recorder'
 import { JournalEditor } from './journal-editor'
 import { JournalRecorder } from './journal-recorder'
 import { RecordingList, type LocalUploadState } from './recording-list'
-import { TranscriptReview } from './transcript-review'
+import { TranscriptReview, transcriptReviewKey } from './transcript-review'
 
 type Progress = LocalUploadState['progress']
 
@@ -49,6 +50,13 @@ export function JournalDay({
     const t = setInterval(() => setNow(Date.now()), 60_000)
     return () => clearInterval(t)
   }, [])
+
+  // No transcript waiting (added or discarded, here or elsewhere): drop any review edits kept on
+  // this device for it, so journal text does not linger in local storage.
+  const hasTranscript = Boolean(entry?.transcriptDraft)
+  useEffect(() => {
+    if (!hasTranscript) void idbDelete('drafts', transcriptReviewKey(localDate))
+  }, [hasTranscript, localDate])
 
   const reloadLocal = useCallback(async () => {
     const all = await listLocalRecordings()

@@ -19,7 +19,8 @@ interface StoredReview {
   updatedAt: number
 }
 
-const reviewKey = (localDate: string) => `transcript_review:${localDate}`
+export const transcriptReviewKey = (localDate: string) => `transcript_review:${localDate}`
+const reviewKey = transcriptReviewKey
 
 /**
  * The machine transcript is a draft: the owner edits it here and adds it to the entry. It is never
@@ -51,7 +52,9 @@ export function TranscriptReview({
   useEffect(() => {
     let alive = true
     void idbGet<StoredReview>('drafts', reviewKey(localDate)).then((stored) => {
-      if (alive && stored && stored.seen === transcriptDraft && stored.text !== transcriptDraft) setText(stored.text)
+      if (!alive || !stored || typeof stored.text !== 'string' || typeof stored.seen !== 'string') return
+      // Edits made on an older draft: keep them and add whatever transcript arrived since.
+      if (transcriptDraft.startsWith(stored.seen)) setText(stored.text + transcriptDraft.slice(stored.seen.length))
     })
     return () => {
       alive = false

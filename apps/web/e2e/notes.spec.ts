@@ -51,18 +51,21 @@ test('a new note autosaves, is searchable with highlighted matches, and can be p
   // Search by a word prefix; the match is highlighted.
   await page.goto('/capture')
   await page.getByRole('searchbox', { name: 'Search notes and journal' }).fill(`tomat ${tag}`)
-  await page.getByRole('button', { name: 'Search' }).click()
+  await page.getByRole('button', { name: 'Search', exact: true }).click()
   const hit = page.getByTestId('note-hit').filter({ hasText: tag })
   await expect(hit).toHaveCount(1)
   await expect(hit.locator('mark').filter({ hasText: 'tomatoes' })).toBeVisible()
   await expect(hit.locator('mark').filter({ hasText: tag })).toBeVisible()
+  // Search terms never go into the URL (or history, or access logs).
+  expect(page.url()).not.toContain('tomat')
 
   // Pinned list.
   await page.goto('/capture?view=pinned')
   await expect(page.getByTestId('note-list')).toContainText(`Garden plan ${tag}`)
 
   // A search with no hits says so honestly.
-  await page.goto(`/capture?q=${encodeURIComponent(`zzqx${tag}`)}`)
+  await page.getByRole('searchbox', { name: 'Search notes and journal' }).fill(`zzqx${tag}`)
+  await page.getByRole('button', { name: 'Search', exact: true }).click()
   await expect(page.getByText(/Nothing found for/)).toBeVisible()
 })
 
@@ -119,4 +122,19 @@ test('deleting a note asks first and removes it', async ({ page }, info) => {
   await page.getByRole('button', { name: 'Delete note' }).click()
   await expect(page).toHaveURL(/\/capture$/)
   expect(sql(`select count(*) from public.notes where id = '${id}'`)).toBe('0')
+})
+
+test('signing out clears drafts kept on this device', async ({ page }, info) => {
+  const tag = `${info.project.name}${Date.now().toString(36)}`
+  await newNote(page)
+  const block = (route: Route) => (route.request().method() === 'POST' ? route.abort('internetdisconnected') : route.continue())
+  await page.route('**/capture/notes/**', block)
+  await page.getByLabel('Note', { exact: true }).fill(`Unsynced ${tag}`)
+  await expect(page.getByTestId('sync-status')).toHaveText('Waiting to sync', { timeout: 15_000 })
+  const names = () => page.evaluate(async () => (await indexedDB.databases()).map((d) => d.name))
+  expect(await names()).toContain('personal-home-drafts')
+
+  await page.goto('/signed-out')
+  await expect(page.getByRole('heading', { name: 'Signed out' })).toBeVisible()
+  await expect.poll(names).not.toContain('personal-home-drafts')
 })

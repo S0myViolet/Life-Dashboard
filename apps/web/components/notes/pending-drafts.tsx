@@ -18,7 +18,7 @@ export function PendingDrafts() {
     engine.register('journal', journalTransport)
     let alive = true
     const refresh = () => {
-      if (alive) setPending(engine.pendingKeys())
+      if (alive) setPending(engine.attentionKeys())
     }
     void engine.load().then(async () => {
       refresh()
@@ -38,7 +38,7 @@ export function PendingDrafts() {
   return (
     <div role="status" className="mb-4 rounded-xl border border-caution/30 bg-caution-soft px-3 py-2 text-sm text-ink">
       <p className="font-medium">
-        {pending.length === 1 ? '1 draft is' : `${pending.length} drafts are`} saved on this device and waiting to sync.
+        {pending.length === 1 ? '1 draft is' : `${pending.length} drafts are`} saved on this device and not synced yet.
       </p>
       <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
         {pending.map((key) => {

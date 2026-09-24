@@ -7,11 +7,11 @@
  */
 import { JOURNAL_CHUNK_MAX_BYTES, JOURNAL_RECORDING_MAX_CHUNKS } from '@personal-home/core'
 import { putJournalRecordingChunk } from '@personal-home/db'
-import { fail, json, parseRecordingId, readBodyWithLimit, requireOwnerRoute } from '../../../../_lib/http'
+import { fail, guarded, json, parseRecordingId, readBodyWithLimit, requireOwnerRoute } from '../../../../_lib/http'
 
 type Ctx = { params: Promise<{ id: string; seq: string }> }
 
-export async function PUT(request: Request, ctx: Ctx) {
+export const PUT = guarded(async (request: Request, ctx: Ctx) => {
   const auth = await requireOwnerRoute(request, { mutating: true })
   if ('response' in auth) return auth.response
   const params = await ctx.params
@@ -39,4 +39,4 @@ export async function PUT(request: Request, ctx: Ctx) {
     case 'not_uploading':
       return fail(result.status, 409)
   }
-}
+})

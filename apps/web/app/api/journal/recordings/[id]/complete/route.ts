@@ -8,7 +8,7 @@
  */
 import { completeJournalRecordingUpload, getJournalRecording } from '@personal-home/db'
 import { transcribeJournalRecording } from '@personal-home/jobs'
-import { fail, json, parseRecordingId, requireOwnerRoute } from '../../../_lib/http'
+import { fail, guarded, json, parseRecordingId, requireOwnerRoute } from '../../../_lib/http'
 import { getJournalTranscriber } from '../../../_lib/transcriber'
 
 // Transcription can take a while (Vercel Hobby allows up to 300 s).
@@ -16,7 +16,7 @@ export const maxDuration = 300
 
 type Ctx = { params: Promise<{ id: string }> }
 
-export async function POST(request: Request, ctx: Ctx) {
+export const POST = guarded(async (request: Request, ctx: Ctx) => {
   const auth = await requireOwnerRoute(request, { mutating: true })
   if ('response' in auth) return auth.response
   const id = parseRecordingId((await ctx.params).id)
@@ -42,4 +42,4 @@ export async function POST(request: Request, ctx: Ctx) {
     const recording = await auth.run((tx) => getJournalRecording(tx, id, new Date())).catch(() => null)
     return json({ recording, result: null, error: 'transcription_error' })
   }
-}
+})
