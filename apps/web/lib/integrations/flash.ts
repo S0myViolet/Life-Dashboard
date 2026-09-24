@@ -22,7 +22,10 @@ export interface ConnectionsFlash {
 export const PROVIDER_ACCESS_PAGES: Partial<Record<Provider, { href: string; label: string }>> = {
   google: { href: 'https://myaccount.google.com/permissions', label: 'Google account permissions' },
   // UNVERIFIED from the build container (learn.microsoft.com is blocked): long-standing consent pages.
-  microsoft: { href: 'https://account.live.com/consent/Manage', label: 'Microsoft account app permissions' },
+  microsoft: {
+    href: 'https://account.live.com/consent/Manage',
+    label: 'Microsoft account app permissions',
+  },
 }
 
 type SearchParams = Record<string, string | string[] | undefined>
@@ -33,15 +36,21 @@ function errorMessage(code: OAuthResultError, name: string): ConnectionsFlash {
   const caution = (message: string): ConnectionsFlash => ({ tone: 'caution', message })
   switch (code) {
     case 'needs_setup':
-      return caution(`${name} is not set up on the server yet. Add the settings listed below, then try again.`)
+      return caution(
+        `${name} is not set up on the server yet. Add the settings listed below, then try again.`,
+      )
     case 'unknown_account':
       return caution('That account is no longer connected.')
     case 'invalid_request':
       return danger('The sign-in response was incomplete. Nothing was connected; please try again.')
     case 'state_mismatch':
-      return danger('This sign-in was not started from this browser, or was started twice. Nothing was connected; please try again.')
+      return danger(
+        'This sign-in was not started from this browser, or was started twice. Nothing was connected; please try again.',
+      )
     case 'state_expired':
-      return danger('The sign-in link expired or was already used. Nothing was connected; please try again.')
+      return danger(
+        'The sign-in link expired or was already used. Nothing was connected; please try again.',
+      )
     case 'denied':
       return caution(`You cancelled at ${name}. Nothing was connected.`)
     case 'provider_error':
@@ -49,9 +58,13 @@ function errorMessage(code: OAuthResultError, name: string): ConnectionsFlash {
     case 'client_rejected':
       return danger(`${name} rejected this app's client ID or secret. Check the server settings.`)
     case 'exchange_failed':
-      return danger(`${name} did not accept the sign-in code. Nothing was connected; please try again.`)
+      return danger(
+        `${name} did not accept the sign-in code. Nothing was connected; please try again.`,
+      )
     case 'no_refresh_token':
-      return danger(`${name} did not grant background (offline) access, so nothing was connected. Try again and allow it.`)
+      return danger(
+        `${name} did not grant background (offline) access, so nothing was connected. Try again and allow it.`,
+      )
     case 'identity_failed':
       return danger('Could not confirm which account this is. Nothing was connected.')
     case 'rate_limited':
@@ -73,9 +86,15 @@ export function connectionsFlash(sp: SearchParams): ConnectionsFlash | null {
     const page = PROVIDER_ACCESS_PAGES[provider]
     switch (one(sp.revoke)) {
       case 'revoked':
-        return { tone: 'positive', message: `Disconnected. Access was revoked at ${name} and stored tokens were deleted.` }
+        return {
+          tone: 'positive',
+          message: `Disconnected. Access was revoked at ${name} and stored tokens were deleted.`,
+        }
       case 'already_invalid':
-        return { tone: 'positive', message: `Disconnected. ${name} had already ended access; stored tokens were deleted.` }
+        return {
+          tone: 'positive',
+          message: `Disconnected. ${name} had already ended access; stored tokens were deleted.`,
+        }
       case 'not_supported':
         return {
           tone: 'caution',
@@ -94,7 +113,11 @@ export function connectionsFlash(sp: SearchParams): ConnectionsFlash | null {
   }
 
   const result = one(sp.result)
-  if (provider && isOAuthConnectProvider(provider) && (result === 'connected' || result === 'reconnected')) {
+  if (
+    provider &&
+    isOAuthConnectProvider(provider) &&
+    (result === 'connected' || result === 'reconnected')
+  ) {
     if (one(sp.check) === 'failed')
       return {
         tone: 'caution',

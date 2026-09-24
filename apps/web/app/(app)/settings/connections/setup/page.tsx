@@ -23,16 +23,14 @@ function Steps({ children }: { children: React.ReactNode }) {
 
 function SetupState({ provider }: { provider: Provider }) {
   const s = providerSetup(provider)
-  return s.configured ? <Pill tone="positive">Settings present</Pill> : <ConnectionStatusPill status="needs_setup" />
+  return s.configured ? (
+    <Pill tone="positive">Settings present</Pill>
+  ) : (
+    <ConnectionStatusPill status="needs_setup" />
+  )
 }
 
-function Section({
-  provider,
-  children,
-}: {
-  provider: Provider
-  children: React.ReactNode
-}) {
+function Section({ provider, children }: { provider: Provider; children: React.ReactNode }) {
   const info = CONNECTION_PROVIDER_INFO[provider]
   return (
     <Card as="section" id={provider} aria-labelledby={`setup-${provider}`} className="scroll-mt-6">
@@ -93,13 +91,14 @@ export default async function ConnectionSetupPage() {
               <Code>TOKEN_ENCRYPTION_KEY</Code> and provider client settings as the web app.
             </li>
             <li>
-              <Code>TOKEN_ENCRYPTION_KEY</Code> encrypts stored refresh tokens (32 random bytes, base64:{' '}
-              <Code>openssl rand -base64 32</Code>). Changing it makes stored tokens unreadable, so every
-              account would need reconnecting.
+              <Code>TOKEN_ENCRYPTION_KEY</Code> encrypts stored refresh tokens (32 random bytes,
+              base64: <Code>openssl rand -base64 32</Code>). Changing it makes stored tokens
+              unreadable, so every account would need reconnecting.
             </li>
             <li>
-              <Code>APP_URL</Code> is this app&apos;s public origin (currently <Code>{appUrl}</Code>). OAuth
-              redirect addresses below are built from it and must match the provider consoles exactly.
+              <Code>APP_URL</Code> is this app&apos;s public origin (currently <Code>{appUrl}</Code>
+              ). OAuth redirect addresses below are built from it and must match the provider
+              consoles exactly.
             </li>
           </Steps>
         </Card>
@@ -107,15 +106,16 @@ export default async function ConnectionSetupPage() {
         <Section provider="google">
           <Steps>
             <li>
-              Google Cloud Console → select or create a project → APIs &amp; Services → Library: enable the{' '}
-              <strong>Gmail API</strong> and the <strong>Google Calendar API</strong>.
+              Google Cloud Console → select or create a project → APIs &amp; Services → Library:
+              enable the <strong>Gmail API</strong> and the <strong>Google Calendar API</strong>.
             </li>
             <li>
               Google Auth Platform (the former “OAuth consent screen”) → Audience: user type{' '}
-              <strong>External</strong>, publishing status <strong>In production</strong>. Do not leave it in
-              Testing: with Gmail or Calendar scopes, Testing refresh tokens expire after 7 days. Personal
-              use (fewer than 100 users you know) needs no verification; Google will show “Google hasn’t
-              verified this app” — choose Advanced, then Go to the app.
+              <strong>External</strong>, publishing status <strong>In production</strong>. Do not
+              leave it in Testing: with Gmail or Calendar scopes, Testing refresh tokens expire
+              after 7 days. Personal use (fewer than 100 users you know) needs no verification;
+              Google will show “Google hasn’t verified this app” — choose Advanced, then Go to the
+              app.
             </li>
             <li>
               Data Access (scopes): <Code>openid</Code>, <Code>email</Code>,{' '}
@@ -124,9 +124,10 @@ export default async function ConnectionSetupPage() {
               <Code>https://www.googleapis.com/auth/calendar.events.readonly</Code>. All read-only.
             </li>
             <li>
-              Clients → Create client → application type <strong>Web application</strong>. Authorised
-              redirect URI: <Code>{oauthRedirectUri('google', appUrl)}</Code>. Use a separate client from the
-              one Supabase uses for dashboard sign-in: mailbox consent is kept apart from signing in.
+              Clients → Create client → application type <strong>Web application</strong>.
+              Authorised redirect URI: <Code>{oauthRedirectUri('google', appUrl)}</Code>. Use a
+              separate client from the one Supabase uses for dashboard sign-in: mailbox consent is
+              kept apart from signing in.
             </li>
             <li>
               Copy the client ID into <Code>GOOGLE_OAUTH_CLIENT_ID</Code> and the client secret into{' '}
@@ -145,19 +146,22 @@ export default async function ConnectionSetupPage() {
               Microsoft Entra admin center (or Azure portal) → App registrations → New registration.
             </li>
             <li>
-              Supported account types: <strong>accounts in any organisational directory and personal
-              Microsoft accounts</strong> (multitenant + personal). The app signs in through the{' '}
-              <Code>common</Code> endpoint.
+              Supported account types:{' '}
+              <strong>
+                accounts in any organisational directory and personal Microsoft accounts
+              </strong>{' '}
+              (multitenant + personal). The app signs in through the <Code>common</Code> endpoint.
             </li>
             <li>
-              Redirect URI: platform <strong>Web</strong> (not “Single-page application”: SPA refresh tokens
-              expire after 24 hours), address <Code>{oauthRedirectUri('microsoft', appUrl)}</Code>.
+              Redirect URI: platform <strong>Web</strong> (not “Single-page application”: SPA
+              refresh tokens expire after 24 hours), address{' '}
+              <Code>{oauthRedirectUri('microsoft', appUrl)}</Code>.
             </li>
             <li>
-              Certificates &amp; secrets → New client secret with an expiry of at most 24 months (Microsoft
-              recommends under 12). Copy its <strong>Value</strong> immediately into{' '}
-              <Code>MICROSOFT_CLIENT_SECRET</Code> and note the expiry date: connections stop working when
-              it expires.
+              Certificates &amp; secrets → New client secret with an expiry of at most 24 months
+              (Microsoft recommends under 12). Copy its <strong>Value</strong> immediately into{' '}
+              <Code>MICROSOFT_CLIENT_SECRET</Code> and note the expiry date: connections stop
+              working when it expires.
             </li>
             <li>
               Overview → Application (client) ID into <Code>MICROSOFT_CLIENT_ID</Code>.
@@ -165,12 +169,13 @@ export default async function ConnectionSetupPage() {
             <li>
               API permissions → Microsoft Graph → Delegated: <Code>offline_access</Code>,{' '}
               <Code>openid</Code>, <Code>profile</Code>, <Code>email</Code>, <Code>User.Read</Code>,{' '}
-              <Code>Mail.Read</Code>, <Code>Calendars.Read</Code>. A work or school tenant may require an
-              administrator to approve them.
+              <Code>Mail.Read</Code>, <Code>Calendars.Read</Code>. A work or school tenant may
+              require an administrator to approve them.
             </li>
             <li>
-              Microsoft has no API for apps to revoke access. After disconnecting, remove the app from your
-              Microsoft account’s app permissions (personal accounts) or My Apps (work/school accounts).
+              Microsoft has no API for apps to revoke access. After disconnecting, remove the app
+              from your Microsoft account’s app permissions (personal accounts) or My Apps
+              (work/school accounts).
             </li>
             <li>
               Check background access with{' '}
@@ -182,17 +187,18 @@ export default async function ConnectionSetupPage() {
         <Section provider="lunchflow">
           <Steps>
             <li>
-              Lunch Flow dashboard → Destinations → add an <strong>API</strong> destination and copy its key
-              into <Code>LUNCHFLOW_API_KEY</Code> (server only; never in the browser).
+              Lunch Flow dashboard → Destinations → add an <strong>API</strong> destination and copy
+              its key into <Code>LUNCHFLOW_API_KEY</Code> (server only; never in the browser).
             </li>
             <li>
-              Check that both Revolut UK and HSBC UK personal accounts are covered during the trial, and
-              confirm the price at checkout before paying.
+              Check that both Revolut UK and HSBC UK personal accounts are covered during the trial,
+              and confirm the price at checkout before paying.
             </li>
             <li>
               Validate the account types with{' '}
-              <Code>node --env-file=apps/web/.env.local scripts/verify-lunchflow.mjs</Code>. Banking import
-              arrives in Milestone 3; balances refresh about once a day and are never shown as live.
+              <Code>node --env-file=apps/web/.env.local scripts/verify-lunchflow.mjs</Code>. Banking
+              import arrives in Milestone 3; balances refresh about once a day and are never shown
+              as live.
             </li>
           </Steps>
         </Section>
@@ -203,7 +209,10 @@ export default async function ConnectionSetupPage() {
           </h2>
           <p id="claude" className="mt-1 text-sm text-ink-muted">
             No server settings. Conversations are collected by the Chrome helper:{' '}
-            <Link href="/settings/chrome-helper" className="text-accent underline-offset-2 hover:underline">
+            <Link
+              href="/settings/chrome-helper"
+              className="text-accent underline-offset-2 hover:underline"
+            >
               set up the Chrome helper
             </Link>
             .

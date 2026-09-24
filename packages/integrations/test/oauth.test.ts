@@ -64,9 +64,13 @@ describe('token responses', () => {
   })
 
   it('rejects non-bearer tokens and empty access tokens', () => {
-    expect(OAuthTokenResponseSchema.safeParse({ access_token: 'a', token_type: 'mac' }).success).toBe(false)
+    expect(
+      OAuthTokenResponseSchema.safeParse({ access_token: 'a', token_type: 'mac' }).success,
+    ).toBe(false)
     expect(OAuthTokenResponseSchema.safeParse({ access_token: '' }).success).toBe(false)
-    expect(OAuthTokenResponseSchema.safeParse({ access_token: 'a', expires_in: '-1' }).success).toBe(false)
+    expect(
+      OAuthTokenResponseSchema.safeParse({ access_token: 'a', expires_in: '-1' }).success,
+    ).toBe(false)
   })
 })
 
@@ -89,7 +93,10 @@ describe('token endpoint error classification', () => {
   })
 
   it('429 and 5xx are retryable regardless of body', () => {
-    expect(classify(info(429, null, 1000))).toMatchObject({ kind: 'rate_limited', retryAfterMs: 1000 })
+    expect(classify(info(429, null, 1000))).toMatchObject({
+      kind: 'rate_limited',
+      retryAfterMs: 1000,
+    })
     expect(classify(info(502, 'invalid_grant'))?.kind).toBe('transient')
     expect(classify(info(400, 'temporarily_unavailable'))?.kind).toBe('transient')
   })

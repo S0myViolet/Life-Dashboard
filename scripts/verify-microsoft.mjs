@@ -20,7 +20,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   runOAuthVerification('microsoft').then(
     (code) => process.exit(code),
     (err) => {
-      console.error(`Verification could not run: ${err instanceof Error ? err.message : 'unknown error'}`)
+      console.error(
+        `Verification could not run: ${err instanceof Error ? err.message : 'unknown error'}`,
+      )
       process.exit(1)
     },
   )

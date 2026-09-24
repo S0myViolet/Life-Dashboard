@@ -31,7 +31,10 @@ const PROVIDER_SETTINGS = {
   google: ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET'],
   microsoft: ['MICROSOFT_CLIENT_ID', 'MICROSOFT_CLIENT_SECRET'],
 }
-const PROVIDER_NAMES = { google: 'Google (Gmail + Calendar)', microsoft: 'Microsoft (Outlook mail + calendar)' }
+const PROVIDER_NAMES = {
+  google: 'Google (Gmail + Calendar)',
+  microsoft: 'Microsoft (Outlook mail + calendar)',
+}
 
 /** Load apps/web/.env.local and .env when present, without overriding variables already set. */
 export function loadOwnerEnv() {
@@ -57,7 +60,8 @@ const iso = (d) => (d ? new Date(d).toISOString() : 'n/a')
 /** Account kind from the id token when the refresh returned one; otherwise a labelled guess from the address. */
 function accountType(provider, kind, label) {
   if (kind !== 'unknown') return kind
-  if (provider === 'google' && /@(gmail|googlemail)\.com$/i.test(label)) return 'personal (inferred from a gmail.com address)'
+  if (provider === 'google' && /@(gmail|googlemail)\.com$/i.test(label))
+    return 'personal (inferred from a gmail.com address)'
   return 'unknown (the refresh returned no id token)'
 }
 
@@ -67,7 +71,9 @@ function daysBetween(a, b) {
 
 async function importWorkspace() {
   if (!process.features?.typescript) {
-    throw new Error('This Node.js cannot run TypeScript directly. Use Node 22.18+ or add --experimental-strip-types.')
+    throw new Error(
+      'This Node.js cannot run TypeScript directly. Use Node 22.18+ or add --experimental-strip-types.',
+    )
   }
   const url = (p) => pathToFileURL(resolve(ROOT, p)).href
   const [core, db, integrations, jobs] = await Promise.all([
@@ -121,7 +127,10 @@ export async function runOAuthVerification(provider, argv = process.argv.slice(2
     return 2
   }
 
-  const sql = db.createDb(process.env.DATABASE_URL, { max: 2, applicationName: `verify-${provider}` })
+  const sql = db.createDb(process.env.DATABASE_URL, {
+    max: 2,
+    applicationName: `verify-${provider}`,
+  })
   const label = (l) => (values['show-labels'] ? l : maskLabel(l))
   let failures = 0
   try {
@@ -172,10 +181,17 @@ export async function runOAuthVerification(provider, argv = process.argv.slice(2
         `- Mail access: ${coverage.mail ? 'yes' : 'no'}; calendar access: ${coverage.calendar ? 'yes' : 'no'}${coverage.missing.length ? `; not granted: ${coverage.missing.map((s) => core.describeScope(s)).join(', ')}` : ''}`,
         `- Access token refreshed: ${report.refreshed ? 'yes' : 'no'}; refresh token rotated: ${report.refreshTokenRotated ? 'yes (new one stored)' : 'no'}`,
         `- New access token expires: ${iso(report.accessTokenExpiresAt)}`,
-        `- Identity endpoint: ${report.endpoint ?? 'not reached'}${Object.keys(report.facts).length ? ` (${Object.entries(report.facts).map(([k, v]) => `${k}=${v}`).join(', ')})` : ''}`,
+        `- Identity endpoint: ${report.endpoint ?? 'not reached'}${
+          Object.keys(report.facts).length
+            ? ` (${Object.entries(report.facts)
+                .map(([k, v]) => `${k}=${v}`)
+                .join(', ')})`
+            : ''
+        }`,
         `- Status after check: ${report.statusAfter ?? 'unknown'}; last success: ${iso(after.lastSuccessAt)}; last attempt: ${iso(after.lastAttemptAt)}`,
       )
-      if (report.failure) lines.push(`- Failure: \`${report.failure.code}\` — ${report.failure.message}`)
+      if (report.failure)
+        lines.push(`- Failure: \`${report.failure.code}\` — ${report.failure.message}`)
       lines.push('')
     }
     console.log(lines.join('\n'))
@@ -190,7 +206,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     (code) => process.exit(code),
     (err) => {
       // Messages from our own code are already sanitised; never print stacks with request data.
-      console.error(`Verification could not run: ${err instanceof Error ? err.message : 'unknown error'}`)
+      console.error(
+        `Verification could not run: ${err instanceof Error ? err.message : 'unknown error'}`,
+      )
       process.exit(1)
     },
   )

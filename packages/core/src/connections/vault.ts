@@ -3,7 +3,12 @@
  * additional authenticated data names the row and purpose it belongs to, so a
  * ciphertext copied to another connection or column fails to decrypt.
  */
-import { decryptSecret, encryptSecret, importEncryptionKey, type EncryptionKey } from '../crypto/index.ts'
+import {
+  decryptSecret,
+  encryptSecret,
+  importEncryptionKey,
+  type EncryptionKey,
+} from '../crypto/index.ts'
 import { ConnectionError, connectionFailure } from './errors.ts'
 
 export type ConnectionTokenKind = 'refresh_token' | 'access_token'
@@ -49,7 +54,9 @@ export async function connectionDecryptToken(
 }
 
 /** Import TOKEN_ENCRYPTION_KEY; returns null when it is missing or not 32 bytes of base64. */
-export async function connectionEncryptionKey(base64: string | undefined): Promise<EncryptionKey | null> {
+export async function connectionEncryptionKey(
+  base64: string | undefined,
+): Promise<EncryptionKey | null> {
   if (!base64 || base64.trim() === '') return null
   try {
     return await importEncryptionKey(base64, CONNECTION_TOKEN_KEY_VERSION)

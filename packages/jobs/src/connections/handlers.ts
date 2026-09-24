@@ -17,7 +17,13 @@ import {
   connectionFailure,
   type OAuthConnectProvider,
 } from '@personal-home/core'
-import { connectionApplyEvent, connectionGet, connectionsDue, withService, type Db } from '@personal-home/db'
+import {
+  connectionApplyEvent,
+  connectionGet,
+  connectionsDue,
+  withService,
+  type Db,
+} from '@personal-home/db'
 import { oauthAdapterFromSettings } from '@personal-home/integrations'
 import { connectionVerifyAccess, type ConnectionVerifyReport } from './verify.ts'
 
@@ -40,7 +46,10 @@ export type ConnectionJobResult =
   | { status: 'retry'; retryAt?: Date; error: string }
   | { status: 'failed'; error: string }
 
-export type ConnectionJobHandler = (ctx: ConnectionJobContext, job: ConnectionJob) => Promise<ConnectionJobResult>
+export type ConnectionJobHandler = (
+  ctx: ConnectionJobContext,
+  job: ConnectionJob,
+) => Promise<ConnectionJobResult>
 
 const PayloadSchema = z
   .object({ connectionId: z.uuid().optional() })
@@ -52,7 +61,10 @@ const PayloadSchema = z
 const BUSY_RETRY_MS = 60_000
 
 /** Map one account's report to a job result (single-connection jobs). */
-export function connectionJobResultFor(report: ConnectionVerifyReport, now: Date): ConnectionJobResult {
+export function connectionJobResultFor(
+  report: ConnectionVerifyReport,
+  now: Date,
+): ConnectionJobResult {
   switch (report.outcome) {
     case 'succeeded':
     case 'skipped_paused':
@@ -62,12 +74,17 @@ export function connectionJobResultFor(report: ConnectionVerifyReport, now: Date
     case 'skipped_needs_reconnect':
       return { status: 'failed', error: 'needs_reconnect' }
     case 'skipped_busy':
-      return { status: 'retry', retryAt: new Date(now.getTime() + BUSY_RETRY_MS), error: 'refresh in progress elsewhere' }
+      return {
+        status: 'retry',
+        retryAt: new Date(now.getTime() + BUSY_RETRY_MS),
+        error: 'refresh in progress elsewhere',
+      }
     case 'skipped_not_due':
       return { status: 'retry', retryAt: report.nextAttemptAt ?? undefined, error: 'not due yet' }
     case 'failed': {
       const code = report.failure?.code ?? 'unknown'
-      if (report.statusAfter === 'needs_reconnect' || report.failure?.kind === 'auth') return { status: 'failed', error: code }
+      if (report.statusAfter === 'needs_reconnect' || report.failure?.kind === 'auth')
+        return { status: 'failed', error: code }
       return { status: 'retry', retryAt: report.nextAttemptAt ?? undefined, error: code }
     }
   }
@@ -91,7 +108,9 @@ function makeHandler(provider: OAuthConnectProvider): ConnectionJobHandler {
       )
       const ids = connectionId
         ? [connectionId]
-        : (await withService(ctx.db, (tx) => connectionsDue(tx, provider, ctx.now()))).map((c) => c.id)
+        : (await withService(ctx.db, (tx) => connectionsDue(tx, provider, ctx.now()))).map(
+            (c) => c.id,
+          )
       for (const id of ids) {
         await withService(ctx.db, async (tx) => {
           const row = await connectionGet(tx, id)
@@ -102,7 +121,14 @@ function makeHandler(provider: OAuthConnectProvider): ConnectionJobHandler {
       return { status: 'failed', error: `missing settings: ${missing.join(', ')}` }
     }
 
-    const deps = { db: ctx.db, fetch: ctx.fetch, now: ctx.now, signal: ctx.signal, adapter: lookup.adapter, key }
+    const deps = {
+      db: ctx.db,
+      fetch: ctx.fetch,
+      now: ctx.now,
+      signal: ctx.signal,
+      adapter: lookup.adapter,
+      key,
+    }
 
     if (connectionId) {
       const report = await connectionVerifyAccess(deps, connectionId)
@@ -112,7 +138,8 @@ function makeHandler(provider: OAuthConnectProvider): ConnectionJobHandler {
     const due = await withService(ctx.db, (tx) => connectionsDue(tx, provider, ctx.now()))
     let internalErrors = 0
     for (const conn of due) {
-      if (ctx.signal.aborted) return { status: 'retry', error: 'cancelled before every account was checked' }
+      if (ctx.signal.aborted)
+        return { status: 'retry', error: 'cancelled before every account was checked' }
       try {
         await connectionVerifyAccess(deps, conn.id)
       } catch {
@@ -121,7 +148,10 @@ function makeHandler(provider: OAuthConnectProvider): ConnectionJobHandler {
       }
     }
     if (internalErrors > 0)
-      return { status: 'retry', error: `${internalErrors} of ${due.length} accounts hit an internal error` }
+      return {
+        status: 'retry',
+        error: `${internalErrors} of ${due.length} accounts hit an internal error`,
+      }
     return { status: 'succeeded' }
   }
 }

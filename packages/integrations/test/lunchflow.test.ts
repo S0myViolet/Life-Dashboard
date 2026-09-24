@@ -7,7 +7,12 @@ import {
   lunchflowAmountToMinor,
   lunchflowBaseUrl,
 } from '../src/index.ts'
-import { createFakeFetch, jsonResponse, textResponse, type FakeHandler } from './fixtures/fake-fetch.ts'
+import {
+  createFakeFetch,
+  jsonResponse,
+  textResponse,
+  type FakeHandler,
+} from './fixtures/fake-fetch.ts'
 import {
   LUNCHFLOW_TEST_KEY,
   lfAccountNotFound,
@@ -24,7 +29,12 @@ const now = new Date('2026-09-24T10:00:00Z')
 function client(handler: FakeHandler, baseUrl?: string) {
   const fake = createFakeFetch(handler)
   return {
-    client: createLunchflowClient({ apiKey: LUNCHFLOW_TEST_KEY, fetch: fake.fetch, now: () => now, baseUrl }),
+    client: createLunchflowClient({
+      apiKey: LUNCHFLOW_TEST_KEY,
+      fetch: fake.fetch,
+      now: () => now,
+      baseUrl,
+    }),
     calls: fake.calls,
   }
 }
@@ -100,8 +110,12 @@ describe('Lunch Flow client', () => {
   it('lists transactions, keeping provider dates and ids, and never rounding amounts', async () => {
     const { client: c, calls } = client(() => jsonResponse(lfTransactions))
     const txns = await c.listTransactions('101', { includePending: true, accountCurrency: 'GBP' })
-    expect(calls[0]!.url).toBe(`${LUNCHFLOW_DEFAULT_BASE_URL}/accounts/101/transactions?include_pending=true`)
-    expect(txns.map((t) => [t.id, t.bookedDate, t.money.amountMinor, t.money.currency, t.pending])).toEqual([
+    expect(calls[0]!.url).toBe(
+      `${LUNCHFLOW_DEFAULT_BASE_URL}/accounts/101/transactions?include_pending=true`,
+    )
+    expect(
+      txns.map((t) => [t.id, t.bookedDate, t.money.amountMinor, t.money.currency, t.pending]),
+    ).toEqual([
       ['txn_0001', '2026-09-23', -1299, 'GBP', false],
       ['5002', '2026-09-24', 250000, 'GBP', true],
       ['txn_0003', null, null, 'GBP', false],
@@ -136,21 +150,26 @@ describe('Lunch Flow client', () => {
   })
 
   it('404 → account not found; 429 honours Retry-After; 5xx and malformed JSON are transient', async () => {
-    expect((await failureOf(client(() => jsonResponse(lfAccountNotFound, 404)).client.getBalance('9'))).code).toBe(
-      'provider.account_not_found',
-    )
+    expect(
+      (await failureOf(client(() => jsonResponse(lfAccountNotFound, 404)).client.getBalance('9')))
+        .code,
+    ).toBe('provider.account_not_found')
     const limited = await failureOf(
       client(() => jsonResponse({}, 429, { 'retry-after': '120' })).client.listAccounts(),
     )
     expect(limited).toMatchObject({ kind: 'rate_limited', retryAfterMs: 120_000 })
-    expect((await failureOf(client(() => textResponse('oops', 500)).client.listAccounts())).code).toBe(
-      'transient.http_500',
-    )
-    expect((await failureOf(client(() => textResponse('<html>', 200)).client.listAccounts())).code).toBe(
-      'transient.malformed_response',
-    )
     expect(
-      (await failureOf(client(() => jsonResponse({ accounts: [{ id: 'bad id!' }] })).client.listAccounts())).code,
+      (await failureOf(client(() => textResponse('oops', 500)).client.listAccounts())).code,
+    ).toBe('transient.http_500')
+    expect(
+      (await failureOf(client(() => textResponse('<html>', 200)).client.listAccounts())).code,
+    ).toBe('transient.malformed_response')
+    expect(
+      (
+        await failureOf(
+          client(() => jsonResponse({ accounts: [{ id: 'bad id!' }] })).client.listAccounts(),
+        )
+      ).code,
     ).toBe('transient.malformed_response')
   })
 

@@ -27,32 +27,60 @@ import {
 } from '@personal-home/db'
 import { googleRevokeToken } from '@personal-home/integrations'
 
-export async function connectionAdminPause(db: Db, id: string, now: Date): Promise<ConnectionRow | null> {
+export async function connectionAdminPause(
+  db: Db,
+  id: string,
+  now: Date,
+): Promise<ConnectionRow | null> {
   return withService(db, async (tx) => {
     const before = await connectionGet(tx, id)
     if (!before) return null
     const row = await connectionApplyEvent(tx, id, { type: 'paused', at: now })
     if (row && before.status !== 'paused')
-      await connectionEventRecord(tx, { connectionId: id, provider: row.provider, accountLabel: row.accountLabel, kind: 'paused' })
+      await connectionEventRecord(tx, {
+        connectionId: id,
+        provider: row.provider,
+        accountLabel: row.accountLabel,
+        kind: 'paused',
+      })
     return row
   })
 }
 
-export async function connectionAdminResume(db: Db, id: string, now: Date): Promise<ConnectionRow | null> {
+export async function connectionAdminResume(
+  db: Db,
+  id: string,
+  now: Date,
+): Promise<ConnectionRow | null> {
   return withService(db, async (tx) => {
     const before = await connectionGet(tx, id)
     if (!before) return null
     const row = await connectionApplyEvent(tx, id, { type: 'resumed', at: now })
     if (row && before.status === 'paused')
-      await connectionEventRecord(tx, { connectionId: id, provider: row.provider, accountLabel: row.accountLabel, kind: 'resumed' })
+      await connectionEventRecord(tx, {
+        connectionId: id,
+        provider: row.provider,
+        accountLabel: row.accountLabel,
+        kind: 'resumed',
+      })
     return row
   })
 }
 
-export async function connectionAdminRename(db: Db, id: string, label: string): Promise<ConnectionRow | null> {
+export async function connectionAdminRename(
+  db: Db,
+  id: string,
+  label: string,
+): Promise<ConnectionRow | null> {
   return withService(db, async (tx) => {
     const row = await connectionRename(tx, id, label)
-    if (row) await connectionEventRecord(tx, { connectionId: id, provider: row.provider, accountLabel: row.accountLabel, kind: 'renamed' })
+    if (row)
+      await connectionEventRecord(tx, {
+        connectionId: id,
+        provider: row.provider,
+        accountLabel: row.accountLabel,
+        kind: 'renamed',
+      })
     return row
   })
 }
@@ -85,7 +113,12 @@ export async function connectionAdminDisconnect(deps: {
     revoke = 'failed'
     if (tokens && deps.key) {
       try {
-        const refreshToken = await connectionDecryptToken(deps.key, conn.id, 'refresh_token', tokens.refreshTokenCiphertext)
+        const refreshToken = await connectionDecryptToken(
+          deps.key,
+          conn.id,
+          'refresh_token',
+          tokens.refreshTokenCiphertext,
+        )
         revoke = await googleRevokeToken(refreshToken, { fetch: deps.fetch, now: deps.now })
       } catch {
         revoke = 'failed'

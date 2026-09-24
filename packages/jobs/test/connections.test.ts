@@ -95,7 +95,11 @@ function jobCtx(handler: FakeHandler, extra: Partial<ConnectionJobContext> = {})
   return { ctx, calls: fake.calls }
 }
 
-const job = (kind: 'sync.google' | 'sync.microsoft', payload: unknown = {}) => ({ id: 'job-1', kind, payload })
+const job = (kind: 'sync.google' | 'sync.microsoft', payload: unknown = {}) => ({
+  id: 'job-1',
+  kind,
+  payload,
+})
 
 async function seed(opts: {
   provider: 'google' | 'microsoft'
@@ -110,12 +114,18 @@ async function seed(opts: {
       provider: opts.provider,
       externalAccountId: opts.externalId,
       accountLabel: `${opts.externalId}@example.com`,
-      grantedScopes: opts.scopes ?? (opts.provider === 'google' ? GMAIL_SCOPES : ['User.Read', 'Mail.Read']),
+      grantedScopes:
+        opts.scopes ?? (opts.provider === 'google' ? GMAIL_SCOPES : ['User.Read', 'Mail.Read']),
       at: new Date('2026-09-01T00:00:00Z'),
     })
     await connectionTokensSave(tx, {
       connectionId: connection.id,
-      refreshTokenCiphertext: await connectionEncryptToken(key, connection.id, 'refresh_token', opts.refreshToken),
+      refreshTokenCiphertext: await connectionEncryptToken(
+        key,
+        connection.id,
+        'refresh_token',
+        opts.refreshToken,
+      ),
       accessTokenCiphertext: opts.accessToken
         ? await connectionEncryptToken(key, connection.id, 'access_token', opts.accessToken)
         : null,
@@ -142,15 +152,26 @@ const bearer = (r: RecordedRequest) => r.headers.authorization?.replace(/^Bearer
 
 describe('sync.google background access check', () => {
   it('refreshes an expired access token, persists it, calls Gmail profile and records success', async () => {
-    const id = await seed({ provider: 'google', externalId: 'g1', refreshToken: '1//rt-g1', accessToken: 'ya29.old', accessExpiresAt: minutes(-1) })
+    const id = await seed({
+      provider: 'google',
+      externalId: 'g1',
+      refreshToken: '1//rt-g1',
+      accessToken: 'ya29.old',
+      accessExpiresAt: minutes(-1),
+    })
     const { ctx, calls } = jobCtx((req) => {
       if (req.url === GOOGLE_TOKEN) return jsonResponse(googleRefreshResponse)
       if (req.url === GMAIL_PROFILE) return jsonResponse(gmailProfile)
       return textResponse('unexpected', 500)
     })
-    expect(await connectionHandlers['sync.google'](ctx, job('sync.google'))).toEqual({ status: 'succeeded' })
+    expect(await connectionHandlers['sync.google'](ctx, job('sync.google'))).toEqual({
+      status: 'succeeded',
+    })
     expect(calls.map((c) => c.url)).toEqual([GOOGLE_TOKEN, GMAIL_PROFILE])
-    expect(formBody(calls[0]!)).toMatchObject({ grant_type: 'refresh_token', refresh_token: '1//rt-g1' })
+    expect(formBody(calls[0]!)).toMatchObject({
+      grant_type: 'refresh_token',
+      refresh_token: '1//rt-g1',
+    })
     expect(bearer(calls[1]!)).toBe('ya29.synthetic-access-token-2')
 
     expect(await tokens(id)).toEqual({
@@ -168,8 +189,20 @@ describe('sync.google background access check', () => {
   })
 
   it('uses a still-valid access token without refreshing, and refreshes when it is near expiry', async () => {
-    const fresh = await seed({ provider: 'google', externalId: 'g-fresh', refreshToken: '1//a', accessToken: 'ya29.valid', accessExpiresAt: minutes(30) })
-    const near = await seed({ provider: 'google', externalId: 'g-near', refreshToken: '1//b', accessToken: 'ya29.near', accessExpiresAt: minutes(2) })
+    const fresh = await seed({
+      provider: 'google',
+      externalId: 'g-fresh',
+      refreshToken: '1//a',
+      accessToken: 'ya29.valid',
+      accessExpiresAt: minutes(30),
+    })
+    const near = await seed({
+      provider: 'google',
+      externalId: 'g-near',
+      refreshToken: '1//b',
+      accessToken: 'ya29.near',
+      accessExpiresAt: minutes(2),
+    })
     const { ctx, calls } = jobCtx((req) =>
       req.url === GOOGLE_TOKEN ? jsonResponse(googleRefreshResponse) : jsonResponse(gmailProfile),
     )
@@ -177,16 +210,29 @@ describe('sync.google background access check', () => {
     const tokenCalls = calls.filter((c) => c.url === GOOGLE_TOKEN)
     expect(tokenCalls).toHaveLength(1)
     expect(formBody(tokenCalls[0]!).refresh_token).toBe('1//b')
-    expect(calls.filter((c) => c.url === GMAIL_PROFILE).map(bearer).sort()).toEqual(
-      ['ya29.synthetic-access-token-2', 'ya29.valid'].sort(),
-    )
+    expect(
+      calls
+        .filter((c) => c.url === GMAIL_PROFILE)
+        .map(bearer)
+        .sort(),
+    ).toEqual(['ya29.synthetic-access-token-2', 'ya29.valid'].sort())
     expect((await get(fresh))?.status).toBe('connected')
     expect((await tokens(near)).access).toBe('ya29.synthetic-access-token-2')
   })
 
   it('invalid_grant → needs_reconnect for that account while another account stays connected', async () => {
-    const bad = await seed({ provider: 'google', externalId: 'g-bad', refreshToken: '1//revoked', accessExpiresAt: null })
-    const good = await seed({ provider: 'google', externalId: 'g-good', refreshToken: '1//fine', accessExpiresAt: null })
+    const bad = await seed({
+      provider: 'google',
+      externalId: 'g-bad',
+      refreshToken: '1//revoked',
+      accessExpiresAt: null,
+    })
+    const good = await seed({
+      provider: 'google',
+      externalId: 'g-good',
+      refreshToken: '1//fine',
+      accessExpiresAt: null,
+    })
     const { ctx } = jobCtx((req) => {
       if (req.url === GOOGLE_TOKEN)
         return formBody(req).refresh_token === '1//revoked'
@@ -194,22 +240,40 @@ describe('sync.google background access check', () => {
           : jsonResponse(googleRefreshResponse)
       return jsonResponse(gmailProfile)
     })
-    expect(await connectionHandlers['sync.google'](ctx, job('sync.google'))).toEqual({ status: 'succeeded' })
-    expect(await get(bad)).toMatchObject({ status: 'needs_reconnect', lastErrorCode: 'auth.invalid_grant', nextAttemptAt: null })
+    expect(await connectionHandlers['sync.google'](ctx, job('sync.google'))).toEqual({
+      status: 'succeeded',
+    })
+    expect(await get(bad)).toMatchObject({
+      status: 'needs_reconnect',
+      lastErrorCode: 'auth.invalid_grant',
+      nextAttemptAt: null,
+    })
     expect((await get(bad))?.lastErrorMessage).not.toMatch(/revoked|1\/\//)
     expect(await get(good)).toMatchObject({ status: 'connected', lastSuccessAt: clock })
     // The stored refresh token of the failed account is kept (reconnect replaces it; disconnect deletes it).
     expect((await tokens(bad)).refresh).toBe('1//revoked')
 
     // Next run: the needs_reconnect account is not retried.
-    const second = jobCtx((req) => (req.url === GOOGLE_TOKEN ? jsonResponse(googleRefreshResponse) : jsonResponse(gmailProfile)))
+    const second = jobCtx((req) =>
+      req.url === GOOGLE_TOKEN ? jsonResponse(googleRefreshResponse) : jsonResponse(gmailProfile),
+    )
     clock = minutes(60)
     await connectionHandlers['sync.google'](second.ctx, job('sync.google'))
-    expect(second.calls.some((c) => c.url === GOOGLE_TOKEN && formBody(c).refresh_token === '1//revoked')).toBe(false)
+    expect(
+      second.calls.some(
+        (c) => c.url === GOOGLE_TOKEN && formBody(c).refresh_token === '1//revoked',
+      ),
+    ).toBe(false)
   })
 
   it('429 → error with next_attempt_at from Retry-After; the account is skipped until then', async () => {
-    const id = await seed({ provider: 'google', externalId: 'g-429', refreshToken: '1//x', accessToken: 'ya29.ok', accessExpiresAt: minutes(60) })
+    const id = await seed({
+      provider: 'google',
+      externalId: 'g-429',
+      refreshToken: '1//x',
+      accessToken: 'ya29.ok',
+      accessExpiresAt: minutes(60),
+    })
     const first = jobCtx(() => jsonResponse(googleTooManyRequests, 429, { 'retry-after': '120' }))
     await connectionHandlers['sync.google'](first.ctx, job('sync.google'))
     expect(await get(id)).toMatchObject({
@@ -232,28 +296,58 @@ describe('sync.google background access check', () => {
   })
 
   it('a single-connection job returns retry at the Retry-After time for 429/5xx', async () => {
-    const id = await seed({ provider: 'google', externalId: 'g-503', refreshToken: '1//x', accessExpiresAt: null })
-    const { ctx } = jobCtx(() => textResponse('busy', 503, { 'retry-after': 'Thu, 24 Sep 2026 10:10:00 GMT' }))
-    const result = await connectionHandlers['sync.google'](ctx, job('sync.google', { connectionId: id }))
+    const id = await seed({
+      provider: 'google',
+      externalId: 'g-503',
+      refreshToken: '1//x',
+      accessExpiresAt: null,
+    })
+    const { ctx } = jobCtx(() =>
+      textResponse('busy', 503, { 'retry-after': 'Thu, 24 Sep 2026 10:10:00 GMT' }),
+    )
+    const result = await connectionHandlers['sync.google'](
+      ctx,
+      job('sync.google', { connectionId: id }),
+    )
     expect(result).toEqual({ status: 'retry', retryAt: minutes(10), error: 'transient.http_503' })
     expect(await get(id)).toMatchObject({ status: 'error', nextAttemptAt: minutes(10) })
   })
 
   it('paused connections are skipped and stay paused', async () => {
-    const id = await seed({ provider: 'google', externalId: 'g-paused', refreshToken: '1//x', accessExpiresAt: null })
+    const id = await seed({
+      provider: 'google',
+      externalId: 'g-paused',
+      refreshToken: '1//x',
+      accessExpiresAt: null,
+    })
     await withService(t.db, (tx) => connectionApplyEvent(tx, id, { type: 'paused', at: clock }))
     const { ctx, calls } = jobCtx(() => jsonResponse(googleRefreshResponse))
-    expect(await connectionHandlers['sync.google'](ctx, job('sync.google'))).toEqual({ status: 'succeeded' })
-    expect(await connectionHandlers['sync.google'](ctx, job('sync.google', { connectionId: id }))).toEqual({ status: 'succeeded' })
+    expect(await connectionHandlers['sync.google'](ctx, job('sync.google'))).toEqual({
+      status: 'succeeded',
+    })
+    expect(
+      await connectionHandlers['sync.google'](ctx, job('sync.google', { connectionId: id })),
+    ).toEqual({ status: 'succeeded' })
     expect(calls).toHaveLength(0)
-    expect(await get(id)).toMatchObject({ status: 'paused', lastAttemptAt: new Date('2026-09-01T00:00:00Z') })
+    expect(await get(id)).toMatchObject({
+      status: 'paused',
+      lastAttemptAt: new Date('2026-09-01T00:00:00Z'),
+    })
   })
 
   it('a cached token rejected with 401 is refreshed once and the check retried', async () => {
-    const id = await seed({ provider: 'google', externalId: 'g-401', refreshToken: '1//x', accessToken: 'ya29.revoked-early', accessExpiresAt: minutes(50) })
+    const id = await seed({
+      provider: 'google',
+      externalId: 'g-401',
+      refreshToken: '1//x',
+      accessToken: 'ya29.revoked-early',
+      accessExpiresAt: minutes(50),
+    })
     const { ctx, calls } = jobCtx((req) => {
       if (req.url === GOOGLE_TOKEN) return jsonResponse(googleRefreshResponse)
-      return bearer(req) === 'ya29.revoked-early' ? jsonResponse(googleUnauthenticated, 401) : jsonResponse(gmailProfile)
+      return bearer(req) === 'ya29.revoked-early'
+        ? jsonResponse(googleUnauthenticated, 401)
+        : jsonResponse(gmailProfile)
     })
     await connectionHandlers['sync.google'](ctx, job('sync.google'))
     expect(calls.map((c) => c.url)).toEqual([GMAIL_PROFILE, GOOGLE_TOKEN, GMAIL_PROFILE])
@@ -262,8 +356,15 @@ describe('sync.google background access check', () => {
   })
 
   it('missing server settings are recorded on each account as a configuration error', async () => {
-    const id = await seed({ provider: 'google', externalId: 'g-cfg', refreshToken: '1//x', accessExpiresAt: null })
-    const { ctx, calls } = jobCtx(() => jsonResponse({}), { env: env({ GOOGLE_OAUTH_CLIENT_SECRET: undefined }) })
+    const id = await seed({
+      provider: 'google',
+      externalId: 'g-cfg',
+      refreshToken: '1//x',
+      accessExpiresAt: null,
+    })
+    const { ctx, calls } = jobCtx(() => jsonResponse({}), {
+      env: env({ GOOGLE_OAUTH_CLIENT_SECRET: undefined }),
+    })
     expect(await connectionHandlers['sync.google'](ctx, job('sync.google'))).toEqual({
       status: 'failed',
       error: 'missing settings: GOOGLE_OAUTH_CLIENT_SECRET',
@@ -277,16 +378,28 @@ describe('sync.google background access check', () => {
   })
 
   it('tokens that no longer decrypt (wrong key) become a configuration error, not a crash', async () => {
-    const id = await seed({ provider: 'google', externalId: 'g-key', refreshToken: '1//x', accessExpiresAt: null })
+    const id = await seed({
+      provider: 'google',
+      externalId: 'g-key',
+      refreshToken: '1//x',
+      accessExpiresAt: null,
+    })
     const otherKey = bytesToBase64(new Uint8Array(randomBytes(32)))
-    const { ctx, calls } = jobCtx(() => jsonResponse(googleRefreshResponse), { env: env({ TOKEN_ENCRYPTION_KEY: otherKey }) })
+    const { ctx, calls } = jobCtx(() => jsonResponse(googleRefreshResponse), {
+      env: env({ TOKEN_ENCRYPTION_KEY: otherKey }),
+    })
     await connectionHandlers['sync.google'](ctx, job('sync.google'))
     expect(calls).toHaveLength(0)
     expect(await get(id)).toMatchObject({ status: 'error', lastErrorCode: 'config.decrypt_failed' })
   })
 
   it('two workers never refresh the same connection at once', async () => {
-    const id = await seed({ provider: 'google', externalId: 'g-race', refreshToken: '1//x', accessExpiresAt: null })
+    const id = await seed({
+      provider: 'google',
+      externalId: 'g-race',
+      refreshToken: '1//x',
+      accessExpiresAt: null,
+    })
     let releaseToken!: () => void
     const tokenGate = new Promise<void>((r) => (releaseToken = r))
     let tokenRequested!: () => void
@@ -299,10 +412,19 @@ describe('sync.google background access check', () => {
       }
       return jsonResponse(gmailProfile)
     })
-    const ctx: ConnectionJobContext = { db: t.db, now: () => clock, fetch: shared.fetch, signal: new AbortController().signal, env: env() }
+    const ctx: ConnectionJobContext = {
+      db: t.db,
+      now: () => clock,
+      fetch: shared.fetch,
+      signal: new AbortController().signal,
+      env: env(),
+    }
     const first = connectionHandlers['sync.google'](ctx, job('sync.google', { connectionId: id }))
     await requested
-    const second = await connectionHandlers['sync.google'](ctx, job('sync.google', { connectionId: id }))
+    const second = await connectionHandlers['sync.google'](
+      ctx,
+      job('sync.google', { connectionId: id }),
+    )
     expect(second).toMatchObject({ status: 'retry', error: 'refresh in progress elsewhere' })
     releaseToken()
     expect(await first).toEqual({ status: 'succeeded' })
@@ -311,22 +433,39 @@ describe('sync.google background access check', () => {
 
   it('rejects malformed payloads and stops cleanly when cancelled', async () => {
     const { ctx } = jobCtx(() => jsonResponse({}))
-    expect(await connectionHandlers['sync.google'](ctx, job('sync.google', { connectionId: 'not-a-uuid' }))).toEqual({
+    expect(
+      await connectionHandlers['sync.google'](
+        ctx,
+        job('sync.google', { connectionId: 'not-a-uuid' }),
+      ),
+    ).toEqual({
       status: 'failed',
       error: 'invalid payload',
     })
-    await seed({ provider: 'google', externalId: 'g-cancel', refreshToken: '1//x', accessExpiresAt: null })
+    await seed({
+      provider: 'google',
+      externalId: 'g-cancel',
+      refreshToken: '1//x',
+      accessExpiresAt: null,
+    })
     const controller = new AbortController()
     controller.abort()
     const cancelled = jobCtx(() => jsonResponse({}), { signal: controller.signal })
-    expect(await connectionHandlers['sync.google'](cancelled.ctx, job('sync.google'))).toMatchObject({ status: 'retry' })
+    expect(
+      await connectionHandlers['sync.google'](cancelled.ctx, job('sync.google')),
+    ).toMatchObject({ status: 'retry' })
     expect(cancelled.calls).toHaveLength(0)
   })
 })
 
 describe('sync.microsoft background access check', () => {
   it('persists the rotated refresh token every time and uses it next time', async () => {
-    const id = await seed({ provider: 'microsoft', externalId: msMePersonal.id, refreshToken: 'M.C507_rt-1', accessExpiresAt: minutes(-5) })
+    const id = await seed({
+      provider: 'microsoft',
+      externalId: msMePersonal.id,
+      refreshToken: 'M.C507_rt-1',
+      accessExpiresAt: minutes(-5),
+    })
     let n = 1
     const handler: FakeHandler = (req) => {
       if (req.url === MS_TOKEN) return jsonResponse(msRefreshResponse(++n))
@@ -334,7 +473,9 @@ describe('sync.microsoft background access check', () => {
       return textResponse('unexpected', 500)
     }
     const first = jobCtx(handler)
-    expect(await connectionHandlers['sync.microsoft'](first.ctx, job('sync.microsoft'))).toEqual({ status: 'succeeded' })
+    expect(await connectionHandlers['sync.microsoft'](first.ctx, job('sync.microsoft'))).toEqual({
+      status: 'succeeded',
+    })
     expect(formBody(first.calls[0]!).refresh_token).toBe('M.C507_rt-1')
     expect(await tokens(id)).toMatchObject({
       refresh: 'M.C507_BAY.0.U.-synthetic-refresh-2',
@@ -350,17 +491,36 @@ describe('sync.microsoft background access check', () => {
   })
 
   it('tokens that identify a different Graph user → needs_reconnect (account mismatch)', async () => {
-    const id = await seed({ provider: 'microsoft', externalId: 'someone-else', refreshToken: 'M.C507_rt', accessExpiresAt: null })
-    const { ctx } = jobCtx((req) => (req.url === MS_TOKEN ? jsonResponse(msRefreshResponse(2)) : jsonResponse(msMePersonal)))
+    const id = await seed({
+      provider: 'microsoft',
+      externalId: 'someone-else',
+      refreshToken: 'M.C507_rt',
+      accessExpiresAt: null,
+    })
+    const { ctx } = jobCtx((req) =>
+      req.url === MS_TOKEN ? jsonResponse(msRefreshResponse(2)) : jsonResponse(msMePersonal),
+    )
     await connectionHandlers['sync.microsoft'](ctx, job('sync.microsoft'))
-    expect(await get(id)).toMatchObject({ status: 'needs_reconnect', lastErrorCode: 'auth.account_mismatch' })
+    expect(await get(id)).toMatchObject({
+      status: 'needs_reconnect',
+      lastErrorCode: 'auth.account_mismatch',
+    })
   })
 
   it('does not touch Google connections', async () => {
-    const g = await seed({ provider: 'google', externalId: 'g-other', refreshToken: '1//x', accessExpiresAt: null })
+    const g = await seed({
+      provider: 'google',
+      externalId: 'g-other',
+      refreshToken: '1//x',
+      accessExpiresAt: null,
+    })
     const { ctx, calls } = jobCtx(() => jsonResponse({}))
-    expect(await connectionHandlers['sync.microsoft'](ctx, job('sync.microsoft'))).toEqual({ status: 'succeeded' })
-    expect(await connectionHandlers['sync.microsoft'](ctx, job('sync.microsoft', { connectionId: g }))).toEqual({
+    expect(await connectionHandlers['sync.microsoft'](ctx, job('sync.microsoft'))).toEqual({
+      status: 'succeeded',
+    })
+    expect(
+      await connectionHandlers['sync.microsoft'](ctx, job('sync.microsoft', { connectionId: g })),
+    ).toEqual({
       status: 'failed',
       error: 'connection not found',
     })

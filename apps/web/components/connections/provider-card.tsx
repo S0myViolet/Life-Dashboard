@@ -61,7 +61,10 @@ export function ProviderCard({
 
       {a.kind === 'needs_setup' ? (
         <div className="mt-3 text-sm text-ink-muted">
-          <p>These server settings are missing (names only; values stay in your server configuration):</p>
+          <p>
+            These server settings are missing (names only; values stay in your server
+            configuration):
+          </p>
           <SettingNames names={a.missing} />
           <p className="mt-2">
             <Link href={view.setupHref} className="text-accent underline-offset-2 hover:underline">
@@ -128,8 +131,13 @@ export function ProviderCard({
       {view.connectHref ? (
         <div className="mt-3">
           {/* Plain link: starting OAuth creates a one-time state, so it must never be prefetched. */}
-          <a href={view.connectHref} className={buttonClass(view.accounts.length ? 'secondary' : 'primary')}>
-            {view.accounts.length ? 'Connect another account' : `Connect a ${info.displayName} account`}
+          <a
+            href={view.connectHref}
+            className={buttonClass(view.accounts.length ? 'secondary' : 'primary')}
+          >
+            {view.accounts.length
+              ? 'Connect another account'
+              : `Connect a ${info.displayName.replace(/ \(.*\)$/, '')} account`}
           </a>
         </div>
       ) : null}

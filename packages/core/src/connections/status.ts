@@ -178,7 +178,11 @@ export function connectionTransition(
             f.retryAfterMs !== undefined && Number.isFinite(f.retryAfterMs)
               ? Math.min(Math.max(0, f.retryAfterMs), policy.maxRetryAfterMs)
               : 0
-          return { ...base, status: 'error', nextAttemptAt: addMs(event.at, Math.max(backoff, asked)) }
+          return {
+            ...base,
+            status: 'error',
+            nextAttemptAt: addMs(event.at, Math.max(backoff, asked)),
+          }
         }
       }
     }
@@ -186,7 +190,10 @@ export function connectionTransition(
 }
 
 /** Whether a background job should work on this connection now. */
-export function connectionIsDue(h: Pick<ConnectionHealth, 'status' | 'nextAttemptAt'>, now: Date): boolean {
+export function connectionIsDue(
+  h: Pick<ConnectionHealth, 'status' | 'nextAttemptAt'>,
+  now: Date,
+): boolean {
   if (h.status === 'paused' || h.status === 'needs_reconnect') return false
   return h.nextAttemptAt === null || h.nextAttemptAt.getTime() <= now.getTime()
 }

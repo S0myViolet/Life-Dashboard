@@ -13,8 +13,7 @@ import { createGoogleAdapter } from '../google/adapter.ts'
 import { createMicrosoftAdapter } from '../microsoft/adapter.ts'
 
 export type OAuthAdapterLookup =
-  | { ok: true; adapter: ConnectionOAuthAdapter }
-  | { ok: false; missing: string[] }
+  { ok: true; adapter: ConnectionOAuthAdapter } | { ok: false; missing: string[] }
 
 export function oauthAdapterFromSettings(
   provider: OAuthConnectProvider,

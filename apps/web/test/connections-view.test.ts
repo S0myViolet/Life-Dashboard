@@ -72,23 +72,38 @@ describe('buildConnectionsView', () => {
       rows: [row({ provider: 'google', status: 'needs_reconnect' })],
       setup: (p) =>
         p === 'google' || p === 'whoop'
-          ? { configured: false, missing: p === 'google' ? ['GOOGLE_OAUTH_CLIENT_SECRET'] : ['WHOOP_CLIENT_ID'] }
+          ? {
+              configured: false,
+              missing: p === 'google' ? ['GOOGLE_OAUTH_CLIENT_SECRET'] : ['WHOOP_CLIENT_ID'],
+            }
           : { configured: true, missing: [] },
     })
     const google = find(groups, 'google')
-    expect(google.availability).toEqual({ kind: 'needs_setup', missing: ['GOOGLE_OAUTH_CLIENT_SECRET'] })
+    expect(google.availability).toEqual({
+      kind: 'needs_setup',
+      missing: ['GOOGLE_OAUTH_CLIENT_SECRET'],
+    })
     expect(google.connectHref).toBeNull()
     expect(google.setupHref).toBe('/settings/connections/setup#google')
     // Existing accounts stay visible, but reconnecting needs the settings first.
     expect(google.accounts[0]!.reconnectHref).toBeNull()
-    expect(find(groups, 'whoop').availability).toEqual({ kind: 'later', milestone: 3, missing: ['WHOOP_CLIENT_ID'] })
+    expect(find(groups, 'whoop').availability).toEqual({
+      kind: 'later',
+      milestone: 3,
+      missing: ['WHOOP_CLIENT_ID'],
+    })
   })
 
   it('lists several accounts per provider with their health', () => {
     const next = new Date('2026-09-24T10:05:00Z')
     const groups = buildConnectionsView({
       rows: [
-        row({ provider: 'google', id: 'a', accountLabel: 'one@gmail.com', grantedScopes: GOOGLE_ALL }),
+        row({
+          provider: 'google',
+          id: 'a',
+          accountLabel: 'one@gmail.com',
+          grantedScopes: GOOGLE_ALL,
+        }),
         row({
           provider: 'google',
           id: 'b',
@@ -108,7 +123,13 @@ describe('buildConnectionsView', () => {
           lastErrorCode: 'auth.invalid_grant',
           lastErrorMessage: 'Google no longer accepts the stored authorization (invalid_grant).',
         }),
-        row({ provider: 'microsoft', id: 'd', status: 'paused', pausedAt: at, grantedScopes: ['User.Read', 'Mail.Read', 'Calendars.Read'] }),
+        row({
+          provider: 'microsoft',
+          id: 'd',
+          status: 'paused',
+          pausedAt: at,
+          grantedScopes: ['User.Read', 'Mail.Read', 'Calendars.Read'],
+        }),
       ],
       setup: configured,
     })
@@ -174,12 +195,16 @@ describe('connectionsFlash', () => {
       tone: 'positive',
       message: 'Google account connected.',
     })
-    expect(connectionsFlash({ provider: 'microsoft', result: 'reconnected', check: 'failed' })?.tone).toBe('caution')
+    expect(
+      connectionsFlash({ provider: 'microsoft', result: 'reconnected', check: 'failed' })?.tone,
+    ).toBe('caution')
     const ms = connectionsFlash({ disconnected: 'microsoft', revoke: 'not_supported' })!
     expect(ms.tone).toBe('caution')
     expect(ms.link?.href).toMatch(/^https:\/\//)
     expect(connectionsFlash({ disconnected: 'google', revoke: 'revoked' })?.tone).toBe('positive')
-    expect(connectionsFlash({ disconnected: 'google', revoke: 'failed' })?.message).toContain('revoking access at Google failed')
+    expect(connectionsFlash({ disconnected: 'google', revoke: 'failed' })?.message).toContain(
+      'revoking access at Google failed',
+    )
     expect(connectionsFlash({ disconnected: 'google', revoke: 'bogus' })).toBeNull()
   })
 })

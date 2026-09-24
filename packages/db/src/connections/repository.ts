@@ -49,7 +49,8 @@ export interface ConnectionTokensRow {
   updatedAt: Date
 }
 
-export type ConnectionEventKind = 'connected' | 'reconnected' | 'paused' | 'resumed' | 'renamed' | 'disconnected'
+export type ConnectionEventKind =
+  'connected' | 'reconnected' | 'paused' | 'resumed' | 'renamed' | 'disconnected'
 
 export interface ConnectionEventRow {
   id: string
@@ -96,7 +97,11 @@ export async function connectionGet(tx: Tx, id: string): Promise<ConnectionRow |
 }
 
 /** Connections a background job should work on now: not paused, not awaiting reconnect, due. */
-export async function connectionsDue(tx: Tx, provider: Provider, now: Date): Promise<ConnectionRow[]> {
+export async function connectionsDue(
+  tx: Tx,
+  provider: Provider,
+  now: Date,
+): Promise<ConnectionRow[]> {
   return tx<ConnectionRow[]>`
     select ${tx.unsafe(COLUMNS)} from public.connections
     where provider = ${provider}
@@ -178,18 +183,29 @@ export async function connectionUpsertAuthorized(
     where provider = ${input.provider} and external_account_id = ${input.externalAccountId}`
   if (!existing) throw new Error('connection upsert raced with a delete')
   await tx`update public.connections set granted_scopes = ${input.grantedScopes} where id = ${existing.id}`
-  const connection = await connectionApplyEvent(tx, existing.id, { type: 'reconnected', at: input.at })
+  const connection = await connectionApplyEvent(tx, existing.id, {
+    type: 'reconnected',
+    at: input.at,
+  })
   if (!connection) throw new Error('connection upsert raced with a delete')
   return { connection, created: false }
 }
 
 /** Record the scopes a refresh reported (granted scopes can shrink if the owner revokes some). */
-export async function connectionSetGrantedScopes(tx: Tx, id: string, scopes: string[]): Promise<void> {
+export async function connectionSetGrantedScopes(
+  tx: Tx,
+  id: string,
+  scopes: string[],
+): Promise<void> {
   await tx`update public.connections set granted_scopes = ${scopes}
     where id = ${id} and granted_scopes is distinct from ${scopes}::text[]`
 }
 
-export async function connectionRename(tx: Tx, id: string, label: string): Promise<ConnectionRow | null> {
+export async function connectionRename(
+  tx: Tx,
+  id: string,
+  label: string,
+): Promise<ConnectionRow | null> {
   const clean = label.trim()
   if (clean.length < 1 || clean.length > 200) throw new Error('label must be 1–200 characters')
   const [row] = await tx<ConnectionRow[]>`
@@ -279,7 +295,10 @@ export interface ConnectionTokensRotation {
  * rotated refresh token together). UPDATE only: a connection deleted meanwhile
  * is not resurrected. Returns false when there was nothing to update.
  */
-export async function connectionTokensRotate(tx: Tx, r: ConnectionTokensRotation): Promise<boolean> {
+export async function connectionTokensRotate(
+  tx: Tx,
+  r: ConnectionTokensRotation,
+): Promise<boolean> {
   const rows = await tx`
     update private.connection_tokens set
       access_token_ciphertext = ${r.accessTokenCiphertext},
@@ -357,7 +376,14 @@ export async function connectionEventsRecent(tx: Tx, limit = 20): Promise<Connec
 // Sync cursors (Milestone 2)
 // ---------------------------------------------------------------------------
 
-export const SYNC_CURSOR_STATUSES = ['pending', 'initial_sync', 'partial', 'synced', 'needs_resync', 'error'] as const
+export const SYNC_CURSOR_STATUSES = [
+  'pending',
+  'initial_sync',
+  'partial',
+  'synced',
+  'needs_resync',
+  'error',
+] as const
 export type SyncCursorStatus = (typeof SYNC_CURSOR_STATUSES)[number]
 
 export interface SyncCursorRow {

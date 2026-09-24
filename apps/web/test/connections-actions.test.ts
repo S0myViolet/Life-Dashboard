@@ -1,9 +1,7 @@
 // Owner actions (pause, resume, rename, disconnect) against a real database.
 // Provider responses are SYNTHETIC FIXTURES (not captured from the live service).
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  connectionEncryptToken,
-} from '@personal-home/core'
+import { connectionEncryptToken } from '@personal-home/core'
 import {
   connectionGet,
   connectionTokensSave,
@@ -89,12 +87,22 @@ async function seed(provider: 'google' | 'microsoft', externalId: string) {
     })
     await connectionTokensSave(tx, {
       connectionId: connection.id,
-      refreshTokenCiphertext: await connectionEncryptToken(env.key, connection.id, 'refresh_token', `refresh-${externalId}`),
+      refreshTokenCiphertext: await connectionEncryptToken(
+        env.key,
+        connection.id,
+        'refresh_token',
+        `refresh-${externalId}`,
+      ),
       accessTokenCiphertext: null,
       accessTokenExpiresAt: null,
       keyVersion: 1,
     })
-    await syncCursorUpsert(tx, { connectionId: connection.id, resourceType: 'gmail.history', cursor: '1', status: 'synced' })
+    await syncCursorUpsert(tx, {
+      connectionId: connection.id,
+      resourceType: 'gmail.history',
+      cursor: '1',
+      status: 'synced',
+    })
     return connection.id
   })
 }
@@ -121,19 +129,29 @@ describe('connection admin', () => {
     const resumed = await connectionAdminResume(env.t.db, id, clock)
     expect(resumed).toMatchObject({ status: 'connected', pausedAt: null })
     expect((await events()).map((e) => e.kind)).toEqual(['paused', 'resumed'])
-    expect(await connectionAdminPause(env.t.db, '00000000-0000-4000-8000-000000000000', clock)).toBeNull()
+    expect(
+      await connectionAdminPause(env.t.db, '00000000-0000-4000-8000-000000000000', clock),
+    ).toBeNull()
   })
 
   it('rename trims and records', async () => {
     const id = await seed('google', 'b')
-    expect((await connectionAdminRename(env.t.db, id, '  Work mail  '))?.accountLabel).toBe('Work mail')
+    expect((await connectionAdminRename(env.t.db, id, '  Work mail  '))?.accountLabel).toBe(
+      'Work mail',
+    )
     expect((await events()).map((e) => e.kind)).toEqual(['renamed'])
   })
 
   it('Google disconnect revokes the refresh token, then deletes tokens, cursors and the row', async () => {
     const id = await seed('google', 'c')
     const fake = providerFetch(() => clock)
-    const result = await connectionAdminDisconnect({ db: env.t.db, id, key: env.key, fetch: fake.fetch, now: () => clock })
+    const result = await connectionAdminDisconnect({
+      db: env.t.db,
+      id,
+      key: env.key,
+      fetch: fake.fetch,
+      now: () => clock,
+    })
     expect(result).toEqual({ provider: 'google', accountLabel: 'c@example.com', revoke: 'revoked' })
     expect(fake.calls).toHaveLength(1)
     expect(fake.calls[0]!.url).toBe(GOOGLE_REVOKE_URL)
@@ -145,33 +163,86 @@ describe('connection admin', () => {
 
   it('a failed or impossible revoke still disconnects, and says so', async () => {
     const g = await seed('google', 'd')
-    const down = providerFetch(() => clock, { googleRevoke: () => new Response('', { status: 503 }) })
-    expect((await connectionAdminDisconnect({ db: env.t.db, id: g, key: env.key, fetch: down.fetch, now: () => clock }))?.revoke).toBe('failed')
+    const down = providerFetch(() => clock, {
+      googleRevoke: () => new Response('', { status: 503 }),
+    })
+    expect(
+      (
+        await connectionAdminDisconnect({
+          db: env.t.db,
+          id: g,
+          key: env.key,
+          fetch: down.fetch,
+          now: () => clock,
+        })
+      )?.revoke,
+    ).toBe('failed')
     expect(await get(g)).toBeNull()
 
     const gone = await seed('google', 'e')
     const invalid = providerFetch(() => clock, {
       googleRevoke: () => new Response(JSON.stringify({ error: 'invalid_token' }), { status: 400 }),
     })
-    expect((await connectionAdminDisconnect({ db: env.t.db, id: gone, key: env.key, fetch: invalid.fetch, now: () => clock }))?.revoke).toBe('already_invalid')
+    expect(
+      (
+        await connectionAdminDisconnect({
+          db: env.t.db,
+          id: gone,
+          key: env.key,
+          fetch: invalid.fetch,
+          now: () => clock,
+        })
+      )?.revoke,
+    ).toBe('already_invalid')
 
     const noKey = await seed('google', 'f')
     const unused = providerFetch(() => clock)
-    expect((await connectionAdminDisconnect({ db: env.t.db, id: noKey, key: null, fetch: unused.fetch, now: () => clock }))?.revoke).toBe('failed')
+    expect(
+      (
+        await connectionAdminDisconnect({
+          db: env.t.db,
+          id: noKey,
+          key: null,
+          fetch: unused.fetch,
+          now: () => clock,
+        })
+      )?.revoke,
+    ).toBe('failed')
     expect(await get(noKey)).toBeNull()
 
     const ms = await seed('microsoft', 'g')
     const none = providerFetch(() => clock)
-    expect((await connectionAdminDisconnect({ db: env.t.db, id: ms, key: env.key, fetch: none.fetch, now: () => clock }))?.revoke).toBe('not_supported')
+    expect(
+      (
+        await connectionAdminDisconnect({
+          db: env.t.db,
+          id: ms,
+          key: env.key,
+          fetch: none.fetch,
+          now: () => clock,
+        })
+      )?.revoke,
+    ).toBe('not_supported')
     expect(none.calls).toHaveLength(0)
     expect(unused.calls).toHaveLength(0)
-    expect((await events()).map((e) => e.revokeOutcome)).toEqual(['failed', 'already_invalid', 'failed', 'not_supported'])
+    expect((await events()).map((e) => e.revokeOutcome)).toEqual([
+      'failed',
+      'already_invalid',
+      'failed',
+      'not_supported',
+    ])
   })
 
   it('disconnecting one account leaves the others alone', async () => {
     const keep = await seed('google', 'keep')
     const drop = await seed('google', 'drop')
-    await connectionAdminDisconnect({ db: env.t.db, id: drop, key: env.key, fetch: providerFetch(() => clock).fetch, now: () => clock })
+    await connectionAdminDisconnect({
+      db: env.t.db,
+      id: drop,
+      key: env.key,
+      fetch: providerFetch(() => clock).fetch,
+      now: () => clock,
+    })
     expect((await get(keep))?.status).toBe('connected')
     expect(await counts(keep)).toEqual({ tokens: 1, cursors: 1 })
   })
@@ -185,12 +256,15 @@ describe('server actions', () => {
   }
 
   it('refuse requests without a same-origin Origin header', async () => {
-    const { pauseConnection, disconnectConnection } = await import('@/app/(app)/settings/connections/actions')
+    const { pauseConnection, disconnectConnection } =
+      await import('@/app/(app)/settings/connections/actions')
     const id = await seed('google', 'h')
     for (const origin of [null, 'https://evil.example', 'null', `${APP_URL}.evil.example`]) {
       request.origin = origin
       await expect(pauseConnection(form({ id }))).rejects.toThrow('did not come from this app')
-      await expect(disconnectConnection(form({ id, confirm: 'yes' }))).rejects.toThrow('did not come from this app')
+      await expect(disconnectConnection(form({ id, confirm: 'yes' }))).rejects.toThrow(
+        'did not come from this app',
+      )
     }
     expect((await get(id))?.status).toBe('connected')
   })
@@ -198,13 +272,14 @@ describe('server actions', () => {
   it('require the owner', async () => {
     const { resumeConnection } = await import('@/app/(app)/settings/connections/actions')
     request.owner = false
-    await expect(resumeConnection(form({ id: '00000000-0000-4000-8000-000000000000' }))).rejects.toThrow()
+    await expect(
+      resumeConnection(form({ id: '00000000-0000-4000-8000-000000000000' })),
+    ).rejects.toThrow()
   })
 
   it('pause, resume and rename validate their input', async () => {
-    const { pauseConnection, resumeConnection, renameConnection } = await import(
-      '@/app/(app)/settings/connections/actions'
-    )
+    const { pauseConnection, resumeConnection, renameConnection } =
+      await import('@/app/(app)/settings/connections/actions')
     const id = await seed('microsoft', 'i')
     await pauseConnection(form({ id: 'not-a-uuid' }))
     expect((await get(id))?.status).toBe('connected')
@@ -226,8 +301,12 @@ describe('server actions', () => {
     expect(await get(id)).not.toBeNull()
     expect(request.redirects).toEqual([])
 
-    await expect(disconnectConnection(form({ id, confirm: 'yes' }))).rejects.toThrow('NEXT_REDIRECT')
+    await expect(disconnectConnection(form({ id, confirm: 'yes' }))).rejects.toThrow(
+      'NEXT_REDIRECT',
+    )
     expect(await get(id)).toBeNull()
-    expect(request.redirects).toEqual(['/settings/connections?disconnected=microsoft&revoke=not_supported'])
+    expect(request.redirects).toEqual([
+      '/settings/connections?disconnected=microsoft&revoke=not_supported',
+    ])
   })
 })

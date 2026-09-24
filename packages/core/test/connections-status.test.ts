@@ -39,7 +39,11 @@ describe('connection status state machine', () => {
     const h = connectionTransition(healthy(), {
       type: 'attempt_failed',
       at: at(2),
-      failure: connectionFailure('auth', 'invalid_grant', 'Google refused the refresh token (invalid_grant)'),
+      failure: connectionFailure(
+        'auth',
+        'invalid_grant',
+        'Google refused the refresh token (invalid_grant)',
+      ),
     })
     expect(h).toMatchObject({
       status: 'needs_reconnect',
@@ -56,7 +60,9 @@ describe('connection status state machine', () => {
     const h = connectionTransition(healthy(), {
       type: 'attempt_failed',
       at: at(0),
-      failure: connectionFailure('rate_limited', 'http_429', 'Too many requests', { retryAfterMs: 120_000 }),
+      failure: connectionFailure('rate_limited', 'http_429', 'Too many requests', {
+        retryAfterMs: 120_000,
+      }),
     })
     expect(h.status).toBe('error')
     expect(h.nextAttemptAt).toEqual(new Date(t0.getTime() + 120_000))
@@ -66,9 +72,13 @@ describe('connection status state machine', () => {
     const absurd = connectionTransition(healthy(), {
       type: 'attempt_failed',
       at: t0,
-      failure: connectionFailure('rate_limited', 'http_429', 'x', { retryAfterMs: 30 * 86_400_000 }),
+      failure: connectionFailure('rate_limited', 'http_429', 'x', {
+        retryAfterMs: 30 * 86_400_000,
+      }),
     })
-    expect(absurd.nextAttemptAt).toEqual(new Date(t0.getTime() + DEFAULT_CONNECTION_BACKOFF.maxRetryAfterMs))
+    expect(absurd.nextAttemptAt).toEqual(
+      new Date(t0.getTime() + DEFAULT_CONNECTION_BACKOFF.maxRetryAfterMs),
+    )
   })
 
   it('429 without Retry-After and transient failures back off exponentially up to the cap', () => {
@@ -111,7 +121,9 @@ describe('connection status state machine', () => {
       failure: connectionFailure('config', 'invalid_client', 'Client credentials rejected'),
     })
     expect(h.status).toBe('error')
-    expect(h.nextAttemptAt).toEqual(new Date(t0.getTime() + DEFAULT_CONNECTION_BACKOFF.configRetryMs))
+    expect(h.nextAttemptAt).toEqual(
+      new Date(t0.getTime() + DEFAULT_CONNECTION_BACKOFF.configRetryMs),
+    )
   })
 
   it('pause is never left by job outcomes, only by resume', () => {
@@ -127,7 +139,11 @@ describe('connection status state machine', () => {
       at: at(3),
       failure: connectionFailure('rate_limited', 'http_429', 'x', { retryAfterMs: 1000 }),
     })
-    expect(h).toMatchObject({ status: 'paused', nextAttemptAt: null, lastErrorCode: 'rate_limited.http_429' })
+    expect(h).toMatchObject({
+      status: 'paused',
+      nextAttemptAt: null,
+      lastErrorCode: 'rate_limited.http_429',
+    })
     h = connectionTransition(h, { type: 'reconnected', at: at(4) })
     expect(h.status).toBe('paused')
     expect(connectionTransition(h, { type: 'paused', at: at(9) })).toBe(h)
@@ -142,10 +158,13 @@ describe('connection status state machine', () => {
       at: at(1),
       failure: connectionFailure('auth', 'invalid_grant', 'x'),
     })
-    const r1 = connectionTransition(connectionTransition(authFailed, { type: 'paused', at: at(2) }), {
-      type: 'resumed',
-      at: at(3),
-    })
+    const r1 = connectionTransition(
+      connectionTransition(authFailed, { type: 'paused', at: at(2) }),
+      {
+        type: 'resumed',
+        at: at(3),
+      },
+    )
     expect(r1).toMatchObject({ status: 'needs_reconnect', nextAttemptAt: null })
 
     const transient = connectionTransition(healthy(), {
@@ -153,10 +172,13 @@ describe('connection status state machine', () => {
       at: at(1),
       failure: connectionFailure('transient', 'http_500', 'x'),
     })
-    const r2 = connectionTransition(connectionTransition(transient, { type: 'paused', at: at(2) }), {
-      type: 'resumed',
-      at: at(3),
-    })
+    const r2 = connectionTransition(
+      connectionTransition(transient, { type: 'paused', at: at(2) }),
+      {
+        type: 'resumed',
+        at: at(3),
+      },
+    )
     expect(r2).toMatchObject({ status: 'error', nextAttemptAt: at(3) })
     // Resume of a connection that is not paused changes nothing.
     expect(connectionTransition(transient, { type: 'resumed', at: at(4) })).toBe(transient)

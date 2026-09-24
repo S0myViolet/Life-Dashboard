@@ -60,7 +60,9 @@ describe('sanitizeConnectionErrorMessage', () => {
 
 describe('ConnectionError', () => {
   it('carries a classified failure and is recognised structurally', () => {
-    const err = new ConnectionError(connectionFailure('auth', 'invalid_grant', 'Refresh token rejected'))
+    const err = new ConnectionError(
+      connectionFailure('auth', 'invalid_grant', 'Refresh token rejected'),
+    )
     expect(isConnectionError(err)).toBe(true)
     expect(toConnectionFailure(err).code).toBe('auth.invalid_grant')
     expect(isConnectionError(new Error('x'))).toBe(false)

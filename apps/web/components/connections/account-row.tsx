@@ -102,7 +102,10 @@ export function AccountRow({
         <details className="group">
           <summary className={summaryClass}>
             Rename
-            <ChevronDown aria-hidden className="size-4 transition-transform group-open:rotate-180" />
+            <ChevronDown
+              aria-hidden
+              className="size-4 transition-transform group-open:rotate-180"
+            />
           </summary>
           <form action={renameConnection} className="mt-2 flex flex-wrap items-end gap-2">
             <input type="hidden" name="id" value={account.id} />
@@ -124,7 +127,10 @@ export function AccountRow({
         <details className="group">
           <summary className={`${summaryClass} text-danger hover:text-danger`}>
             Disconnect…
-            <ChevronDown aria-hidden className="size-4 transition-transform group-open:rotate-180" />
+            <ChevronDown
+              aria-hidden
+              className="size-4 transition-transform group-open:rotate-180"
+            />
           </summary>
           <div
             role="group"
@@ -132,8 +138,8 @@ export function AccountRow({
             className="mt-2 max-w-prose rounded-lg border border-danger/30 bg-danger-soft/50 p-3 text-sm text-ink"
           >
             <p>
-              Disconnect <strong className="break-all">{account.label}</strong>? Stored access and sync
-              progress are deleted and background checks stop.{' '}
+              Disconnect <strong className="break-all">{account.label}</strong>? Stored access and
+              sync progress are deleted and background checks stop.{' '}
               {supportsRevoke
                 ? `Access is also revoked at ${providerName}.`
                 : `${providerName} offers no way for apps to revoke access, so you will be shown where to remove it yourself.`}

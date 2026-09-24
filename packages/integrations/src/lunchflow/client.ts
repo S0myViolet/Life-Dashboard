@@ -22,7 +22,11 @@
  */
 import { z } from 'zod'
 import { connectionFailure, type ConnectionFailure } from '@personal-home/core'
-import { httpRequestJson, type HttpProviderErrorInfo, type HttpRequestOptions } from '../http/client.ts'
+import {
+  httpRequestJson,
+  type HttpProviderErrorInfo,
+  type HttpRequestOptions,
+} from '../http/client.ts'
 
 export const LUNCHFLOW_DEFAULT_BASE_URL = 'https://lunchflow.app/api/v1'
 /** Alternative default seen in Lunch Flow's actual-flow client. UNVERIFIED as a Personal API host. */
@@ -105,10 +109,7 @@ export interface LunchflowClient {
 // Response schemas (lenient where the contract may drift, strict on ids/amounts)
 // ---------------------------------------------------------------------------
 
-const Id = z.union([
-  z.number().int().nonnegative(),
-  z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
-])
+const Id = z.union([z.number().int().nonnegative(), z.string().regex(/^[A-Za-z0-9_-]{1,64}$/)])
 const Text = (max: number) => z.string().max(max)
 const Amount = z.union([
   z.number(),
@@ -250,7 +251,12 @@ export function lunchflowClassifyError(
         extra,
       )
     if (info.status === 404)
-      return connectionFailure('provider', 'account_not_found', `${base}. The account no longer exists at ${LABEL}.`, extra)
+      return connectionFailure(
+        'provider',
+        'account_not_found',
+        `${base}. The account no longer exists at ${LABEL}.`,
+        extra,
+      )
     return undefined
   }
 }
@@ -290,17 +296,15 @@ export function createLunchflowClient(config: LunchflowClientConfig): LunchflowC
 
     async listAccounts() {
       const { data } = await httpRequestJson(request('accounts', '/accounts'), AccountsResponse)
-      return data.accounts.map(
-        (a): LunchflowAccount => ({
-          id: String(a.id),
-          name: a.name,
-          institutionName: a.institution_name ?? null,
-          institutionLogoUrl: httpsUrl(a.institution_logo),
-          aggregator: a.provider ?? null,
-          currency: lunchflowCurrency(a.currency),
-          status: accountStatus(a.status),
-        }),
-      )
+      return data.accounts.map((a): LunchflowAccount => ({
+        id: String(a.id),
+        name: a.name,
+        institutionName: a.institution_name ?? null,
+        institutionLogoUrl: httpsUrl(a.institution_logo),
+        aggregator: a.provider ?? null,
+        currency: lunchflowCurrency(a.currency),
+        status: accountStatus(a.status),
+      }))
     },
 
     async getBalance(accountId) {
@@ -312,7 +316,8 @@ export function createLunchflowClient(config: LunchflowClientConfig): LunchflowC
       const b = data.balance
       return {
         accountId,
-        available: b.available === null || b.available === undefined ? null : money(b.available, currency),
+        available:
+          b.available === null || b.available === undefined ? null : money(b.available, currency),
         current: b.current === null || b.current === undefined ? null : money(b.current, currency),
         fetchedAt: now(),
       }

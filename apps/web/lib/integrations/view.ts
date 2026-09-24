@@ -83,7 +83,8 @@ function accountView(row: ConnectionRow, connectable: boolean): AccountView {
     lastAttemptAt: row.lastAttemptAt,
     lastSuccessAt: row.lastSuccessAt,
     nextAttemptAt: row.status === 'error' ? row.nextAttemptAt : null,
-    errorMessage: row.status === 'error' || row.status === 'needs_reconnect' ? row.lastErrorMessage : null,
+    errorMessage:
+      row.status === 'error' || row.status === 'needs_reconnect' ? row.lastErrorMessage : null,
     missingAccess,
     noDataAccess: oauth && !coverage.mail && !coverage.calendar,
     paused: row.status === 'paused',
@@ -92,9 +93,16 @@ function accountView(row: ConnectionRow, connectable: boolean): AccountView {
   }
 }
 
-function availabilityOf(info: ConnectionProviderInfo, setup: ProviderSetupState): ProviderAvailability {
+function availabilityOf(
+  info: ConnectionProviderInfo,
+  setup: ProviderSetupState,
+): ProviderAvailability {
   if (info.connectMilestone > CONNECTIONS_CURRENT_MILESTONE)
-    return { kind: 'later', milestone: info.connectMilestone, missing: setup.configured ? [] : setup.missing }
+    return {
+      kind: 'later',
+      milestone: info.connectMilestone,
+      missing: setup.configured ? [] : setup.missing,
+    }
   if (info.authKind === 'extension') return { kind: 'extension' }
   if (!setup.configured) return { kind: 'needs_setup', missing: setup.missing }
   if (info.authKind === 'api_key') return { kind: 'api_key_configured' }
@@ -106,7 +114,8 @@ export function buildConnectionsView(input: {
   setup: (provider: Provider) => ProviderSetupState
 }): GroupView[] {
   const byProvider = new Map<Provider, ConnectionRow[]>()
-  for (const row of input.rows) byProvider.set(row.provider, [...(byProvider.get(row.provider) ?? []), row])
+  for (const row of input.rows)
+    byProvider.set(row.provider, [...(byProvider.get(row.provider) ?? []), row])
 
   const providers = connectionProviders().map((info): ProviderView => {
     const availability = availabilityOf(info, input.setup(info.provider))

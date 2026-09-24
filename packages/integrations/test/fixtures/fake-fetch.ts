@@ -58,14 +58,22 @@ export function createFakeFetch(handler: FakeHandler): FakeFetch {
   return { fetch: fetchImpl as typeof fetch, calls }
 }
 
-export function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
+export function jsonResponse(
+  body: unknown,
+  status = 200,
+  headers: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'content-type': 'application/json; charset=utf-8', ...headers },
   })
 }
 
-export function textResponse(body: string, status = 200, headers: Record<string, string> = {}): Response {
+export function textResponse(
+  body: string,
+  status = 200,
+  headers: Record<string, string> = {},
+): Response {
   return new Response(body, { status, headers })
 }
 

@@ -9,7 +9,13 @@ import {
   httpRequestNoContent,
   type HttpRequestOptions,
 } from '../src/index.ts'
-import { createFakeFetch, hang, jsonResponse, textResponse, type FakeHandler } from './fixtures/fake-fetch.ts'
+import {
+  createFakeFetch,
+  hang,
+  jsonResponse,
+  textResponse,
+  type FakeHandler,
+} from './fixtures/fake-fetch.ts'
 
 const now = new Date('2026-09-24T10:00:00Z')
 const Schema = z.object({ ok: z.literal(true), n: z.number() })
@@ -59,7 +65,9 @@ describe('httpParseRetryAfter', () => {
 
 describe('httpExtractProviderError', () => {
   it('reads OAuth, Google and Graph error shapes, but only validated codes', () => {
-    expect(httpExtractProviderError({ error: 'invalid_grant', error_description: 'secret stuff' })).toEqual({
+    expect(
+      httpExtractProviderError({ error: 'invalid_grant', error_description: 'secret stuff' }),
+    ).toEqual({
       code: 'invalid_grant',
       reasons: [],
     })
@@ -72,8 +80,13 @@ describe('httpExtractProviderError', () => {
           details: [{ reason: 'RATE_LIMIT_EXCEEDED' }, { reason: 'has spaces and <html>' }],
         },
       }),
-    ).toEqual({ code: 'PERMISSION_DENIED', reasons: ['userRateLimitExceeded', 'RATE_LIMIT_EXCEEDED'] })
-    expect(httpExtractProviderError({ error: { code: 'InvalidAuthenticationToken', message: 'm' } })).toEqual({
+    ).toEqual({
+      code: 'PERMISSION_DENIED',
+      reasons: ['userRateLimitExceeded', 'RATE_LIMIT_EXCEEDED'],
+    })
+    expect(
+      httpExtractProviderError({ error: { code: 'InvalidAuthenticationToken', message: 'm' } }),
+    ).toEqual({
       code: 'InvalidAuthenticationToken',
       reasons: [],
     })
@@ -173,9 +186,15 @@ describe('httpRequestJson', () => {
 
   it('refuses oversized responses', async () => {
     const big = opts(() => textResponse('x'.repeat(5000)), { maxBytes: 1000 })
-    expect((await failureOf(httpRequestJson(big.o, Schema))).code).toBe('transient.response_too_large')
-    const declared = opts(() => textResponse('{}', 200, { 'content-length': '999999999' }), { maxBytes: 1000 })
-    expect((await failureOf(httpRequestJson(declared.o, Schema))).code).toBe('transient.response_too_large')
+    expect((await failureOf(httpRequestJson(big.o, Schema))).code).toBe(
+      'transient.response_too_large',
+    )
+    const declared = opts(() => textResponse('{}', 200, { 'content-length': '999999999' }), {
+      maxBytes: 1000,
+    })
+    expect((await failureOf(httpRequestJson(declared.o, Schema))).code).toBe(
+      'transient.response_too_large',
+    )
   })
 })
 

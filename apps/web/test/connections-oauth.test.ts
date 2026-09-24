@@ -70,8 +70,15 @@ function deps(provider: 'google' | 'microsoft' = 'google') {
   }
 }
 
-async function begin(provider: 'google' | 'microsoft' = 'google', extra: { reconnectConnectionId?: string } = {}) {
-  const r = await connectionOAuthBegin({ ...deps(provider), returnTo: '/settings/connections', ...extra })
+async function begin(
+  provider: 'google' | 'microsoft' = 'google',
+  extra: { reconnectConnectionId?: string } = {},
+) {
+  const r = await connectionOAuthBegin({
+    ...deps(provider),
+    returnTo: '/settings/connections',
+    ...extra,
+  })
   if (!r.ok) throw new Error(`begin failed: ${r.error}`)
   return r
 }
@@ -108,7 +115,9 @@ describe('begin', () => {
     expect(url.searchParams.get('redirect_uri')).toBe(redirectUri('google'))
     expect(url.searchParams.get('code_challenge_method')).toBe('S256')
 
-    const rows = await env.t.db<{ stateHash: string; codeVerifierCiphertext: string; returnTo: string }[]>`
+    const rows = await env.t.db<
+      { stateHash: string; codeVerifierCiphertext: string; returnTo: string }[]
+    >`
       select state_hash, code_verifier_ciphertext, return_to from private.oauth_states`
     expect(rows).toHaveLength(1)
     const row = rows[0]!
@@ -116,7 +125,11 @@ describe('begin', () => {
     expect(row.stateHash).not.toContain(r.state)
     expect(row.returnTo).toBe('/settings/connections')
     // The verifier is encrypted, bound to the state hash, and matches the challenge sent.
-    const verifier = await decryptSecret(row.codeVerifierCiphertext, env.key, oauthStateVerifierContext(row.stateHash))
+    const verifier = await decryptSecret(
+      row.codeVerifierCiphertext,
+      env.key,
+      oauthStateVerifierContext(row.stateHash),
+    )
     expect(row.codeVerifierCiphertext).not.toContain(verifier)
     expect(await oauthCodeChallengeS256(verifier)).toBe(url.searchParams.get('code_challenge'))
   })
@@ -153,13 +166,26 @@ describe('complete', () => {
   it('connects a Google account: exchange with the PKCE verifier, identify, verify, encrypt, record', async () => {
     const before = await ownerSnapshot()
     const r = await begin('google')
-    const { result, calls } = await complete('google', { state: r.state, code: 'synthetic-code' }, r.state)
-    expect(result).toMatchObject({ ok: true, outcome: 'connected', accessChecked: true, returnTo: '/settings/connections' })
+    const { result, calls } = await complete(
+      'google',
+      { state: r.state, code: 'synthetic-code' },
+      r.state,
+    )
+    expect(result).toMatchObject({
+      ok: true,
+      outcome: 'connected',
+      accessChecked: true,
+      returnTo: '/settings/connections',
+    })
     if (!result.ok) return
 
     const tokenCall = calls.find((c) => c.url === GOOGLE_TOKEN_URL)!
     const form = Object.fromEntries(new URLSearchParams(tokenCall.body))
-    expect(form).toMatchObject({ grant_type: 'authorization_code', code: 'synthetic-code', redirect_uri: redirectUri('google') })
+    expect(form).toMatchObject({
+      grant_type: 'authorization_code',
+      code: 'synthetic-code',
+      redirect_uri: redirectUri('google'),
+    })
     const challenge = new URL(r.authorizationUrl).searchParams.get('code_challenge')
     expect(await oauthCodeChallengeS256(form.code_verifier!)).toBe(challenge)
 
@@ -174,16 +200,20 @@ describe('complete', () => {
     expect(conn.grantedScopes).toContain('https://www.googleapis.com/auth/gmail.readonly')
     expect(conn.grantedScopes).toContain('email')
 
-    const tok = (await withService(env.t.db, (tx) => connectionTokensGet(tx, conn.id))) as ConnectionTokensRow
+    const tok = (await withService(env.t.db, (tx) =>
+      connectionTokensGet(tx, conn.id),
+    )) as ConnectionTokensRow
     expect(tok.refreshTokenCiphertext).not.toContain('synthetic-refresh')
-    expect(await connectionDecryptToken(env.key, conn.id, 'refresh_token', tok.refreshTokenCiphertext)).toBe(
-      '1//synthetic-refresh-token-1',
-    )
-    expect(await connectionDecryptToken(env.key, conn.id, 'access_token', tok.accessTokenCiphertext!)).toBe(
-      'ya29.synthetic-access-token-1',
-    )
+    expect(
+      await connectionDecryptToken(env.key, conn.id, 'refresh_token', tok.refreshTokenCiphertext),
+    ).toBe('1//synthetic-refresh-token-1')
+    expect(
+      await connectionDecryptToken(env.key, conn.id, 'access_token', tok.accessTokenCiphertext!),
+    ).toBe('ya29.synthetic-access-token-1')
     // Tokens are bound to their row and purpose.
-    await expect(connectionDecryptToken(env.key, conn.id, 'access_token', tok.refreshTokenCiphertext)).rejects.toThrow()
+    await expect(
+      connectionDecryptToken(env.key, conn.id, 'access_token', tok.refreshTokenCiphertext),
+    ).rejects.toThrow()
     expect(tok.accessTokenExpiresAt?.getTime()).toBe(clock.getTime() + 3599_000)
 
     const events = await env.t.db`select kind, account_label from public.connection_events`
@@ -191,7 +221,9 @@ describe('complete', () => {
 
     // Connecting a mailbox never changes the dashboard owner or creates app users.
     expect(await ownerSnapshot()).toEqual(before)
-    expect(oauthResultLocation('google', result)).toBe('/settings/connections?provider=google&result=connected')
+    expect(oauthResultLocation('google', result)).toBe(
+      '/settings/connections?provider=google&result=connected',
+    )
   })
 
   it('states are single use', async () => {
@@ -234,7 +266,11 @@ describe('complete', () => {
 
   it('a cancelled consent consumes the state and connects nothing', async () => {
     const r = await begin('google')
-    const { result, calls } = await complete('google', { state: r.state, error: 'access_denied' }, r.state)
+    const { result, calls } = await complete(
+      'google',
+      { state: r.state, error: 'access_denied' },
+      r.state,
+    )
     expect(result).toMatchObject({ ok: false, error: 'denied' })
     expect(calls).toHaveLength(0)
     const other = await complete('google', { state: r.state, code: 'c' }, r.state)
@@ -253,7 +289,9 @@ describe('complete', () => {
     ]
     for (const [googleToken, error] of cases) {
       const r = await begin('google')
-      const { result } = await complete('google', { state: r.state, code: 'c' }, r.state, { googleToken })
+      const { result } = await complete('google', { state: r.state, code: 'c' }, r.state, {
+        googleToken,
+      })
       expect(result).toMatchObject({ ok: false, error })
       const location = oauthResultLocation('google', result)
       expect(location).toBe(`/settings/connections?provider=google&error=${error}`)
@@ -319,16 +357,21 @@ describe('complete', () => {
     const second = await begin('google')
     const b = await complete('google', { state: second.state, code: 'c2' }, second.state, {
       googleToken: () =>
-        jsonResponse({ ...googleExchangeResponse(clock), refresh_token: '1//synthetic-refresh-token-2' }),
+        jsonResponse({
+          ...googleExchangeResponse(clock),
+          refresh_token: '1//synthetic-refresh-token-2',
+        }),
     })
     expect(b.result).toMatchObject({ ok: true, outcome: 'reconnected', connectionId: id })
     const conn = (await withService(env.t.db, (tx) => connectionGet(tx, id)))!
     expect(conn.accountLabel).toBe('Personal Gmail')
     expect(conn.status).toBe('paused')
-    const tok = (await withService(env.t.db, (tx) => connectionTokensGet(tx, id))) as ConnectionTokensRow
-    expect(await connectionDecryptToken(env.key, id, 'refresh_token', tok.refreshTokenCiphertext)).toBe(
-      '1//synthetic-refresh-token-2',
-    )
+    const tok = (await withService(env.t.db, (tx) =>
+      connectionTokensGet(tx, id),
+    )) as ConnectionTokensRow
+    expect(
+      await connectionDecryptToken(env.key, id, 'refresh_token', tok.refreshTokenCiphertext),
+    ).toBe('1//synthetic-refresh-token-2')
     const [n] = await env.t.db<{ n: number }[]>`select count(*)::int as n from public.connections`
     expect(n!.n).toBe(1)
   })
@@ -336,16 +379,28 @@ describe('complete', () => {
   it('connects a Microsoft account as a confidential client and labels it from Graph', async () => {
     const r = await begin('microsoft')
     const url = new URL(r.authorizationUrl)
-    expect(url.origin + url.pathname).toBe('https://login.microsoftonline.com/common/oauth2/v2.0/authorize')
-    const { result, calls } = await complete('microsoft', { state: r.state, code: 'M.C507_synthetic' }, r.state)
+    expect(url.origin + url.pathname).toBe(
+      'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+    )
+    const { result, calls } = await complete(
+      'microsoft',
+      { state: r.state, code: 'M.C507_synthetic' },
+      r.state,
+    )
     expect(result).toMatchObject({ ok: true, outcome: 'connected', accessChecked: true })
     if (!result.ok) return
     const form = Object.fromEntries(new URLSearchParams(calls[0]!.body))
     expect(form.client_secret).toBeDefined()
     expect(form.redirect_uri).toBe(redirectUri('microsoft'))
     const conn = (await withService(env.t.db, (tx) => connectionGet(tx, result.connectionId)))!
-    expect(conn).toMatchObject({ provider: 'microsoft', externalAccountId: MS_PERSONAL_ID, accountLabel: MS_EMAIL })
-    expect(conn.grantedScopes).toEqual(expect.arrayContaining(['User.Read', 'Mail.Read', 'Calendars.Read']))
+    expect(conn).toMatchObject({
+      provider: 'microsoft',
+      externalAccountId: MS_PERSONAL_ID,
+      accountLabel: MS_EMAIL,
+    })
+    expect(conn.grantedScopes).toEqual(
+      expect.arrayContaining(['User.Read', 'Mail.Read', 'Calendars.Read']),
+    )
   })
 })
 
@@ -353,7 +408,15 @@ describe('redirect safety', () => {
   it('only returns to settings paths', () => {
     expect(safeConnectionsReturnTo('/settings/connections')).toBe('/settings/connections')
     expect(safeConnectionsReturnTo('/settings')).toBe('/settings')
-    for (const bad of ['//evil.example', 'https://evil.example', '/settings/../x', '/settings?x=1', '/', null, '/SETTINGS'])
+    for (const bad of [
+      '//evil.example',
+      'https://evil.example',
+      '/settings/../x',
+      '/settings?x=1',
+      '/',
+      null,
+      '/SETTINGS',
+    ])
       expect(safeConnectionsReturnTo(bad)).toBe('/settings/connections')
   })
 })

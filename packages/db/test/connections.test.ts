@@ -21,7 +21,13 @@ import {
   withService,
   type OwnerClaims,
 } from '../src/index.ts'
-import { createAuthUser, createTestDatabase, seedOwner, withAnon, type TestDatabase } from './harness.ts'
+import {
+  createAuthUser,
+  createTestDatabase,
+  seedOwner,
+  withAnon,
+  type TestDatabase,
+} from './harness.ts'
 
 let t: TestDatabase
 let owner: OwnerClaims
@@ -65,28 +71,46 @@ describe('connections access control', () => {
   it('owner reads connections, cursors and events; strangers see nothing; anon is refused', async () => {
     const { connection } = await connect('acl-1')
     await withService(t.db, async (tx) => {
-      await syncCursorUpsert(tx, { connectionId: connection.id, resourceType: 'gmail.history', cursor: '1', status: 'synced' })
-      await connectionEventRecord(tx, { connectionId: connection.id, provider: 'google', accountLabel: 'x', kind: 'connected' })
+      await syncCursorUpsert(tx, {
+        connectionId: connection.id,
+        resourceType: 'gmail.history',
+        cursor: '1',
+        status: 'synced',
+      })
+      await connectionEventRecord(tx, {
+        connectionId: connection.id,
+        provider: 'google',
+        accountLabel: 'x',
+        kind: 'connected',
+      })
     })
 
     const mine = await withOwner(t.db, owner, (tx) => connectionsList(tx))
     expect(mine.map((c) => c.id)).toContain(connection.id)
     expect(await withOwner(t.db, owner, (tx) => syncCursorsList(tx, connection.id))).toHaveLength(1)
-    expect((await withOwner(t.db, owner, (tx) => connectionEventsRecent(tx))).length).toBeGreaterThan(0)
+    expect(
+      (await withOwner(t.db, owner, (tx) => connectionEventsRecent(tx))).length,
+    ).toBeGreaterThan(0)
 
     expect(await withOwner(t.db, stranger, (tx) => connectionsList(tx))).toEqual([])
     expect(await withOwner(t.db, stranger, (tx) => syncCursorsList(tx, connection.id))).toEqual([])
     expect(await withOwner(t.db, stranger, (tx) => connectionEventsRecent(tx))).toEqual([])
 
     for (const table of ['public.connections', 'public.sync_cursors', 'public.connection_events']) {
-      await expect(withAnon(t.db, (tx) => tx.unsafe(`select * from ${table}`))).rejects.toThrow(/permission denied/)
+      await expect(withAnon(t.db, (tx) => tx.unsafe(`select * from ${table}`))).rejects.toThrow(
+        /permission denied/,
+      )
     }
   })
 
   it('the owner cannot write connection state directly (server code only)', async () => {
     const { connection } = await connect('acl-2')
     await expect(
-      withOwner(t.db, owner, (tx) => tx`update public.connections set status = 'connected' where id = ${connection.id}`),
+      withOwner(
+        t.db,
+        owner,
+        (tx) => tx`update public.connections set status = 'connected' where id = ${connection.id}`,
+      ),
     ).rejects.toThrow(/permission denied/)
     await expect(
       withOwner(
@@ -97,7 +121,11 @@ describe('connections access control', () => {
       ),
     ).rejects.toThrow(/permission denied/)
     await expect(
-      withOwner(t.db, owner, (tx) => tx`delete from public.connections where id = ${connection.id}`),
+      withOwner(
+        t.db,
+        owner,
+        (tx) => tx`delete from public.connections where id = ${connection.id}`,
+      ),
     ).rejects.toThrow(/permission denied/)
     await expect(
       withOwner(t.db, owner, (tx) => tx`update public.sync_cursors set cursor = 'x'`),
@@ -109,10 +137,12 @@ describe('connections access control', () => {
 
   it('tokens and OAuth states are unreachable for owner and anon', async () => {
     for (const table of ['private.connection_tokens', 'private.oauth_states']) {
-      await expect(withOwner(t.db, owner, (tx) => tx.unsafe(`select * from ${table}`))).rejects.toThrow(
+      await expect(
+        withOwner(t.db, owner, (tx) => tx.unsafe(`select * from ${table}`)),
+      ).rejects.toThrow(/permission denied/)
+      await expect(withAnon(t.db, (tx) => tx.unsafe(`select * from ${table}`))).rejects.toThrow(
         /permission denied/,
       )
-      await expect(withAnon(t.db, (tx) => tx.unsafe(`select * from ${table}`))).rejects.toThrow(/permission denied/)
     }
     const [grants] = await t.db<{ n: number }[]>`
       select count(*)::int as n from information_schema.role_table_grants
@@ -148,13 +178,23 @@ describe('connections constraints', () => {
     ).rejects.toThrow(/violates/)
     await expect(
       withService(t.db, (tx) =>
-        connectionOAuthStateCreate(tx, { stateHash: 'raw-state', provider: 'google', codeVerifierCiphertext: ENV, returnTo: '/settings/connections' }),
+        connectionOAuthStateCreate(tx, {
+          stateHash: 'raw-state',
+          provider: 'google',
+          codeVerifierCiphertext: ENV,
+          returnTo: '/settings/connections',
+        }),
       ),
     ).rejects.toThrow(/violates/)
     for (const returnTo of ['//evil.example', 'https://evil.example', '/settings?x=1', '/a//b']) {
       await expect(
         withService(t.db, (tx) =>
-          connectionOAuthStateCreate(tx, { stateHash: hash('e'), provider: 'google', codeVerifierCiphertext: ENV, returnTo }),
+          connectionOAuthStateCreate(tx, {
+            stateHash: hash('e'),
+            provider: 'google',
+            codeVerifierCiphertext: ENV,
+            returnTo,
+          }),
         ),
       ).rejects.toThrow(/violates/)
     }
@@ -165,7 +205,11 @@ describe('authorised connections', () => {
   it('creates once, then reconnects the same account keeping the owner label and pause', async () => {
     const first = await connect('re-1')
     expect(first.created).toBe(true)
-    expect(first.connection).toMatchObject({ status: 'connected', lastSuccessAt: at, grantedScopes: ['openid', 'email'] })
+    expect(first.connection).toMatchObject({
+      status: 'connected',
+      lastSuccessAt: at,
+      grantedScopes: ['openid', 'email'],
+    })
 
     await withService(t.db, async (tx) => {
       await connectionRename(tx, first.connection.id, 'Work Gmail')
@@ -194,9 +238,13 @@ describe('authorised connections', () => {
       consecutiveFailures: 0,
       lastSuccessAt: later,
     })
-    expect(again.connection.grantedScopes).toContain('https://www.googleapis.com/auth/gmail.readonly')
+    expect(again.connection.grantedScopes).toContain(
+      'https://www.googleapis.com/auth/gmail.readonly',
+    )
 
-    await withService(t.db, (tx) => connectionApplyEvent(tx, first.connection.id, { type: 'paused', at: later }))
+    await withService(t.db, (tx) =>
+      connectionApplyEvent(tx, first.connection.id, { type: 'paused', at: later }),
+    )
     const whilePaused = await withService(t.db, (tx) =>
       connectionUpsertAuthorized(tx, {
         provider: 'google',
@@ -213,10 +261,17 @@ describe('authorised connections', () => {
     const { connection } = await connect('race-1')
     await withService(t.db, (tx) => connectionApplyEvent(tx, connection.id, { type: 'paused', at }))
     const after = await withService(t.db, (tx) =>
-      connectionApplyEvent(tx, connection.id, { type: 'attempt_succeeded', at: new Date(at.getTime() + 1000) }),
+      connectionApplyEvent(tx, connection.id, {
+        type: 'attempt_succeeded',
+        at: new Date(at.getTime() + 1000),
+      }),
     )
     expect(after).toMatchObject({ status: 'paused', lastSuccessAt: new Date(at.getTime() + 1000) })
-    expect(await withService(t.db, (tx) => connectionApplyEvent(tx, '00000000-0000-0000-0000-000000000000', { type: 'paused', at }))).toBeNull()
+    expect(
+      await withService(t.db, (tx) =>
+        connectionApplyEvent(tx, '00000000-0000-0000-0000-000000000000', { type: 'paused', at }),
+      ),
+    ).toBeNull()
   })
 
   it('stores sanitised error messages', async () => {
@@ -225,7 +280,11 @@ describe('authorised connections', () => {
       connectionApplyEvent(tx, connection.id, {
         type: 'attempt_failed',
         at,
-        failure: { kind: 'transient', code: 'transient.unexpected', message: 'Bearer ya29.leak for a@b.com' },
+        failure: {
+          kind: 'transient',
+          code: 'transient.unexpected',
+          message: 'Bearer ya29.leak for a@b.com',
+        },
       }),
     )
     expect(row?.lastErrorMessage).toBe('Bearer [redacted] for [email]')
@@ -237,7 +296,13 @@ describe('authorised connections', () => {
     try {
       const mk = (id: string) =>
         withService(t2.db, (tx) =>
-          connectionUpsertAuthorized(tx, { provider: 'microsoft', externalAccountId: id, accountLabel: id, grantedScopes: [], at }),
+          connectionUpsertAuthorized(tx, {
+            provider: 'microsoft',
+            externalAccountId: id,
+            accountLabel: id,
+            grantedScopes: [],
+            at,
+          }),
         )
       const a = await mk('due-a')
       const b = await mk('due-b')
@@ -245,7 +310,11 @@ describe('authorised connections', () => {
       const d = await mk('due-d')
       await withService(t2.db, async (tx) => {
         await connectionApplyEvent(tx, b.connection.id, { type: 'paused', at })
-        await connectionApplyEvent(tx, c.connection.id, { type: 'attempt_failed', at, failure: connectionFailure('auth', 'invalid_grant', 'x') })
+        await connectionApplyEvent(tx, c.connection.id, {
+          type: 'attempt_failed',
+          at,
+          failure: connectionFailure('auth', 'invalid_grant', 'x'),
+        })
         await connectionApplyEvent(tx, d.connection.id, {
           type: 'attempt_failed',
           at,
@@ -255,7 +324,9 @@ describe('authorised connections', () => {
       const ids = async (when: Date) =>
         (await withService(t2.db, (tx) => connectionsDue(tx, 'microsoft', when))).map((r) => r.id)
       expect(await ids(new Date(at.getTime() + 60_000))).toEqual([a.connection.id])
-      expect((await ids(new Date(at.getTime() + 600_000))).sort()).toEqual([a.connection.id, d.connection.id].sort())
+      expect((await ids(new Date(at.getTime() + 600_000))).sort()).toEqual(
+        [a.connection.id, d.connection.id].sort(),
+      )
       expect(await withService(t2.db, (tx) => connectionsDue(tx, 'google', at))).toEqual([])
     } finally {
       await t2.drop()
@@ -269,14 +340,30 @@ describe('connection tokens', () => {
     const exp = new Date(at.getTime() + 3600_000)
     expect(
       await withService(t.db, (tx) =>
-        connectionTokensRotate(tx, { connectionId: connection.id, accessTokenCiphertext: ENV2, accessTokenExpiresAt: exp, refreshTokenCiphertext: null, keyVersion: 1 }),
+        connectionTokensRotate(tx, {
+          connectionId: connection.id,
+          accessTokenCiphertext: ENV2,
+          accessTokenExpiresAt: exp,
+          refreshTokenCiphertext: null,
+          keyVersion: 1,
+        }),
       ),
     ).toBe(true)
     let row = await withService(t.db, (tx) => connectionTokensGet(tx, connection.id))
-    expect(row).toMatchObject({ refreshTokenCiphertext: ENV, accessTokenCiphertext: ENV2, accessTokenExpiresAt: exp })
+    expect(row).toMatchObject({
+      refreshTokenCiphertext: ENV,
+      accessTokenCiphertext: ENV2,
+      accessTokenExpiresAt: exp,
+    })
 
     await withService(t.db, (tx) =>
-      connectionTokensRotate(tx, { connectionId: connection.id, accessTokenCiphertext: ENV, accessTokenExpiresAt: exp, refreshTokenCiphertext: ENV2, keyVersion: 1 }),
+      connectionTokensRotate(tx, {
+        connectionId: connection.id,
+        accessTokenCiphertext: ENV,
+        accessTokenExpiresAt: exp,
+        refreshTokenCiphertext: ENV2,
+        keyVersion: 1,
+      }),
     )
     row = await withService(t.db, (tx) => connectionTokensGet(tx, connection.id))
     expect(row).toMatchObject({ refreshTokenCiphertext: ENV2 })
@@ -295,17 +382,31 @@ describe('connection tokens', () => {
       await held
     })
     await isLocked
-    expect(await withService(t.db, (tx) => connectionTokensGet(tx, connection.id, 'skip_locked'))).toBe('busy')
+    expect(
+      await withService(t.db, (tx) => connectionTokensGet(tx, connection.id, 'skip_locked')),
+    ).toBe('busy')
     release()
     await holder
-    expect(await withService(t.db, (tx) => connectionTokensGet(tx, connection.id, 'skip_locked'))).not.toBe('busy')
-    expect(await withService(t.db, (tx) => connectionTokensGet(tx, '00000000-0000-0000-0000-000000000000', 'skip_locked'))).toBeNull()
+    expect(
+      await withService(t.db, (tx) => connectionTokensGet(tx, connection.id, 'skip_locked')),
+    ).not.toBe('busy')
+    expect(
+      await withService(t.db, (tx) =>
+        connectionTokensGet(tx, '00000000-0000-0000-0000-000000000000', 'skip_locked'),
+      ),
+    ).toBeNull()
   })
 
   it('disconnect deletes tokens, cursors and the row; a late rotation does not resurrect it', async () => {
     const { connection } = await connect('del-1')
     await withService(t.db, (tx) =>
-      syncCursorUpsert(tx, { connectionId: connection.id, resourceType: 'gcal.events', resourceId: 'primary', cursor: 'tok', status: 'synced' }),
+      syncCursorUpsert(tx, {
+        connectionId: connection.id,
+        resourceType: 'gcal.events',
+        resourceId: 'primary',
+        cursor: 'tok',
+        status: 'synced',
+      }),
     )
     const deleted = await withService(t.db, (tx) => connectionDelete(tx, connection.id))
     expect(deleted?.id).toBe(connection.id)
@@ -314,7 +415,13 @@ describe('connection tokens', () => {
     expect(await withService(t.db, (tx) => syncCursorsList(tx, connection.id))).toEqual([])
     expect(
       await withService(t.db, (tx) =>
-        connectionTokensRotate(tx, { connectionId: connection.id, accessTokenCiphertext: ENV, accessTokenExpiresAt: null, refreshTokenCiphertext: ENV, keyVersion: 1 }),
+        connectionTokensRotate(tx, {
+          connectionId: connection.id,
+          accessTokenCiphertext: ENV,
+          accessTokenExpiresAt: null,
+          refreshTokenCiphertext: ENV,
+          keyVersion: 1,
+        }),
       ),
     ).toBe(false)
     expect(await withService(t.db, (tx) => connectionDelete(tx, connection.id))).toBeNull()
@@ -324,20 +431,46 @@ describe('connection tokens', () => {
 describe('OAuth states', () => {
   it('are single use, provider-bound and expire', async () => {
     await withService(t.db, (tx) =>
-      connectionOAuthStateCreate(tx, { stateHash: hash('a'), provider: 'google', codeVerifierCiphertext: ENV, returnTo: '/settings/connections' }),
+      connectionOAuthStateCreate(tx, {
+        stateHash: hash('a'),
+        provider: 'google',
+        codeVerifierCiphertext: ENV,
+        returnTo: '/settings/connections',
+      }),
     )
-    expect(await withService(t.db, (tx) => connectionOAuthStateConsume(tx, { stateHash: hash('a'), provider: 'microsoft' }))).toBeNull()
-    expect(await withService(t.db, (tx) => connectionOAuthStateConsume(tx, { stateHash: hash('a'), provider: 'google' }))).toEqual({
+    expect(
+      await withService(t.db, (tx) =>
+        connectionOAuthStateConsume(tx, { stateHash: hash('a'), provider: 'microsoft' }),
+      ),
+    ).toBeNull()
+    expect(
+      await withService(t.db, (tx) =>
+        connectionOAuthStateConsume(tx, { stateHash: hash('a'), provider: 'google' }),
+      ),
+    ).toEqual({
       codeVerifierCiphertext: ENV,
       returnTo: '/settings/connections',
     })
-    expect(await withService(t.db, (tx) => connectionOAuthStateConsume(tx, { stateHash: hash('a'), provider: 'google' }))).toBeNull()
+    expect(
+      await withService(t.db, (tx) =>
+        connectionOAuthStateConsume(tx, { stateHash: hash('a'), provider: 'google' }),
+      ),
+    ).toBeNull()
 
     await withService(t.db, (tx) =>
-      connectionOAuthStateCreate(tx, { stateHash: hash('b'), provider: 'google', codeVerifierCiphertext: ENV, returnTo: '/' }),
+      connectionOAuthStateCreate(tx, {
+        stateHash: hash('b'),
+        provider: 'google',
+        codeVerifierCiphertext: ENV,
+        returnTo: '/',
+      }),
     )
     await t.db`update private.oauth_states set created_at = now() - interval '11 minutes', expires_at = now() - interval '1 minute' where state_hash = ${hash('b')}`
-    expect(await withService(t.db, (tx) => connectionOAuthStateConsume(tx, { stateHash: hash('b'), provider: 'google' }))).toBeNull()
+    expect(
+      await withService(t.db, (tx) =>
+        connectionOAuthStateConsume(tx, { stateHash: hash('b'), provider: 'google' }),
+      ),
+    ).toBeNull()
   })
 
   it('cannot be created with a TTL longer than 10 minutes, and old ones are purged', async () => {
@@ -348,9 +481,16 @@ describe('OAuth states', () => {
     await t.db`insert into private.oauth_states (state_hash, provider, code_verifier_ciphertext, return_to, created_at, expires_at)
                values (${hash('d')}, 'google', ${ENV}, '/', now() - interval '3 days', now() - interval '3 days' + interval '10 minutes')`
     await withService(t.db, (tx) =>
-      connectionOAuthStateCreate(tx, { stateHash: hash('f'), provider: 'microsoft', codeVerifierCiphertext: ENV, returnTo: '/' }),
+      connectionOAuthStateCreate(tx, {
+        stateHash: hash('f'),
+        provider: 'microsoft',
+        codeVerifierCiphertext: ENV,
+        returnTo: '/',
+      }),
     )
-    const [left] = await t.db<{ n: number }[]>`select count(*)::int as n from private.oauth_states where state_hash = ${hash('d')}`
+    const [left] = await t.db<
+      { n: number }[]
+    >`select count(*)::int as n from private.oauth_states where state_hash = ${hash('d')}`
     expect(left?.n).toBe(0)
   })
 })
@@ -359,10 +499,23 @@ describe('sync cursors', () => {
   it('upserts one cursor per connection/resource and validates windows', async () => {
     const { connection } = await connect('cur-1')
     const a = await withService(t.db, (tx) =>
-      syncCursorUpsert(tx, { connectionId: connection.id, resourceType: 'graph.messages', resourceId: 'inbox', cursor: 'd1', status: 'partial' }),
+      syncCursorUpsert(tx, {
+        connectionId: connection.id,
+        resourceType: 'graph.messages',
+        resourceId: 'inbox',
+        cursor: 'd1',
+        status: 'partial',
+      }),
     )
     const b = await withService(t.db, (tx) =>
-      syncCursorUpsert(tx, { connectionId: connection.id, resourceType: 'graph.messages', resourceId: 'inbox', cursor: 'd2', status: 'synced', lastSyncedAt: at }),
+      syncCursorUpsert(tx, {
+        connectionId: connection.id,
+        resourceType: 'graph.messages',
+        resourceId: 'inbox',
+        cursor: 'd2',
+        status: 'synced',
+        lastSyncedAt: at,
+      }),
     )
     expect(b.id).toBe(a.id)
     expect(b).toMatchObject({ cursor: 'd2', status: 'synced', lastSyncedAt: at })

@@ -72,7 +72,9 @@ export function oauthTokenSetFromResponse(
       expiresIn !== undefined && expiresIn > 0 ? new Date(now.getTime() + expiresIn * 1000) : null,
     refreshToken: body.refresh_token ?? null,
     grantedScopes:
-      body.scope !== undefined ? normalizeGrantedScopes(provider, parseScopeString(body.scope)) : null,
+      body.scope !== undefined
+        ? normalizeGrantedScopes(provider, parseScopeString(body.scope))
+        : null,
     idToken: body.id_token ?? null,
   }
 }
@@ -93,7 +95,8 @@ export function oauthClassifyTokenError(
       ...(info.retryAfterMs !== null ? { retryAfterMs: info.retryAfterMs } : {}),
     }
     if (info.status === 429) return connectionFailure('rate_limited', 'http_429', base, extra)
-    if (info.status >= 500) return connectionFailure('transient', `http_${info.status}`, base, extra)
+    if (info.status >= 500)
+      return connectionFailure('transient', `http_${info.status}`, base, extra)
     switch (code) {
       case 'invalid_grant':
         return connectionFailure(
@@ -191,6 +194,7 @@ export function oauthAuthorizationUrl(
   params: Record<string, string | undefined>,
 ): string {
   const url = new URL(endpoint)
-  for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== '') url.searchParams.set(k, v)
+  for (const [k, v] of Object.entries(params))
+    if (v !== undefined && v !== '') url.searchParams.set(k, v)
   return url.toString()
 }

@@ -26,11 +26,7 @@ import {
   type HttpProviderErrorInfo,
   type HttpRequestOptions,
 } from '../http/client.ts'
-import {
-  oauthAuthorizationUrl,
-  oauthDecodeJwtClaims,
-  oauthTokenRequest,
-} from '../oauth/oauth.ts'
+import { oauthAuthorizationUrl, oauthDecodeJwtClaims, oauthTokenRequest } from '../oauth/oauth.ts'
 
 export const GOOGLE_ENDPOINTS = {
   authorize: 'https://accounts.google.com/o/oauth2/v2/auth',
@@ -88,7 +84,8 @@ export function googleClassifyApiError(
     }
     if (info.status === 403 || info.status === 429) {
       const rl = tags.find((t) => RATE_LIMIT_REASONS.has(t))
-      if (rl || info.status === 429) return connectionFailure('rate_limited', rl ?? 'http_429', base, extra)
+      if (rl || info.status === 429)
+        return connectionFailure('rate_limited', rl ?? 'http_429', base, extra)
       if (tags.some((t) => API_DISABLED_REASONS.has(t)))
         return connectionFailure(
           'config',
@@ -220,16 +217,25 @@ export function createGoogleAdapter(config: GoogleOAuthConfig): ConnectionOAuthA
       const aud = claims?.aud
       const audOk = aud === config.clientId || (Array.isArray(aud) && aud.includes(config.clientId))
       const issOk = typeof claims?.iss === 'string' && GOOGLE_ISSUERS.includes(claims.iss)
-      const expOk = typeof claims?.exp === 'number' && claims.exp * 1000 > ctx.now().getTime() - 300_000
+      const expOk =
+        typeof claims?.exp === 'number' && claims.exp * 1000 > ctx.now().getTime() - 300_000
       if (claims && audOk && issOk && expOk && typeof claims.sub === 'string' && claims.sub) {
         const email = typeof claims.email === 'string' ? claims.email.toLowerCase() : undefined
         const hd = typeof claims.hd === 'string' ? claims.hd : undefined
-        return { externalAccountId: claims.sub, accountLabel: email ?? claims.sub, accountKind: accountKindFor(email, hd) }
+        return {
+          externalAccountId: claims.sub,
+          accountLabel: email ?? claims.sub,
+          accountKind: accountKindFor(email, hd),
+        }
       }
       // No usable id token: ask the userinfo endpoint (openid + email are always granted).
       const info = await userinfo(tokens.accessToken, ctx)
       const email = info.email?.toLowerCase()
-      return { externalAccountId: info.sub, accountLabel: email ?? info.sub, accountKind: accountKindFor(email, info.hd) }
+      return {
+        externalAccountId: info.sub,
+        accountLabel: email ?? info.sub,
+        accountKind: accountKindFor(email, info.hd),
+      }
     },
 
     async verifyAccess(accessToken, grantedScopes, ctx): Promise<ConnectionAccessCheck> {
@@ -243,13 +249,20 @@ export function createGoogleAdapter(config: GoogleOAuthConfig): ConnectionOAuthA
           endpoint: 'gmail.users.getProfile',
           accountLabel: data.emailAddress.toLowerCase(),
           externalAccountId: null,
-          facts: { historyIdPresent: data.historyId !== undefined && String(data.historyId) !== '' },
+          facts: {
+            historyIdPresent: data.historyId !== undefined && String(data.historyId) !== '',
+          },
         }
       }
       if (GOOGLE_CALENDAR_SCOPES.some((s) => granted.includes(s))) {
         const url = `${GOOGLE_ENDPOINTS.calendarList}?maxResults=1`
         await httpRequestJson(api(ctx, 'calendar list', url, accessToken), CalendarListSchema)
-        return { endpoint: 'calendar.calendarList.list', accountLabel: null, externalAccountId: null, facts: {} }
+        return {
+          endpoint: 'calendar.calendarList.list',
+          accountLabel: null,
+          externalAccountId: null,
+          facts: {},
+        }
       }
       const info = await userinfo(accessToken, ctx)
       return {
@@ -295,7 +308,8 @@ export async function googleRevokeToken(
     })
     return 'revoked'
   } catch (err) {
-    if (isConnectionError(err) && err.failure.code === 'auth.invalid_token') return 'already_invalid'
+    if (isConnectionError(err) && err.failure.code === 'auth.invalid_token')
+      return 'already_invalid'
     return 'failed'
   }
 }

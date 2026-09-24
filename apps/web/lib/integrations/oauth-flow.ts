@@ -43,7 +43,12 @@ import {
   withService,
   type Db,
 } from '@personal-home/db'
-import { OAUTH_STATE_RE, oauthAdapterFromSettings, oauthPkcePair, oauthState } from '@personal-home/integrations'
+import {
+  OAUTH_STATE_RE,
+  oauthAdapterFromSettings,
+  oauthPkcePair,
+  oauthState,
+} from '@personal-home/integrations'
 import type { OAuthResultError } from './oauth-flow-codes'
 
 export const DEFAULT_CONNECTIONS_PATH = '/settings/connections'
@@ -64,8 +69,7 @@ export interface OAuthDeps {
 }
 
 export type OAuthBeginResult =
-  | { ok: true; authorizationUrl: string; state: string }
-  | { ok: false; error: OAuthResultError }
+  { ok: true; authorizationUrl: string; state: string } | { ok: false; error: OAuthResultError }
 
 const LOOKS_LIKE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -87,7 +91,11 @@ export async function connectionOAuthBegin(
   const state = oauthState()
   const stateHash = await sha256Hex(state)
   const pkce = await oauthPkcePair()
-  const verifierCiphertext = await encryptSecret(pkce.verifier, key, oauthStateVerifierContext(stateHash))
+  const verifierCiphertext = await encryptSecret(
+    pkce.verifier,
+    key,
+    oauthStateVerifierContext(stateHash),
+  )
   await withService(deps.db, (tx) =>
     connectionOAuthStateCreate(tx, {
       stateHash,
@@ -106,7 +114,13 @@ export async function connectionOAuthBegin(
 }
 
 export type OAuthCompleteResult =
-  | { ok: true; returnTo: string; outcome: 'connected' | 'reconnected'; accessChecked: boolean; connectionId: string }
+  | {
+      ok: true
+      returnTo: string
+      outcome: 'connected' | 'reconnected'
+      accessChecked: boolean
+      connectionId: string
+    }
   | { ok: false; returnTo: string; error: OAuthResultError }
 
 const CallbackQuery = z.object({
@@ -155,7 +169,8 @@ export async function connectionOAuthComplete(
     code: deps.query.get('code') ?? undefined,
     error: deps.query.get('error') ?? undefined,
   })
-  if (!parsed.success || !parsed.data.state) return { ok: false, returnTo: fallback, error: 'invalid_request' }
+  if (!parsed.success || !parsed.data.state)
+    return { ok: false, returnTo: fallback, error: 'invalid_request' }
   const { state, code, error } = parsed.data
 
   // The state must come back to the same browser that started the flow.
@@ -169,7 +184,8 @@ export async function connectionOAuthComplete(
   if (!stored) return { ok: false, returnTo: fallback, error: 'state_expired' }
   const returnTo = safeConnectionsReturnTo(stored.returnTo)
 
-  if (error) return { ok: false, returnTo, error: error === 'access_denied' ? 'denied' : 'provider_error' }
+  if (error)
+    return { ok: false, returnTo, error: error === 'access_denied' ? 'denied' : 'provider_error' }
   if (!code) return { ok: false, returnTo, error: 'invalid_request' }
 
   const lookup = oauthAdapterFromSettings(deps.provider, deps.setting)
@@ -179,7 +195,11 @@ export async function connectionOAuthComplete(
 
   let codeVerifier: string
   try {
-    codeVerifier = await decryptSecret(stored.codeVerifierCiphertext, key, oauthStateVerifierContext(stateHash))
+    codeVerifier = await decryptSecret(
+      stored.codeVerifierCiphertext,
+      key,
+      oauthStateVerifierContext(stateHash),
+    )
   } catch {
     return { ok: false, returnTo, error: 'state_expired' }
   }
@@ -195,14 +215,19 @@ export async function connectionOAuthComplete(
   if (!refreshToken) return { ok: false, returnTo, error: 'no_refresh_token' }
   // RFC 6749 §5.1: an omitted `scope` means exactly the requested scopes were granted.
   const grantedScopes =
-    tokens.grantedScopes ?? normalizeGrantedScopes(deps.provider, CONNECTION_PROVIDER_INFO[deps.provider].scopes)
+    tokens.grantedScopes ??
+    normalizeGrantedScopes(deps.provider, CONNECTION_PROVIDER_INFO[deps.provider].scopes)
 
   let identity
   try {
     identity = await adapter.identify(tokens, ctx)
   } catch (err) {
     const f = toConnectionFailure(err)
-    return { ok: false, returnTo, error: f.kind === 'rate_limited' ? 'rate_limited' : 'identity_failed' }
+    return {
+      ok: false,
+      returnTo,
+      error: f.kind === 'rate_limited' ? 'rate_limited' : 'identity_failed',
+    }
   }
 
   // Prove access now; a failure is recorded on the connection rather than hidden.
@@ -227,13 +252,27 @@ export async function connectionOAuthComplete(
     })
     await connectionTokensSave(tx, {
       connectionId: connection.id,
-      refreshTokenCiphertext: await connectionEncryptToken(key, connection.id, 'refresh_token', refreshToken),
-      accessTokenCiphertext: await connectionEncryptToken(key, connection.id, 'access_token', tokens.accessToken),
+      refreshTokenCiphertext: await connectionEncryptToken(
+        key,
+        connection.id,
+        'refresh_token',
+        refreshToken,
+      ),
+      accessTokenCiphertext: await connectionEncryptToken(
+        key,
+        connection.id,
+        'access_token',
+        tokens.accessToken,
+      ),
       accessTokenExpiresAt: tokens.accessTokenExpiresAt,
       keyVersion: CONNECTION_TOKEN_KEY_VERSION,
     })
     if (checkFailure) {
-      await connectionApplyEvent(tx, connection.id, { type: 'attempt_failed', at, failure: checkFailure })
+      await connectionApplyEvent(tx, connection.id, {
+        type: 'attempt_failed',
+        at,
+        failure: checkFailure,
+      })
     }
     await connectionEventRecord(tx, {
       connectionId: connection.id,

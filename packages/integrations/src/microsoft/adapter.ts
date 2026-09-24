@@ -76,10 +76,19 @@ export function microsoftClassifyGraphError(
       httpStatus: info.status,
       ...(info.retryAfterMs !== null ? { retryAfterMs: info.retryAfterMs } : {}),
     }
-    if (info.status === 429 || info.code === 'TooManyRequests' || info.code === 'ApplicationThrottled')
+    if (
+      info.status === 429 ||
+      info.code === 'TooManyRequests' ||
+      info.code === 'ApplicationThrottled'
+    )
       return connectionFailure('rate_limited', 'http_429', base, extra)
     if (info.status === 403 && info.code === 'MailboxNotEnabledForRESTAPI')
-      return connectionFailure('provider', 'mailbox_not_enabled', `${base}. This account has no Outlook mailbox.`, extra)
+      return connectionFailure(
+        'provider',
+        'mailbox_not_enabled',
+        `${base}. This account has no Outlook mailbox.`,
+        extra,
+      )
     return undefined
   }
 }

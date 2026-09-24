@@ -22,7 +22,12 @@ import {
   connectionOAuthComplete,
   oauthResultLocation,
 } from './oauth-flow'
-import { oauthRedirectUri, oauthStateCookieName, serverSetting, tokenEncryptionKey } from './settings'
+import {
+  oauthRedirectUri,
+  oauthStateCookieName,
+  serverSetting,
+  tokenEncryptionKey,
+} from './settings'
 
 /** The consent screen plus the owner's decision must fit inside the 10-minute state lifetime. */
 const STATE_COOKIE_MAX_AGE_S = 10 * 60
@@ -79,7 +84,10 @@ export async function connectStart(request: NextRequest, providerParam: string):
   return res
 }
 
-export async function connectCallback(request: NextRequest, providerParam: string): Promise<Response> {
+export async function connectCallback(
+  request: NextRequest,
+  providerParam: string,
+): Promise<Response> {
   if (!isOAuthConnectProvider(providerParam)) return new NextResponse('Not found', { status: 404 })
   const provider = providerParam
   const denied = await ownerGate(DEFAULT_CONNECTIONS_PATH)

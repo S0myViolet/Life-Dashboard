@@ -1,8 +1,18 @@
 // Tests use SYNTHETIC FIXTURES (not captured from the live service): see fixtures/microsoft.ts.
 import { describe, expect, it } from 'vitest'
-import { connectionScopeCoverage, isConnectionError, type ConnectionFailure } from '@personal-home/core'
+import {
+  connectionScopeCoverage,
+  isConnectionError,
+  type ConnectionFailure,
+} from '@personal-home/core'
 import { createMicrosoftAdapter, microsoftEndpoints } from '../src/index.ts'
-import { createFakeFetch, formBody, jsonResponse, textResponse, type FakeHandler } from './fixtures/fake-fetch.ts'
+import {
+  createFakeFetch,
+  formBody,
+  jsonResponse,
+  textResponse,
+  type FakeHandler,
+} from './fixtures/fake-fetch.ts'
 import {
   MICROSOFT_TEST_CLIENT,
   MS_EMAIL,
@@ -45,9 +55,15 @@ async function failureOf(p: Promise<unknown>): Promise<ConnectionFailure> {
 describe('Microsoft authorization URL', () => {
   it('uses /common v2.0 with delegated read scopes, PKCE S256, query response mode and account picker', () => {
     const url = new URL(
-      adapter.authorize({ state: 'S'.repeat(43), codeChallenge: 'C'.repeat(43), redirectUri: REDIRECT }),
+      adapter.authorize({
+        state: 'S'.repeat(43),
+        codeChallenge: 'C'.repeat(43),
+        redirectUri: REDIRECT,
+      }),
     )
-    expect(`${url.origin}${url.pathname}`).toBe('https://login.microsoftonline.com/common/oauth2/v2.0/authorize')
+    expect(`${url.origin}${url.pathname}`).toBe(
+      'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+    )
     expect(Object.fromEntries(url.searchParams)).toEqual({
       client_id: MICROSOFT_TEST_CLIENT.clientId,
       response_type: 'code',
@@ -65,7 +81,10 @@ describe('Microsoft authorization URL', () => {
 describe('Microsoft code exchange and refresh', () => {
   it('redeems the code as a confidential client (URL-encoded secret, verifier, scope)', async () => {
     const { ctx: c, calls } = ctx(() => jsonResponse(msExchangeResponse()))
-    const tokens = await adapter.exchange({ code: 'M.C507_code', codeVerifier: 'v'.repeat(43), redirectUri: REDIRECT }, c)
+    const tokens = await adapter.exchange(
+      { code: 'M.C507_code', codeVerifier: 'v'.repeat(43), redirectUri: REDIRECT },
+      c,
+    )
     expect(calls[0]!.url).toBe(endpoints.token)
     // '+' and '=' in the secret must be percent-encoded, not sent raw.
     expect(calls[0]!.body).toContain('client_secret=synthetic%7Esecret.value_with%2Bchars%3D')
@@ -79,7 +98,14 @@ describe('Microsoft code exchange and refresh', () => {
       client_secret: MICROSOFT_TEST_CLIENT.clientSecret,
     })
     expect(tokens.refreshToken).toBe('M.C507_BAY.0.U.-synthetic-refresh-1')
-    expect(tokens.grantedScopes).toEqual(['openid', 'profile', 'email', 'Calendars.Read', 'Mail.Read', 'User.Read'])
+    expect(tokens.grantedScopes).toEqual([
+      'openid',
+      'profile',
+      'email',
+      'Calendars.Read',
+      'Mail.Read',
+      'User.Read',
+    ])
   })
 
   it('returns the rotated refresh token on every refresh', async () => {
@@ -112,8 +138,13 @@ describe('Microsoft code exchange and refresh', () => {
   })
 
   it('records partially granted scopes', async () => {
-    const { ctx: c } = ctx(() => jsonResponse(msExchangeResponse({ scope: MS_NO_CALENDAR_GRANTED })))
-    const tokens = await adapter.exchange({ code: 'c', codeVerifier: 'v'.repeat(43), redirectUri: REDIRECT }, c)
+    const { ctx: c } = ctx(() =>
+      jsonResponse(msExchangeResponse({ scope: MS_NO_CALENDAR_GRANTED })),
+    )
+    const tokens = await adapter.exchange(
+      { code: 'c', codeVerifier: 'v'.repeat(43), redirectUri: REDIRECT },
+      c,
+    )
     expect(connectionScopeCoverage('microsoft', tokens.grantedScopes!)).toEqual({
       missing: ['Calendars.Read'],
       mail: true,
@@ -171,8 +202,18 @@ describe('Microsoft identity and access checks', () => {
     const cases: [number, unknown, Record<string, string>, Partial<ConnectionFailure>][] = [
       [401, graphInvalidToken, {}, { kind: 'auth', code: 'auth.unauthorized' }],
       [403, graphAccessDenied, {}, { kind: 'auth', code: 'auth.forbidden' }],
-      [429, graphTooManyRequests, { 'retry-after': '10' }, { kind: 'rate_limited', retryAfterMs: 10_000 }],
-      [503, graphServiceUnavailable, { 'retry-after': '20' }, { kind: 'transient', code: 'transient.http_503', retryAfterMs: 20_000 }],
+      [
+        429,
+        graphTooManyRequests,
+        { 'retry-after': '10' },
+        { kind: 'rate_limited', retryAfterMs: 10_000 },
+      ],
+      [
+        503,
+        graphServiceUnavailable,
+        { 'retry-after': '20' },
+        { kind: 'transient', code: 'transient.http_503', retryAfterMs: 20_000 },
+      ],
     ]
     for (const [status, body, headers, expected] of cases) {
       const { ctx: c } = ctx(() => jsonResponse(body, status, headers))

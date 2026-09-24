@@ -36,7 +36,10 @@ import {
   type ConnectionRow,
   type Db,
 } from '@personal-home/db'
-import { googleAccountKindFromIdToken, microsoftAccountKindFromIdToken } from '@personal-home/integrations'
+import {
+  googleAccountKindFromIdToken,
+  microsoftAccountKindFromIdToken,
+} from '@personal-home/integrations'
 
 /** Refresh when the access token expires within this margin. */
 export const CONNECTION_REFRESH_MARGIN_MS = 5 * 60_000
@@ -119,7 +122,12 @@ async function refreshLocked(
     // Another worker may have refreshed while we were deciding.
     if (!force && row.accessTokenCiphertext && isFresh(row.accessTokenExpiresAt, deps.now())) {
       return {
-        accessToken: await connectionDecryptToken(deps.key, conn.id, 'access_token', row.accessTokenCiphertext),
+        accessToken: await connectionDecryptToken(
+          deps.key,
+          conn.id,
+          'access_token',
+          row.accessTokenCiphertext,
+        ),
         refreshed: false,
         rotated: false,
         expiresAt: row.accessTokenExpiresAt,
@@ -128,12 +136,22 @@ async function refreshLocked(
       }
     }
 
-    const refreshToken = await connectionDecryptToken(deps.key, conn.id, 'refresh_token', row.refreshTokenCiphertext)
+    const refreshToken = await connectionDecryptToken(
+      deps.key,
+      conn.id,
+      'refresh_token',
+      row.refreshTokenCiphertext,
+    )
     const set = await deps.adapter.refresh(refreshToken, ctx)
     const rotated = set.refreshToken !== null && set.refreshToken !== refreshToken
     const saved = await connectionTokensRotate(tx, {
       connectionId: conn.id,
-      accessTokenCiphertext: await connectionEncryptToken(deps.key, conn.id, 'access_token', set.accessToken),
+      accessTokenCiphertext: await connectionEncryptToken(
+        deps.key,
+        conn.id,
+        'access_token',
+        set.accessToken,
+      ),
       accessTokenExpiresAt: set.accessTokenExpiresAt,
       refreshTokenCiphertext: rotated
         ? await connectionEncryptToken(deps.key, conn.id, 'refresh_token', set.refreshToken!)
@@ -187,12 +205,17 @@ export async function connectionVerifyAccess(
 ): Promise<ConnectionVerifyReport> {
   const provider = deps.adapter.provider as OAuthConnectProvider
   const conn = await withService(deps.db, (tx) => connectionGet(tx, connectionId))
-  if (!conn || conn.provider !== provider) return report(null, connectionId, provider, 'skipped_missing')
+  if (!conn || conn.provider !== provider)
+    return report(null, connectionId, provider, 'skipped_missing')
   if (conn.status === 'paused') return report(conn, connectionId, provider, 'skipped_paused')
   if (conn.status === 'needs_reconnect' && !options.includeNeedsReconnect)
     return report(conn, connectionId, provider, 'skipped_needs_reconnect')
   const startedAt = deps.now()
-  if (!options.ignoreSchedule && conn.nextAttemptAt && conn.nextAttemptAt.getTime() > startedAt.getTime())
+  if (
+    !options.ignoreSchedule &&
+    conn.nextAttemptAt &&
+    conn.nextAttemptAt.getTime() > startedAt.getTime()
+  )
     return report(conn, connectionId, provider, 'skipped_not_due')
 
   const ctx: ConnectionAdapterContext = { fetch: deps.fetch, signal: deps.signal, now: deps.now }
@@ -203,9 +226,18 @@ export async function connectionVerifyAccess(
     if (stored === null || stored === 'busy') throw missingTokens()
 
     let access: AccessResult | 'busy'
-    if (!options.forceRefresh && stored.accessTokenCiphertext && isFresh(stored.accessTokenExpiresAt, startedAt)) {
+    if (
+      !options.forceRefresh &&
+      stored.accessTokenCiphertext &&
+      isFresh(stored.accessTokenExpiresAt, startedAt)
+    ) {
       access = {
-        accessToken: await connectionDecryptToken(deps.key, conn.id, 'access_token', stored.accessTokenCiphertext),
+        accessToken: await connectionDecryptToken(
+          deps.key,
+          conn.id,
+          'access_token',
+          stored.accessTokenCiphertext,
+        ),
         refreshed: false,
         rotated: false,
         expiresAt: stored.accessTokenExpiresAt,

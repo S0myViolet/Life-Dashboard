@@ -75,5 +75,8 @@ export const lfTransactions = {
 }
 
 export const lfUnauthorized = { error: 'Unauthorized' }
-export const lfInvalidKey = { error: 'InvalidApiKey', message: `Invalid API key ${LUNCHFLOW_TEST_KEY}` }
+export const lfInvalidKey = {
+  error: 'InvalidApiKey',
+  message: `Invalid API key ${LUNCHFLOW_TEST_KEY}`,
+}
 export const lfAccountNotFound = { error: 'AccountNotFound' }

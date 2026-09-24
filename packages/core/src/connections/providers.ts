@@ -13,7 +13,13 @@ export const CONNECTION_AUTH_KINDS = ['oauth', 'api_key', 'extension', 'none'] a
 export type ConnectionAuthKind = (typeof CONNECTION_AUTH_KINDS)[number]
 
 /** Where a provider sits on the Connections screen. */
-export const CONNECTION_GROUPS = ['mail_calendar', 'projects', 'money', 'health', 'interests'] as const
+export const CONNECTION_GROUPS = [
+  'mail_calendar',
+  'projects',
+  'money',
+  'health',
+  'interests',
+] as const
 export type ConnectionGroup = (typeof CONNECTION_GROUPS)[number]
 
 export const CONNECTION_GROUP_LABELS: Record<ConnectionGroup, string> = {
@@ -81,7 +87,8 @@ export const CONNECTION_PROVIDER_INFO: Record<Provider, ConnectionProviderInfo> 
   google: {
     provider: 'google',
     displayName: 'Google',
-    provides: 'Gmail messages and Google Calendar events, read-only. Connect each Google account separately.',
+    provides:
+      'Gmail messages and Google Calendar events, read-only. Connect each Google account separately.',
     group: 'mail_calendar',
     authKind: 'oauth',
     multiAccount: true,
@@ -163,7 +170,8 @@ export const CONNECTION_PROVIDER_INFO: Record<Provider, ConnectionProviderInfo> 
   spotify: {
     provider: 'spotify',
     displayName: 'Spotify',
-    provides: 'Artists you actually listen to (top artists and recent plays) and their new releases.',
+    provides:
+      'Artists you actually listen to (top artists and recent plays) and their new releases.',
     group: 'interests',
     authKind: 'oauth',
     multiAccount: false,
@@ -177,7 +185,8 @@ export const CONNECTION_PROVIDER_INFO: Record<Provider, ConnectionProviderInfo> 
   football_data: {
     provider: 'football_data',
     displayName: 'football-data.org',
-    provides: 'Liverpool, Premier League and Champions League fixtures, results and standings (free tier is delayed).',
+    provides:
+      'Liverpool, Premier League and Champions League fixtures, results and standings (free tier is delayed).',
     group: 'interests',
     authKind: 'api_key',
     multiAccount: false,

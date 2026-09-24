@@ -13,7 +13,11 @@ export const GOOGLE_SUB = '109876543210987654321'
 export const GOOGLE_EMAIL = 'owner.synthetic@gmail.com'
 
 const b64url = (v: unknown) =>
-  Buffer.from(JSON.stringify(v)).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+  Buffer.from(JSON.stringify(v))
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
 
 /** Unsigned-looking JWT with a synthetic signature segment. */
 export function syntheticJwt(payload: Record<string, unknown>): string {
@@ -99,7 +103,9 @@ export const googleInsufficientScope = {
   error: {
     code: 403,
     message: 'Request had insufficient authentication scopes.',
-    errors: [{ message: 'Insufficient Permission', domain: 'global', reason: 'insufficientPermissions' }],
+    errors: [
+      { message: 'Insufficient Permission', domain: 'global', reason: 'insufficientPermissions' },
+    ],
     status: 'PERMISSION_DENIED',
     details: [
       {
@@ -115,7 +121,13 @@ export const googleUserRateLimit = {
   error: {
     code: 403,
     message: 'User-rate limit exceeded.',
-    errors: [{ message: 'User-rate limit exceeded.', domain: 'usageLimits', reason: 'userRateLimitExceeded' }],
+    errors: [
+      {
+        message: 'User-rate limit exceeded.',
+        domain: 'usageLimits',
+        reason: 'userRateLimitExceeded',
+      },
+    ],
     status: 'PERMISSION_DENIED',
   },
 }
@@ -124,13 +136,19 @@ export const googleApiDisabled = {
   error: {
     code: 403,
     message: 'Gmail API has not been used in project 000000000000 before or it is disabled.',
-    errors: [{ message: 'Access Not Configured.', domain: 'usageLimits', reason: 'accessNotConfigured' }],
+    errors: [
+      { message: 'Access Not Configured.', domain: 'usageLimits', reason: 'accessNotConfigured' },
+    ],
     status: 'PERMISSION_DENIED',
   },
 }
 
 export const googleTooManyRequests = {
-  error: { code: 429, message: 'Resource has been exhausted (e.g. check quota).', status: 'RESOURCE_EXHAUSTED' },
+  error: {
+    code: 429,
+    message: 'Resource has been exhausted (e.g. check quota).',
+    status: 'RESOURCE_EXHAUSTED',
+  },
 }
 
 export const googleUnavailable = {

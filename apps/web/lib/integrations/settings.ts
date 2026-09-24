@@ -31,9 +31,14 @@ export function providerSetup(provider: Provider): ProviderSetup {
   const group = PROVIDER_ENV_GROUP[provider]
   if (!group) return { configured: true, missing: [] }
   if (integrationEnv(group)) return { configured: true, missing: [] }
-  const missing = integrationSettingNames(group).filter((name) => (process.env[name] ?? '').trim() === '')
+  const missing = integrationSettingNames(group).filter(
+    (name) => (process.env[name] ?? '').trim() === '',
+  )
   // A present-but-invalid value still counts as not configured; name the whole group then.
-  return { configured: false, missing: missing.length > 0 ? missing : integrationSettingNames(group) }
+  return {
+    configured: false,
+    missing: missing.length > 0 ? missing : integrationSettingNames(group),
+  }
 }
 
 /** Setting lookup for the adapter registry (trimmed; blank counts as unset). */
@@ -42,7 +47,10 @@ export function serverSetting(name: string): string | undefined {
   return v ? v : undefined
 }
 
-export function oauthRedirectUri(provider: OAuthConnectProvider, appUrl = coreEnv().APP_URL): string {
+export function oauthRedirectUri(
+  provider: OAuthConnectProvider,
+  appUrl = coreEnv().APP_URL,
+): string {
   return `${appUrl}/api/connections/${provider}/callback`
 }
 

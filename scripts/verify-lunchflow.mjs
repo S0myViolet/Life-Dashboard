@@ -52,10 +52,14 @@ export async function runLunchflowVerification(argv = process.argv.slice(2)) {
     return 2
   }
   if (!process.features?.typescript) {
-    console.error('This Node.js cannot run TypeScript directly. Use Node 22.18+ or add --experimental-strip-types.')
+    console.error(
+      'This Node.js cannot run TypeScript directly. Use Node 22.18+ or add --experimental-strip-types.',
+    )
     return 2
   }
-  const integrations = await import(pathToFileURL(resolve(ROOT, 'packages/integrations/src/index.ts')).href)
+  const integrations = await import(
+    pathToFileURL(resolve(ROOT, 'packages/integrations/src/index.ts')).href
+  )
   const core = await import(pathToFileURL(resolve(ROOT, 'packages/core/src/index.ts')).href)
 
   const client = integrations.createLunchflowClient({
@@ -97,7 +101,9 @@ export async function runLunchflowVerification(argv = process.argv.slice(2)) {
     try {
       const b = await client.getBalance(a.id)
       const field = (m, name) =>
-        m === null ? `${name}: missing` : `${name}: present${m.amountMinor === null ? ' (not exact)' : ''}`
+        m === null
+          ? `${name}: missing`
+          : `${name}: present${m.amountMinor === null ? ' (not exact)' : ''}`
       balanceCell = `${field(b.available, 'available')}; ${field(b.current, 'current')}`
     } catch (err) {
       failures++
@@ -107,13 +113,23 @@ export async function runLunchflowVerification(argv = process.argv.slice(2)) {
     let txCells = ['skipped', 'skipped', 'skipped', 'skipped']
     if (!values['no-transactions']) {
       try {
-        const txns = await client.listTransactions(a.id, { includePending: true, accountCurrency: a.currency })
-        const dates = txns.map((t) => t.bookedDate).filter(Boolean).sort()
+        const txns = await client.listTransactions(a.id, {
+          includePending: true,
+          accountCurrency: a.currency,
+        })
+        const dates = txns
+          .map((t) => t.bookedDate)
+          .filter(Boolean)
+          .sort()
         const undated = txns.length - dates.length
         const exact = txns.filter((t) => t.money.amountMinor !== null).length
         txCells = [
           String(txns.length),
-          dates.length ? `${dates[0]} → ${dates[dates.length - 1]}${undated ? ` (+${undated} unparsed)` : ''}` : undated ? `${undated} unparsed` : 'none',
+          dates.length
+            ? `${dates[0]} → ${dates[dates.length - 1]}${undated ? ` (+${undated} unparsed)` : ''}`
+            : undated
+              ? `${undated} unparsed`
+              : 'none',
           String(txns.filter((t) => t.pending).length),
           `${exact}/${txns.length}`,
         ]
@@ -139,7 +155,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   runLunchflowVerification().then(
     (code) => process.exit(code),
     (err) => {
-      console.error(`Verification could not run: ${err instanceof Error ? err.message : 'unknown error'}`)
+      console.error(
+        `Verification could not run: ${err instanceof Error ? err.message : 'unknown error'}`,
+      )
       process.exit(1)
     },
   )

@@ -61,8 +61,13 @@ describe('provider metadata', () => {
   })
 
   it('reports missing setting names, treating blanks as missing', () => {
-    const env: Record<string, string> = { GOOGLE_OAUTH_CLIENT_ID: 'id', GOOGLE_OAUTH_CLIENT_SECRET: '  ' }
-    expect(missingConnectionSettings('google', (n) => env[n])).toEqual(['GOOGLE_OAUTH_CLIENT_SECRET'])
+    const env: Record<string, string> = {
+      GOOGLE_OAUTH_CLIENT_ID: 'id',
+      GOOGLE_OAUTH_CLIENT_SECRET: '  ',
+    }
+    expect(missingConnectionSettings('google', (n) => env[n])).toEqual([
+      'GOOGLE_OAUTH_CLIENT_SECRET',
+    ])
     expect(missingConnectionSettings('rss', () => undefined)).toEqual([])
   })
 

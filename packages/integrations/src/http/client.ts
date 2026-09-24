@@ -58,7 +58,10 @@ const validCode = (v: unknown): string | null =>
  * Parse Retry-After (RFC 9110 §10.2.3): delay-seconds or an HTTP-date.
  * Returns milliseconds from `now` (never negative), or null when absent/invalid.
  */
-export function httpParseRetryAfter(value: string | null | undefined, now: Date = new Date()): number | null {
+export function httpParseRetryAfter(
+  value: string | null | undefined,
+  now: Date = new Date(),
+): number | null {
   if (value === null || value === undefined) return null
   const v = value.trim()
   if (v === '') return null
@@ -83,7 +86,10 @@ export function httpRedactSecrets(text: string, secrets: readonly string[] = [])
 }
 
 /** Pull the validated error code(s) out of a JSON error body. Never returns free text. */
-export function httpExtractProviderError(body: unknown): { code: string | null; reasons: string[] } {
+export function httpExtractProviderError(body: unknown): {
+  code: string | null
+  reasons: string[]
+} {
   if (!body || typeof body !== 'object') return { code: null, reasons: [] }
   const b = body as Record<string, unknown>
   // OAuth 2.0 token endpoint: { error: "invalid_grant", error_description: "..." }
@@ -111,7 +117,10 @@ function describe(opts: HttpRequestOptions, status: number, code: string | null)
 }
 
 /** Default mapping of an error response to a failure kind. */
-export function httpDefaultFailure(opts: HttpRequestOptions, info: HttpProviderErrorInfo): ConnectionFailure {
+export function httpDefaultFailure(
+  opts: HttpRequestOptions,
+  info: HttpProviderErrorInfo,
+): ConnectionFailure {
   const msg = describe(opts, info.status, info.code)
   const extra = {
     httpStatus: info.status,
@@ -163,7 +172,11 @@ async function send(opts: HttpRequestOptions): Promise<{ res: Response; text: st
   const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout
   const abortFailure = (): ConnectionFailure =>
     opts.signal?.aborted
-      ? connectionFailure('transient', 'aborted', `${opts.provider} ${opts.operation} was cancelled`)
+      ? connectionFailure(
+          'transient',
+          'aborted',
+          `${opts.provider} ${opts.operation} was cancelled`,
+        )
       : connectionFailure(
           'transient',
           'timeout',
@@ -186,7 +199,11 @@ async function send(opts: HttpRequestOptions): Promise<{ res: Response; text: st
     const detail = typeof cause === 'string' && /^[A-Z_]{2,32}$/.test(cause) ? ` (${cause})` : ''
     fail(
       opts,
-      connectionFailure('transient', 'network', `${opts.provider} ${opts.operation} network error${detail}`),
+      connectionFailure(
+        'transient',
+        'network',
+        `${opts.provider} ${opts.operation} network error${detail}`,
+      ),
     )
   }
 
@@ -197,15 +214,24 @@ async function send(opts: HttpRequestOptions): Promise<{ res: Response; text: st
     if (signal.aborted) fail(opts, abortFailure())
     fail(
       opts,
-      connectionFailure('transient', 'network', `${opts.provider} ${opts.operation} response was interrupted`),
+      connectionFailure(
+        'transient',
+        'network',
+        `${opts.provider} ${opts.operation} response was interrupted`,
+      ),
     )
   }
   if (text === null) {
     fail(
       opts,
-      connectionFailure('transient', 'response_too_large', `${opts.provider} ${opts.operation} response was too large`, {
-        httpStatus: res.status,
-      }),
+      connectionFailure(
+        'transient',
+        'response_too_large',
+        `${opts.provider} ${opts.operation} response was too large`,
+        {
+          httpStatus: res.status,
+        },
+      ),
     )
   }
   return { res, text }
@@ -219,7 +245,12 @@ function errorInfo(res: Response, text: string, now: Date): HttpProviderErrorInf
     body = null
   }
   const { code, reasons } = httpExtractProviderError(body)
-  return { status: res.status, code, reasons, retryAfterMs: httpParseRetryAfter(res.headers.get('retry-after'), now) }
+  return {
+    status: res.status,
+    code,
+    reasons,
+    retryAfterMs: httpParseRetryAfter(res.headers.get('retry-after'), now),
+  }
 }
 
 function throwForStatus(opts: HttpRequestOptions, res: Response, text: string): never {
@@ -228,7 +259,10 @@ function throwForStatus(opts: HttpRequestOptions, res: Response, text: string): 
 }
 
 /** Request a JSON document and validate it with `schema`. */
-export async function httpRequestJson<T>(opts: HttpRequestOptions, schema: z.ZodType<T>): Promise<HttpResult<T>> {
+export async function httpRequestJson<T>(
+  opts: HttpRequestOptions,
+  schema: z.ZodType<T>,
+): Promise<HttpResult<T>> {
   const { res, text } = await send(opts)
   if (!res.ok) throwForStatus(opts, res, text)
   let json: unknown
@@ -237,9 +271,14 @@ export async function httpRequestJson<T>(opts: HttpRequestOptions, schema: z.Zod
   } catch {
     fail(
       opts,
-      connectionFailure('transient', 'malformed_response', `${opts.provider} ${opts.operation} returned malformed JSON`, {
-        httpStatus: res.status,
-      }),
+      connectionFailure(
+        'transient',
+        'malformed_response',
+        `${opts.provider} ${opts.operation} returned malformed JSON`,
+        {
+          httpStatus: res.status,
+        },
+      ),
     )
   }
   const parsed = schema.safeParse(json)

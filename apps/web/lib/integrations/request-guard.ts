@@ -8,7 +8,10 @@
  */
 
 /** True when `originHeader` is exactly the origin of `appUrl`. */
-export function isSameOriginRequest(originHeader: string | null | undefined, appUrl: string): boolean {
+export function isSameOriginRequest(
+  originHeader: string | null | undefined,
+  appUrl: string,
+): boolean {
   if (!originHeader || originHeader === 'null') return false
   try {
     const expected = new URL(appUrl).origin

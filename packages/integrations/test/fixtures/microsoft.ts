@@ -58,7 +58,7 @@ export function msRefreshResponse(n: number) {
 export const msInvalidGrant = {
   error: 'invalid_grant',
   error_description:
-    "AADSTS70008: The provided authorization code or refresh token has expired due to inactivity. Trace ID: 00000000-0000-0000-0000-000000000000",
+    'AADSTS70008: The provided authorization code or refresh token has expired due to inactivity. Trace ID: 00000000-0000-0000-0000-000000000000',
   error_codes: [70008],
   timestamp: '2026-09-24 10:00:00Z',
   trace_id: '00000000-0000-0000-0000-000000000000',
@@ -72,7 +72,8 @@ export const msInvalidClient = {
 }
 
 export const msMePersonal = {
-  '@odata.context': 'https://graph.microsoft.com/v1.0/$metadata#users(id,displayName,mail,userPrincipalName)/$entity',
+  '@odata.context':
+    'https://graph.microsoft.com/v1.0/$metadata#users(id,displayName,mail,userPrincipalName)/$entity',
   id: MS_PERSONAL_ID,
   displayName: 'Synthetic Owner',
   mail: null,
@@ -90,12 +91,19 @@ export const graphInvalidToken = {
   error: {
     code: 'InvalidAuthenticationToken',
     message: 'Access token has expired or is not yet valid.',
-    innerError: { date: '2026-09-24T10:00:00', 'request-id': 'synthetic', 'client-request-id': 'synthetic' },
+    innerError: {
+      date: '2026-09-24T10:00:00',
+      'request-id': 'synthetic',
+      'client-request-id': 'synthetic',
+    },
   },
 }
 
 export const graphAccessDenied = {
-  error: { code: 'ErrorAccessDenied', message: 'Access is denied. Check credentials and try again.' },
+  error: {
+    code: 'ErrorAccessDenied',
+    message: 'Access is denied. Check credentials and try again.',
+  },
 }
 
 export const graphTooManyRequests = {

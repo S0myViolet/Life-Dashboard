@@ -89,12 +89,15 @@ export function providerFetch(now: () => Date, script: ProviderScript = {}) {
   const handler: FakeHandler = (req) => {
     if (req.url === GOOGLE_TOKEN_URL)
       return script.googleToken?.(req) ?? jsonResponse(googleExchangeResponse(now()))
-    if (req.url === GMAIL_PROFILE_URL) return script.gmailProfile?.(req) ?? jsonResponse(gmailProfile)
+    if (req.url === GMAIL_PROFILE_URL)
+      return script.gmailProfile?.(req) ?? jsonResponse(gmailProfile)
     if (req.url.startsWith(CALENDAR_LIST_PREFIX))
       return script.calendarList?.(req) ?? jsonResponse({ items: [] })
-    if (req.url === GOOGLE_REVOKE_URL) return script.googleRevoke?.(req) ?? new Response('', { status: 200 })
+    if (req.url === GOOGLE_REVOKE_URL)
+      return script.googleRevoke?.(req) ?? new Response('', { status: 200 })
     if (req.url === MS_TOKEN_URL) return script.msToken?.(req) ?? jsonResponse(msExchangeResponse())
-    if (req.url.startsWith(GRAPH_ME_PREFIX)) return script.graphMe?.(req) ?? jsonResponse(msMePersonal)
+    if (req.url.startsWith(GRAPH_ME_PREFIX))
+      return script.graphMe?.(req) ?? jsonResponse(msMePersonal)
     return new Response('unexpected request in test', { status: 404 })
   }
   return createFakeFetch(handler)
