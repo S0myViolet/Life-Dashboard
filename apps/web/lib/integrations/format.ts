@@ -4,8 +4,8 @@ export function formatRelative(date: Date, now: Date): string {
   const diffMs = date.getTime() - now.getTime()
   const past = diffMs <= 0
   const abs = Math.abs(diffMs)
-  const min = Math.round(abs / 60_000)
-  if (min < 1) return past ? 'just now' : 'in under a minute'
+  if (abs < 45_000) return past ? 'just now' : 'in under a minute'
+  const min = Math.max(1, Math.round(abs / 60_000))
   const phrase = (n: number, unit: string) => `${n} ${unit}${n === 1 ? '' : 's'}`
   let text: string
   if (min < 60) text = phrase(min, 'minute')
