@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { idbDelete, idbGet, idbPut } from '@/lib/drafts/idb'
 import { journalSnapshot } from '@/lib/drafts/transports'
 import type { UseDraftResult } from '@/lib/drafts/use-draft'
+import { TextareaField } from '@/components/notes/textarea-field'
 
 interface StoredReview {
   key: string
@@ -146,16 +147,15 @@ export function TranscriptReview({
         Machine transcription can be wrong. Edit it, then add it to your entry. The recording is
         deleted once the transcript is added.
       </p>
-      <label className="mt-3 block text-sm font-medium text-ink">
-        Transcript
-        <textarea
-          value={text}
-          onChange={(e) => edit(e.target.value)}
-          rows={8}
-          maxLength={JOURNAL_BODY_MAX}
-          className="mt-1 block w-full rounded-xl border border-line-strong bg-surface p-3 text-[15px] leading-relaxed text-ink"
-        />
-      </label>
+      <TextareaField
+        label="Transcript"
+        wrapperClassName="mt-3"
+        value={text}
+        onChange={(e) => edit(e.target.value)}
+        rows={8}
+        maxLength={JOURNAL_BODY_MAX}
+        className="p-3 text-[15px] leading-relaxed"
+      />
       <div className="mt-3 flex flex-wrap gap-2">
         <Button variant="primary" onClick={() => void add()} disabled={busy || text.trim() === ''}>
           Add to entry

@@ -12,6 +12,7 @@ import { noteSnapshot, noteTransport } from '@/lib/drafts/transports'
 import { useDraft } from '@/lib/drafts/use-draft'
 import { NoteConflict } from './note-conflict'
 import { SyncStatus } from './sync-status'
+import { TextareaField } from '@/components/notes/textarea-field'
 
 const inputClass =
   'mt-1 block min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3 text-sm text-ink disabled:opacity-60'
@@ -166,7 +167,7 @@ export function NoteEditor({
         </p>
       ) : null}
 
-      <form className="space-y-4" onSubmit={(e) => e.preventDefault()} aria-label="Note">
+      <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
         <label className="block text-sm font-medium text-ink">
           Title <span className="font-normal text-ink-faint">(optional)</span>
           <input
@@ -177,18 +178,16 @@ export function NoteEditor({
             className={inputClass}
           />
         </label>
-        <label className="block text-sm font-medium text-ink">
-          Note
-          <textarea
-            value={value.body}
-            onChange={(e) => set({ body: e.target.value })}
-            readOnly={locked}
-            maxLength={NOTE_BODY_MAX}
-            rows={14}
-            autoFocus={isNew}
-            className="mt-1 block w-full rounded-xl border border-line-strong bg-surface p-3 text-[15px] leading-relaxed text-ink"
-          />
-        </label>
+        <TextareaField
+          label="Note"
+          value={value.body}
+          onChange={(e) => set({ body: e.target.value })}
+          readOnly={locked}
+          maxLength={NOTE_BODY_MAX}
+          rows={14}
+          autoFocus={isNew}
+          className="p-3 text-[15px] leading-relaxed"
+        />
 
         <fieldset className="rounded-xl border border-line p-3 sm:p-4">
           <legend className="px-1 text-sm font-medium text-ink">

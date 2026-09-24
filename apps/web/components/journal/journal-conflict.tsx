@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { JOURNAL_PROMPTS, type JournalEntryContent } from '@personal-home/core'
 import { Button } from '@/components/ui/button'
+import { TextareaField } from '@/components/notes/textarea-field'
 
 function Side({ title, content, testId }: { title: string; content: JournalEntryContent; testId: string }) {
   return (
@@ -53,15 +54,7 @@ export function JournalConflict({
       </div>
       {merging ? (
         <div className="mt-4 space-y-3">
-          <label className="block text-sm font-medium text-ink">
-            Merged entry
-            <textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={10}
-              className="mt-1 block w-full rounded-xl border border-line-strong bg-surface p-3 text-sm"
-            />
-          </label>
+          <TextareaField label="Merged entry" value={body} onChange={(e) => setBody(e.target.value)} rows={10} />
           <div className="flex flex-wrap gap-2">
             <Button variant="primary" onClick={() => onMerge({ ...proposal, body })}>
               Save merged version

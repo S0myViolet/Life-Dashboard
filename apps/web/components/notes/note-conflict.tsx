@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { notesDisplayTitle, type NoteContent } from '@personal-home/core'
 import { Button } from '@/components/ui/button'
+import { TextareaField } from '@/components/notes/textarea-field'
 
 function Version({ title, content, testId }: { title: string; content: NoteContent; testId: string }) {
   return (
@@ -65,15 +66,7 @@ export function NoteConflict({
               className="mt-1 block min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3 text-sm"
             />
           </label>
-          <label className="block text-sm font-medium text-ink">
-            Merged note
-            <textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={10}
-              className="mt-1 block w-full rounded-xl border border-line-strong bg-surface p-3 text-sm"
-            />
-          </label>
+          <TextareaField label="Merged note" value={body} onChange={(e) => setBody(e.target.value)} rows={10} />
           <p className="text-xs text-ink-faint">
             Where both versions changed the same lines, both are included between marker lines. Edit
             them as you like.

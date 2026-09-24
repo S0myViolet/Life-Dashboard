@@ -10,6 +10,7 @@ import {
 import type { UseDraftResult } from '@/lib/drafts/use-draft'
 import { SyncStatus } from '@/components/notes/sync-status'
 import { JournalConflict } from './journal-conflict'
+import { TextareaField } from '@/components/notes/textarea-field'
 
 /** Typed part of a day's entry: free text plus four optional prompts. No mood fields, by design. */
 export function JournalEditor({ draft }: { draft: UseDraftResult<JournalEntryContent> }) {
@@ -46,18 +47,16 @@ export function JournalEditor({ draft }: { draft: UseDraftResult<JournalEntryCon
         </p>
       ) : null}
 
-      <label className="block text-sm font-medium text-ink">
-        Entry
-        <textarea
-          value={value.body}
-          onChange={(e) => draft.setValue({ ...value, body: e.target.value })}
-          readOnly={locked}
-          maxLength={JOURNAL_BODY_MAX}
-          rows={9}
-          placeholder="Write as much or as little as you like."
-          className="mt-1 block w-full rounded-xl border border-line-strong bg-surface p-3 text-[15px] leading-relaxed text-ink"
-        />
-      </label>
+      <TextareaField
+        label="Entry"
+        value={value.body}
+        onChange={(e) => draft.setValue({ ...value, body: e.target.value })}
+        readOnly={locked}
+        maxLength={JOURNAL_BODY_MAX}
+        rows={9}
+        placeholder="Write as much or as little as you like."
+        className="p-3 text-[15px] leading-relaxed"
+      />
 
       <details className="mt-3 rounded-xl border border-line bg-surface-muted/40 p-3" open={answered > 0}>
         <summary className="min-h-11 cursor-pointer content-center text-sm font-medium text-ink">
@@ -65,17 +64,16 @@ export function JournalEditor({ draft }: { draft: UseDraftResult<JournalEntryCon
         </summary>
         <div className="mt-2 grid gap-3 sm:grid-cols-2">
           {JOURNAL_PROMPTS.map((p) => (
-            <label key={p.key} className="block text-sm font-medium text-ink">
-              {p.label}
-              <textarea
-                value={value.prompts[p.key] ?? ''}
-                onChange={(e) => setPrompt(p.key, e.target.value)}
-                readOnly={locked}
-                maxLength={JOURNAL_PROMPT_MAX}
-                rows={3}
-                className="mt-1 block w-full rounded-xl border border-line-strong bg-surface p-2.5 text-sm text-ink"
-              />
-            </label>
+            <TextareaField
+              key={p.key}
+              label={p.label}
+              value={value.prompts[p.key] ?? ''}
+              onChange={(e) => setPrompt(p.key, e.target.value)}
+              readOnly={locked}
+              maxLength={JOURNAL_PROMPT_MAX}
+              rows={3}
+              className="p-2.5 text-sm"
+            />
           ))}
         </div>
       </details>
