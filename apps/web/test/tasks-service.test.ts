@@ -168,6 +168,11 @@ describe('updateTaskFromForm and status changes', () => {
 
   it('updates fields, keeps the reminder by default and the project when not posted', async () => {
     const id = await seed()
+    await t.db`
+      insert into public.projects (id, name, kind)
+      values ('5f0c7c7e-6c1c-4d0e-9d7a-0f6f4c1d2e3a', 'Test project', 'personal')
+      on conflict (id) do nothing
+    `
     await t.db`update public.tasks set project_id = '5f0c7c7e-6c1c-4d0e-9d7a-0f6f4c1d2e3a' where id = ${id}`
     const state = await asOwner((tx) =>
       updateTaskFromForm(

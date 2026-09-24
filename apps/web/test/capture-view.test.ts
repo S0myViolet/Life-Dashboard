@@ -47,11 +47,18 @@ describe('captureCoverageSummary', () => {
         outcome: 'applied',
         reason: null,
         mode: 'passive',
-        coverage: { observedFirstMessage: true, observedLastMessage: true, contiguous: false, missingCount: 48 },
+        coverage: {
+          observedFirstMessage: true,
+          observedLastMessage: true,
+          contiguous: false,
+          missingCount: 48,
+        },
       },
     })
     expect(gapped).toContain('12 messages saved')
-    expect(gapped).toContain('some messages between the first and the last were never in view (48 turns not seen)')
+    expect(gapped).toContain(
+      'some messages between the first and the last were never in view (48 turns not seen)',
+    )
     expect(gapped).toContain('No capture has seen every message')
     expect(gapped).not.toMatch(/saw (the whole conversation|every message)/)
 
@@ -78,7 +85,12 @@ describe('captureCoverageSummary', () => {
         outcome: 'applied',
         reason: null,
         mode: 'passive',
-        coverage: { observedFirstMessage: false, observedLastMessage: true, contiguous: false, missingCount: 34 },
+        coverage: {
+          observedFirstMessage: false,
+          observedLastMessage: true,
+          contiguous: false,
+          missingCount: 34,
+        },
       },
     })
     expect(startMissing).toContain('the start was not in view')
@@ -104,7 +116,11 @@ describe('captureCoverageSummary', () => {
         outcome: 'applied',
         reason: null,
         mode: 'passive',
-        coverage: { observedFirstMessage: false, observedLastMessage: true, streamingInProgress: true },
+        coverage: {
+          observedFirstMessage: false,
+          observedLastMessage: true,
+          streamingInProgress: true,
+        },
       },
     })
     expect(partial).toContain('40 messages saved')
@@ -127,7 +143,9 @@ describe('attach form', () => {
   it('keeps the project by default, removes it only on an explicit "No project"', () => {
     const url = 'https://chatgpt.com/c/0b6a1f5e-9a3c-4c1e-8f2d-3a4b5c6d7e8f'
     const id = '6a25a5df-c879-422e-b84b-1c2431bfe7e1'
-    expect(AttachFormSchema.parse({ url, projectId: ATTACH_KEEP_PROJECT }).projectId).toBeUndefined()
+    expect(
+      AttachFormSchema.parse({ url, projectId: ATTACH_KEEP_PROJECT }).projectId,
+    ).toBeUndefined()
     expect(AttachFormSchema.parse({ url, projectId: '' }).projectId).toBeNull()
     expect(AttachFormSchema.parse({ url, projectId: id }).projectId).toBe(id)
     expect(AttachFormSchema.safeParse({ url, projectId: 'other' }).success).toBe(false)
@@ -135,26 +153,36 @@ describe('attach form', () => {
 })
 
 describe('retention copy', () => {
-  it('does not claim a purge runs: no job calls it until the retention job arrives', () => {
+  // The daily retention.purge job clears raw text after 30 days
+  // (packages/jobs/src/retention/handler.ts; tested in packages/jobs/test/retention.test.ts).
+  it('describes the scheduled 30-day clean-up and what remains after it', () => {
     expect(CAPTURE_RETENTION_NOTE).toContain('30 days')
-    expect(CAPTURE_RETENTION_NOTE).toContain('not scheduled yet')
-    expect(CAPTURE_RETENTION_NOTE).toContain('Milestone 2')
-    expect(CAPTURE_RETENTION_NOTE).not.toMatch(/is kept for 30 days;|after that only/)
+    expect(CAPTURE_RETENTION_NOTE).toContain('daily clean-up')
+    expect(CAPTURE_RETENTION_NOTE).toContain('fingerprints, times and summaries')
+    expect(CAPTURE_RETENTION_NOTE).not.toMatch(/not scheduled/)
   })
 })
 
 describe('labels and times', () => {
   it('falls back to the provider and a short id when there is no title', () => {
     expect(
-      captureConversationLabel({ title: '  ', provider: 'claude', externalId: '5d1c0e2f-7b8a-4c3d-9e0f-1a2b3c4d5e6f' }),
+      captureConversationLabel({
+        title: '  ',
+        provider: 'claude',
+        externalId: '5d1c0e2f-7b8a-4c3d-9e0f-1a2b3c4d5e6f',
+      }),
     ).toBe('Claude conversation 5d1c0e2f')
-    expect(captureConversationLabel({ title: 'Plan', provider: 'chatgpt', externalId: 'x' })).toBe('Plan')
+    expect(captureConversationLabel({ title: 'Plan', provider: 'chatgpt', externalId: 'x' })).toBe(
+      'Plan',
+    )
   })
 
   it('formats relative times and switches to a local date after a week', () => {
     const now = at('2026-09-24T12:00:00Z')
     expect(captureRelativeTime(at('2026-09-24T11:59:30Z'), now, 'Europe/London')).toBe('just now')
-    expect(captureRelativeTime(at('2026-09-24T11:55:00Z'), now, 'Europe/London')).toBe('5 minutes ago')
+    expect(captureRelativeTime(at('2026-09-24T11:55:00Z'), now, 'Europe/London')).toBe(
+      '5 minutes ago',
+    )
     expect(captureRelativeTime(at('2026-09-23T12:00:00Z'), now, 'Europe/London')).toBe('yesterday')
     expect(captureRelativeTime(at('2026-09-01T08:00:00Z'), now, 'Europe/London')).toContain('2026')
   })

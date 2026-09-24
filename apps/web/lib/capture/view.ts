@@ -2,7 +2,12 @@
  * Plain-language copy for capture states and coverage. Pure, so it is unit tested
  * and shared by the Chrome helper settings page and the Projects page.
  */
-import { CAPTURE_LIMITS, type CaptureCoverage, type CaptureState, type ConnectionStatus } from '@personal-home/core'
+import {
+  CAPTURE_LIMITS,
+  type CaptureCoverage,
+  type CaptureState,
+  type ConnectionStatus,
+} from '@personal-home/core'
 
 export type CaptureTone = 'neutral' | 'positive' | 'caution' | 'danger' | 'accent'
 
@@ -48,10 +53,8 @@ export const CAPTURE_STATE_COPY: Record<
  * in Milestone 2, so the page must not say the text is already deleted.
  */
 export const CAPTURE_RETENTION_NOTE =
-  `Raw conversation text is meant to be kept for ${CAPTURE_LIMITS.rawTextRetentionDays} days, after which only ` +
-  'fingerprints, times and summaries would remain. That clean-up is not scheduled yet (it arrives with the ' +
-  'retention job in Milestone 2), so for now raw text is kept until you remove the conversation. Removing a ' +
-  'conversation deletes everything collected from it.'
+  `Raw conversation text is kept for ${CAPTURE_LIMITS.rawTextRetentionDays} days. A daily clean-up then clears it, ` +
+  'leaving only fingerprints, times and summaries. Removing a conversation deletes everything collected from it.'
 
 export function captureResumeLabel(state: CaptureState): string {
   return state === 'paused' ? 'Resume' : 'Reconnect'
@@ -85,7 +88,8 @@ export function captureCoverageSummary(c: CoverageInput): string {
   }
   const cov = c.lastSnapshot?.coverage ?? {}
   const parts: string[] = []
-  if (cov.observedFirstMessage === false) parts.push('the start was not in view (scroll to the top once to collect older messages)')
+  if (cov.observedFirstMessage === false)
+    parts.push('the start was not in view (scroll to the top once to collect older messages)')
   if (cov.observedLastMessage === false) parts.push('the end was not in view')
   const missing = cov.missingCount ?? 0
   const turns = `${missing} turn${missing === 1 ? '' : 's'}`
@@ -100,9 +104,12 @@ export function captureCoverageSummary(c: CoverageInput): string {
     parts.push(`${turns} of the conversation ${missing === 1 ? 'was' : 'were'} not seen`)
   }
   if (cov.streamingInProgress) parts.push('a reply was still being written')
-  if ((cov.omittedCount ?? 0) > 0) parts.push(`${cov.omittedCount} message(s) were too large to send`)
+  if ((cov.omittedCount ?? 0) > 0)
+    parts.push(`${cov.omittedCount} message(s) were too large to send`)
   const detail = parts.length > 0 ? ` In the latest capture ${parts.join('; ')}.` : ''
-  const complete = c.lastSeenCompleteAt ? '' : ' No capture has seen every message from the first to the last yet.'
+  const complete = c.lastSeenCompleteAt
+    ? ''
+    : ' No capture has seen every message from the first to the last yet.'
   return `${stored}.${detail}${complete}`
 }
 
@@ -131,7 +138,11 @@ export function captureFormatDateTime(when: Date, timeZone: string): string {
 }
 
 /** Short conversation label: the captured title, or the provider and a short id. */
-export function captureConversationLabel(c: { title: string | null; provider: string; externalId: string }): string {
+export function captureConversationLabel(c: {
+  title: string | null
+  provider: string
+  externalId: string
+}): string {
   const title = c.title?.trim()
   if (title) return title
   return `${c.provider === 'chatgpt' ? 'ChatGPT' : 'Claude'} conversation ${c.externalId.slice(0, 8)}`
