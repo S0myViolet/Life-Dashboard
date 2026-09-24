@@ -140,3 +140,10 @@ Recordings are uploaded in chunks of 1 MB or less, which stays under serverless 
 ### D-32 · Learning and people
 - A reading log records one measure: page reached, pages read, a percentage or minutes. Percentages are shown only when they can be derived, and they are rounded down so a book is never shown as finished early. Logging on a want-to-read or paused book marks it as reading. Nothing is marked finished automatically.
 - A 29 February date is shown on 28 February in non-leap years. A catch-up cadence counts from the day it is set, not "due immediately".
+
+### D-33 · Tasks, habits and reminders
+- A timed task keeps its instant. A date-only task follows the owner's calendar date. A timed task becomes overdue once its time passes; a date-only task becomes overdue from the next local day.
+- On a daylight-saving change, a time that does not exist moves forward, and a time that occurs twice uses the first occurrence. The owner is told in both cases.
+- Unconfirmed tasks (suggestions from email or chat, Milestone 2) stay out of task lists and out of Needs attention until accepted.
+- Streaks count scheduled days only. A scheduled day that passed without a check-off shows as **missed**; it is never hidden. An extra check-off on an unscheduled day is shown but does not affect the streak.
+- Recurring reminders keep the same local time and day of month through clock changes and short months. Missed occurrences are skipped, not replayed. Reminders are in-app until Web Push arrives in Milestone 2.
