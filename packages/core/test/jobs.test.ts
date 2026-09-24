@@ -229,7 +229,7 @@ describe('schedule definitions', () => {
 
   it('keeps every schedule without a real handler disabled', () => {
     const enabled = JOB_SCHEDULE_DEFINITIONS.filter((d) => d.enabled).map((d) => d.kind)
-    expect(enabled.sort()).toEqual(['ai.reconcile', 'briefing.evening', 'briefing.morning'])
+    expect(enabled.sort()).toEqual(['ai.reconcile', 'briefing.evening', 'briefing.morning', 'sync.google', 'sync.microsoft'])
   })
 
   it('computes the latest due daily occurrence in the owner timezone', () => {

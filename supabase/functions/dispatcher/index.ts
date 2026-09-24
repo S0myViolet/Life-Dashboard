@@ -9,6 +9,9 @@
  * Function secrets / env:
  *   DISPATCHER_SECRET  — set with `supabase secrets set` (same value as the Vault secret)
  *   SUPABASE_DB_URL    — provided by the platform
+ *   TOKEN_ENCRYPTION_KEY, GOOGLE_OAUTH_CLIENT_ID/_SECRET, MICROSOFT_CLIENT_ID/_SECRET,
+ *   GEMINI_API_KEY     — optional; the same values as the web app. Missing ones leave
+ *                        that connection honestly unconfigured.
  */
 import { createDb, type Db } from '@personal-home/db'
 import { createDefaultJobHandlerRegistry } from '@personal-home/jobs'
@@ -35,7 +38,10 @@ Deno.serve(
   createDispatcherHttpHandler({
     getSecret: () => Deno.env.get('DISPATCHER_SECRET'),
     getDb,
-    handlers: createDefaultJobHandlerRegistry(),
+    handlers: createDefaultJobHandlerRegistry({
+      fetch: (input, init) => fetch(input, init),
+      env: (name) => Deno.env.get(name),
+    }),
     shutdownSignal: shutdown.signal,
   }),
 )

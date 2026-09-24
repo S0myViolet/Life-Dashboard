@@ -552,10 +552,10 @@ describe('schedules', () => {
         enabled: true,
         enabledSince: T0,
       })
-      expect(first.find((s) => s.name === 'sync.google')).toMatchObject({
+      expect(first.find((s) => s.name === 'sync.whoop')).toMatchObject({
         enabled: false,
         enabledSince: null,
-        intervalSeconds: 900,
+        intervalSeconds: 3_600,
       })
 
       // Re-sync later: nothing changes (enabled_since is not bumped, no write at all).

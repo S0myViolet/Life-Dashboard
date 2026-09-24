@@ -11,7 +11,11 @@
 import assert from 'node:assert/strict'
 import postgres from 'postgres'
 import { createDb, type Db } from '@personal-home/db'
-import { createDefaultJobHandlerRegistry } from '@personal-home/jobs'
+import {
+  briefingJobHandlers,
+  createDefaultJobHandlerRegistry,
+  createJobHandlerRegistry,
+} from '@personal-home/jobs'
 import {
   createDispatcherHttpHandler,
   DispatcherConfigError,
@@ -201,7 +205,8 @@ Deno.test({
       const handle = createDispatcherHttpHandler({
         getSecret: () => SECRET,
         getDb: () => t.db,
-        handlers: createDefaultJobHandlerRegistry(),
+        // Briefings only: interval jobs (AI sweep, connection checks) have their own tests.
+        handlers: createJobHandlerRegistry([...briefingJobHandlers]),
         now: () => now,
         log: (e) => logs.push(e),
       })
