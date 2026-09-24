@@ -18,6 +18,18 @@ export function jsonResponse(
   return new Response(JSON.stringify(body), { status, headers: { ...BASE_HEADERS, ...headers } })
 }
 
+/**
+ * The client address, for per-source rate limiting of pairing attempts (hashed
+ * before it is stored). On Vercel the platform sets x-forwarded-for / x-real-ip
+ * and overwrites client-supplied values; behind another proxy make sure it does
+ * the same, or every client shares one source ('unknown' when absent).
+ */
+export function captureRequestSource(request: Request): string {
+  const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+  const source = forwarded || request.headers.get('x-real-ip')?.trim() || 'unknown'
+  return source.slice(0, 100)
+}
+
 /** Error body: a fixed code plus optional safe fields (state names, schema paths). */
 export function errorResponse(
   status: number,

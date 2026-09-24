@@ -113,6 +113,8 @@ const PAIR_ERRORS: Record<string, string> = {
   invalid_device_name: 'Give this browser a short name (1–60 characters).',
   invalid_or_expired_code:
     'The dashboard refused the code: it is wrong, already used, expired or locked after too many attempts. Create a new one in Settings → Chrome helper.',
+  too_many_attempts:
+    'Too many wrong codes were tried from this network recently. Wait 10 minutes, then try again with a new code.',
   extension_origin_required:
     'The dashboard did not receive this extension’s origin. Reload the extension and try again; see the README if it persists.',
   network_error: 'Could not reach the dashboard. Check the address and your connection.',

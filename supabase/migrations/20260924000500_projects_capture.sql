@@ -195,18 +195,31 @@ create table private.capture_pairing_codes (
   id uuid primary key default gen_random_uuid(),
   -- sha256 hex of the normalized one-time code.
   code_hash text not null unique check (code_hash ~ '^[0-9a-f]{64}$'),
+  -- First four characters of the code (20 of its 60 bits; not a secret). A failed
+  -- redemption counts only against the live code it names, so garbage requests
+  -- cannot lock the owner's code.
+  code_prefix text not null check (code_prefix ~ '^[0-9A-HJKMNP-TV-Z]{4}$'),
   expires_at timestamptz not null,
   used_at timestamptz,
-  -- Failed redemption attempts while this code was live. At 5 the code is dead.
+  -- Failed redemptions that named this code while it was live. At 5 the code is dead.
   failed_attempts integer not null default 0 check (failed_attempts >= 0),
   device_id uuid references private.capture_devices (id) on delete set null,
   created_at timestamptz not null default now(),
   check (expires_at > created_at)
 );
 
-revoke all on private.capture_devices, private.capture_pairing_codes from public;
+-- Failed pairing redemptions per source (client address), for rate limiting.
+-- Fixed window: after `failures` reaches the limit the source waits until the
+-- window ends. Only a hash of the source is stored.
+create table private.capture_pair_attempts (
+  source_hash text primary key check (source_hash ~ '^[0-9a-f]{64}$'),
+  window_started_at timestamptz not null default now(),
+  failures integer not null default 0 check (failures >= 0)
+);
+
+revoke all on private.capture_devices, private.capture_pairing_codes, private.capture_pair_attempts from public;
 do $$
 begin
-  execute 'revoke all on private.capture_devices, private.capture_pairing_codes from anon, authenticated';
-  execute 'grant all on private.capture_devices, private.capture_pairing_codes to service_role';
+  execute 'revoke all on private.capture_devices, private.capture_pairing_codes, private.capture_pair_attempts from anon, authenticated';
+  execute 'grant all on private.capture_devices, private.capture_pairing_codes, private.capture_pair_attempts to service_role';
 end $$;

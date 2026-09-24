@@ -109,6 +109,7 @@ class FakeDashboard {
     if (url.origin !== DASH) return json(404, { error: 'not_found' })
     if (req.path === '/api/capture/v1/pair') {
       const body = req.body as { code: string }
+      if (body.code === 'YYYYYYYYYYYY') return json(429, { error: 'too_many_attempts' })
       return body.code === 'ABCDEFGHJKMN'
         ? json(201, { token: TOKEN, dashboardOrigin: DASH, deviceId: '00000000-0000-4000-8000-00000000000d' })
         : json(401, { error: 'invalid_or_expired_code' })
@@ -209,6 +210,12 @@ describe('pairing', () => {
       PAGE,
     )) as PairResult
     expect(refused).toMatchObject({ ok: false, error: 'invalid_or_expired_code' })
+    const limited = (await bg.onMessage(
+      { type: 'ph:pair', apiOrigin: DASH, code: 'YYYY-YYYY-YYYY', deviceName: 'x' },
+      PAGE,
+    )) as PairResult
+    expect(limited).toMatchObject({ ok: false, error: 'too_many_attempts' })
+    if (!limited.ok) expect(limited.message).toContain('Wait 10 minutes')
   })
 
   it('refuses owner actions from content scripts and anything from other extensions', async () => {

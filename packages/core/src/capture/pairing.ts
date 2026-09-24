@@ -37,6 +37,21 @@ export function captureHashPairingCode(normalizedCode: string): Promise<string> 
   return sha256Hex(`ph-capture-pair-v1\n${normalizedCode}`)
 }
 
+/**
+ * The first four characters of a normalized code name it: a failed redemption
+ * counts against the live code with that prefix only, so requests with
+ * malformed or unrelated codes cannot lock the owner's code. The full code is
+ * still required to pair; the prefix alone (20 bits) is not a secret.
+ */
+export function capturePairingCodePrefix(normalizedCode: string): string {
+  return normalizedCode.slice(0, 4)
+}
+
+/** Hash of a pairing request's source (client address) for per-source rate limiting; never stored raw. */
+export function captureHashPairingSource(source: string): Promise<string> {
+  return sha256Hex(`ph-capture-pair-source-v1\n${source}`)
+}
+
 const TOKEN_RE = /^phc_[A-Za-z0-9_-]{43}$/
 
 /** Bearer token for one paired device: 'phc_' + 256 random bits (base64url). */

@@ -53,7 +53,9 @@ Not requested: `tabs`, `scripting`, `cookies`, `webRequest`, `history`, `notific
 ## Pairing
 
 1. In the dashboard: **Settings → Chrome helper → Create pairing code**. The code is shown once
-   and works once for 10 minutes; five wrong attempts kill it.
+   and works once for 10 minutes. Five wrong attempts that name it (its first four characters)
+   kill it; other wrong or malformed codes do not touch it. Each network address may fail 10
+   times per 10 minutes before the dashboard makes it wait.
 2. In the helper: right-click the toolbar icon → **Options**. Enter the dashboard address (for
    example `https://home.example.com`), a name for this browser and the code. Chrome asks to let
    the helper reach the dashboard's address; choose Allow.

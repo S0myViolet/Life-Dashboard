@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { CAPTURE_LIMITS } from '@personal-home/core'
 import {
   captureCreatePairingCode,
   captureListDevices,
@@ -22,14 +23,22 @@ afterAll(async () => {
 })
 
 const create = () => withService(t.db, (tx) => captureCreatePairingCode(tx))
-const redeem = (code: string, extensionOrigin = ORIGIN) =>
-  withService(t.db, (tx) => captureRedeemPairingCode(tx, { code, deviceName: 'Laptop', extensionOrigin }))
+let sources = 0
+/** Each call comes from a new source (client address) unless one is given. */
+const redeem = (code: string, extensionOrigin = ORIGIN, source = `198.51.100.${++sources}`) =>
+  withService(t.db, (tx) => captureRedeemPairingCode(tx, { code, deviceName: 'Laptop', extensionOrigin, source }))
+
+/** A well-formed code that differs from `code` but names it (same first four characters). */
+const sameCodeWrongSecret = (code: string) => `${code.slice(0, 4)}-${code.slice(5, 9) === '0000' ? '1111' : '0000'}-0000`
+/** A well-formed code whose first four characters differ from `code`'s. */
+const otherCode = (code: string) => (code.startsWith('ZZZZ') ? 'YYYY-0000-0000' : 'ZZZZ-0000-0000')
 
 /** Every text value stored in the private capture tables, for plaintext checks. */
 async function privateText(): Promise<string> {
   const rows = await withService(t.db, (tx) => tx`
     select row_to_json(d)::text as j from private.capture_devices d
-    union all select row_to_json(c)::text from private.capture_pairing_codes c`)
+    union all select row_to_json(c)::text from private.capture_pairing_codes c
+    union all select row_to_json(a)::text from private.capture_pair_attempts a`)
   return rows.map((r) => String(r.j)).join('\n')
 }
 
@@ -65,15 +74,47 @@ describe('pairing codes', () => {
     expect(await redeem(code)).toEqual({ status: 'invalid' })
   })
 
-  it('dies after five failed attempts; four failures still allow the right code', async () => {
+  it('dies after five failed attempts that name it; four still allow the right code', async () => {
     let { code } = await create()
-    for (let i = 0; i < 4; i++) expect(await redeem('0000-0000-0000')).toEqual({ status: 'invalid' })
+    for (let i = 0; i < 4; i++) expect(await redeem(sameCodeWrongSecret(code))).toEqual({ status: 'invalid' })
     expect((await redeem(code)).status).toBe('paired')
 
     ;({ code } = await create())
-    for (let i = 0; i < 5; i++) expect(await redeem('garbage')).toEqual({ status: 'invalid' })
+    for (let i = 0; i < 5; i++) expect(await redeem(sameCodeWrongSecret(code))).toEqual({ status: 'invalid' })
     expect(await withService(t.db, (tx) => captureLivePairingCodeExpiry(tx))).toBeNull()
     expect(await redeem(code)).toEqual({ status: 'invalid' })
+  })
+
+  it('garbage from anywhere cannot lock the owner\'s live code', async () => {
+    const { code } = await create()
+    for (let i = 0; i < 25; i++) {
+      expect(await redeem(i % 2 === 0 ? 'x' : otherCode(code))).toEqual({ status: 'invalid' })
+    }
+    expect(await withService(t.db, (tx) => captureLivePairingCodeExpiry(tx))).not.toBeNull()
+    expect((await redeem(code)).status).toBe('paired')
+  })
+
+  it('limits failed attempts per source without affecting other sources', async () => {
+    const { code } = await create()
+    const noisy = '203.0.113.9'
+    for (let i = 0; i < CAPTURE_LIMITS.pairingSourceMaxFailures; i++) {
+      expect(await redeem('garbage', ORIGIN, noisy)).toEqual({ status: 'invalid' })
+    }
+    const limited = await redeem(code, ORIGIN, noisy)
+    expect(limited.status).toBe('rate_limited')
+    if (limited.status === 'rate_limited') {
+      expect(limited.retryAfterSeconds).toBeGreaterThan(0)
+      expect(limited.retryAfterSeconds).toBeLessThanOrEqual(CAPTURE_LIMITS.pairingSourceWindowMinutes * 60)
+    }
+    // Another source (the owner's browser) still pairs with the same code.
+    expect((await redeem(code, ORIGIN, '192.0.2.1')).status).toBe('paired')
+    // Sources are stored only as hashes.
+    expect(await privateText()).not.toContain(noisy)
+
+    // The window passes: the noisy source may try again.
+    await withService(t.db, (tx) => tx`
+      update private.capture_pair_attempts set window_started_at = now() - interval '11 minutes'`)
+    expect(await redeem('garbage', ORIGIN, noisy)).toEqual({ status: 'invalid' })
   })
 
   it('a new code replaces an unused older one', async () => {

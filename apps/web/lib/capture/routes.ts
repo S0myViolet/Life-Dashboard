@@ -24,7 +24,7 @@ import {
 import { serviceTransaction } from '@/lib/server/db'
 import { captureDashboardOrigin } from './config'
 import { authenticateDevice } from './device-auth'
-import { declaredTooLarge, errorResponse, jsonResponse, readJsonBody } from './http'
+import { captureRequestSource, declaredTooLarge, errorResponse, jsonResponse, readJsonBody } from './http'
 
 /**
  * Postgres errors caused by the data itself (invalid text/JSON, a check
@@ -60,8 +60,11 @@ export function handlePair(request: Request): Promise<Response> {
       return errorResponse(400, 'invalid_request', { issues: captureIssueSummary(parsed.error) })
     }
     const result = await serviceTransaction((tx) =>
-      captureRedeemPairingCode(tx, { ...parsed.data, extensionOrigin: origin }),
+      captureRedeemPairingCode(tx, { ...parsed.data, extensionOrigin: origin, source: captureRequestSource(request) }),
     )
+    if (result.status === 'rate_limited') {
+      return errorResponse(429, 'too_many_attempts', {}, { 'Retry-After': String(result.retryAfterSeconds) })
+    }
     // One answer for unknown, used, expired and attempt-locked codes: no oracle.
     if (result.status !== 'paired') return errorResponse(401, 'invalid_or_expired_code')
     return jsonResponse(

@@ -4,7 +4,7 @@
  */
 import { createHash, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import type { CaptureSnapshot } from '@personal-home/core'
+import { CAPTURE_LIMITS, type CaptureSnapshot } from '@personal-home/core'
 import {
   captureCreatePairingCode,
   captureRevokeDevice,
@@ -154,7 +154,7 @@ describe('POST /api/capture/v1/pair', () => {
     expect(await again.json()).toEqual({ error: 'invalid_or_expired_code' })
   })
 
-  it('refuses expired codes, locks a code after five wrong attempts, and needs an extension origin', async () => {
+  it('refuses expired codes, locks a code only after five attempts that name it, limits per address, and needs an extension origin', async () => {
     let { code } = await withService(t.db, (tx) => captureCreatePairingCode(tx))
     await withService(t.db, (tx) => tx`
       update private.capture_pairing_codes
@@ -163,11 +163,38 @@ describe('POST /api/capture/v1/pair', () => {
     expect((await pairRoute(req('/api/capture/v1/pair', { body: { code, deviceName: 'x' } }))).status).toBe(401)
 
     ;({ code } = await withService(t.db, (tx) => captureCreatePairingCode(tx)))
+    const from = (ip: string) => ({ 'x-forwarded-for': `${ip}, 10.0.0.1` })
+    // Garbage and codes naming another prefix, from many addresses, never lock the live code.
+    for (let i = 0; i < 8; i++) {
+      const garbage = await pairRoute(
+        req('/api/capture/v1/pair', {
+          headers: from(`198.51.100.${i}`),
+          body: { code: i % 2 ? 'x' : `${code.startsWith('ZZZZ') ? 'YYYY' : 'ZZZZ'}-0000-0000`, deviceName: 'x' },
+        }),
+      )
+      expect(garbage.status).toBe(401)
+    }
+    // Five wrong codes that name the live code (same first four characters) lock it.
+    const wrongSecret = `${code.slice(0, 4)}-${code.slice(5, 9) === '0000' ? '1111' : '0000'}-0000`
     for (let i = 0; i < 5; i++) {
-      const wrong = await pairRoute(req('/api/capture/v1/pair', { body: { code: 'AAAA-AAAA-AAAA', deviceName: 'x' } }))
+      const wrong = await pairRoute(
+        req('/api/capture/v1/pair', { headers: from(`203.0.113.${i}`), body: { code: wrongSecret, deviceName: 'x' } }),
+      )
       expect(wrong.status).toBe(401)
     }
     expect((await pairRoute(req('/api/capture/v1/pair', { body: { code, deviceName: 'x' } }))).status).toBe(401)
+
+    // One address that keeps failing is told to wait, and is not answered about the code.
+    ;({ code } = await withService(t.db, (tx) => captureCreatePairingCode(tx)))
+    for (let i = 0; i < CAPTURE_LIMITS.pairingSourceMaxFailures; i++) {
+      const res = await pairRoute(req('/api/capture/v1/pair', { headers: from('192.0.2.77'), body: { code: 'x', deviceName: 'x' } }))
+      expect(res.status).toBe(401)
+    }
+    const limited = await pairRoute(req('/api/capture/v1/pair', { headers: from('192.0.2.77'), body: { code, deviceName: 'x' } }))
+    expect(limited.status).toBe(429)
+    expect(await limited.json()).toEqual({ error: 'too_many_attempts' })
+    expect(Number(limited.headers.get('retry-after'))).toBeGreaterThan(0)
+    expect((await pairRoute(req('/api/capture/v1/pair', { headers: from('192.0.2.78'), body: { code, deviceName: 'x' } }))).status).toBe(201)
 
     ;({ code } = await withService(t.db, (tx) => captureCreatePairingCode(tx)))
     for (const origin of [null, 'https://evil.example', 'null']) {

@@ -71,7 +71,11 @@ export const CAPTURE_LIMITS = {
   /** Status reports and pairing requests are tiny. */
   maxSmallBodyBytes: 8 * 1024,
   pairingCodeTtlMinutes: 10,
+  /** Failed redemptions that name a code (its first four characters) before it is dead. */
   pairingMaxFailedAttempts: 5,
+  /** Failed redemptions one source (client address) may make per window before it must wait. */
+  pairingSourceMaxFailures: 10,
+  pairingSourceWindowMinutes: 10,
   rawTextRetentionDays: 30,
 } as const
 
