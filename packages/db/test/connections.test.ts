@@ -207,12 +207,15 @@ describe('authorised connections', () => {
     expect(first.created).toBe(true)
     expect(first.connection).toMatchObject({
       status: 'connected',
-      lastSuccessAt: at,
+      lastAttemptAt: at,
+      // Authorisation is not proof of access: only a recorded check sets it.
+      lastSuccessAt: null,
       grantedScopes: ['openid', 'email'],
     })
 
     await withService(t.db, async (tx) => {
       await connectionRename(tx, first.connection.id, 'Work Gmail')
+      await connectionApplyEvent(tx, first.connection.id, { type: 'attempt_succeeded', at })
       await connectionApplyEvent(tx, first.connection.id, {
         type: 'attempt_failed',
         at,
@@ -236,7 +239,9 @@ describe('authorised connections', () => {
       status: 'connected',
       lastErrorCode: null,
       consecutiveFailures: 0,
-      lastSuccessAt: later,
+      lastAttemptAt: later,
+      // The reconnect itself proves nothing; the last proven access stays.
+      lastSuccessAt: at,
     })
     expect(again.connection.grantedScopes).toContain(
       'https://www.googleapis.com/auth/gmail.readonly',

@@ -160,6 +160,9 @@ export interface ConnectionUpsertInput {
  * Create the connection for a freshly authorised account, or mark an existing
  * one (same provider + external id) as reconnected. Keeps the owner's label and
  * pause state on reconnect.
+ *
+ * Authorisation alone proves no data access: this never sets last_success_at.
+ * The caller records its access check (`attempt_succeeded` / `attempt_failed`).
  */
 export async function connectionUpsertAuthorized(
   tx: Tx,
@@ -168,11 +171,10 @@ export async function connectionUpsertAuthorized(
   const label = input.accountLabel.trim().slice(0, 200) || input.externalAccountId.slice(0, 200)
   const [inserted] = await tx<ConnectionRow[]>`
     insert into public.connections (
-      provider, account_label, external_account_id, status, granted_scopes,
-      last_attempt_at, last_success_at
+      provider, account_label, external_account_id, status, granted_scopes, last_attempt_at
     ) values (
       ${input.provider}, ${label}, ${input.externalAccountId}, 'connected', ${input.grantedScopes},
-      ${input.at}, ${input.at}
+      ${input.at}
     )
     on conflict (provider, external_account_id) do nothing
     returning ${tx.unsafe(COLUMNS)}`

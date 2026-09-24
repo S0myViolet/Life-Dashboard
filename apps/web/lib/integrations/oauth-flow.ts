@@ -267,13 +267,14 @@ export async function connectionOAuthComplete(
       accessTokenExpiresAt: tokens.accessTokenExpiresAt,
       keyVersion: CONNECTION_TOKEN_KEY_VERSION,
     })
-    if (checkFailure) {
-      await connectionApplyEvent(tx, connection.id, {
-        type: 'attempt_failed',
-        at,
-        failure: checkFailure,
-      })
-    }
+    // Only a passed access check counts as a success (identify() may not call any API).
+    await connectionApplyEvent(
+      tx,
+      connection.id,
+      checkFailure
+        ? { type: 'attempt_failed', at, failure: checkFailure }
+        : { type: 'attempt_succeeded', at },
+    )
     await connectionEventRecord(tx, {
       connectionId: connection.id,
       provider: deps.provider,

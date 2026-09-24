@@ -11,6 +11,10 @@
  *
  * Only the owner leaves `paused` (resume). Reconnecting through OAuth refreshes
  * credentials but does not resume a paused connection.
+ *
+ * A pause keeps `nextAttemptAt` (paused rows are never due anyway), so a
+ * provider's Retry-After still holds when the owner resumes. Only a proven
+ * access check (`attempt_succeeded`) ever sets `lastSuccessAt`.
  */
 import type { ConnectionStatus } from '../catalog.ts'
 import {
@@ -45,7 +49,10 @@ export type ConnectionEvent =
   | { type: 'attempt_failed'; at: Date; failure: ConnectionFailure }
   | { type: 'paused'; at: Date }
   | { type: 'resumed'; at: Date }
-  /** Fresh OAuth consent for an existing (or new) account; the callback verified access. */
+  /**
+   * Fresh OAuth consent for an existing account. Not a success by itself: the
+   * callback records its first access check as `attempt_succeeded`/`attempt_failed`.
+   */
   | { type: 'reconnected'; at: Date }
 
 export interface ConnectionBackoffPolicy {
@@ -100,6 +107,47 @@ function statusFromLastOutcome(h: ConnectionHealth): StoredConnectionStatus {
   return kind === 'auth' ? 'needs_reconnect' : 'error'
 }
 
+/**
+ * Whether the stored next attempt protects the provider (Retry-After or the
+ * backoff after rate limits / provider trouble) and must survive a resume.
+ * A configuration wait is ours alone: resuming may re-check straight away.
+ */
+function keepsProviderDeadline(h: ConnectionHealth): boolean {
+  const kind = connectionErrorKindOf(h.lastErrorCode)
+  return kind === 'rate_limited' || kind === 'transient' || kind === 'provider'
+}
+
+function failedHealth(
+  base: ConnectionHealth,
+  f: ConnectionFailure,
+  at: Date,
+  policy: ConnectionBackoffPolicy,
+): ConnectionHealth {
+  switch (f.kind) {
+    case 'auth':
+      return { ...base, status: 'needs_reconnect', nextAttemptAt: null }
+    case 'rate_limited': {
+      const wait =
+        f.retryAfterMs !== undefined && Number.isFinite(f.retryAfterMs)
+          ? Math.min(Math.max(0, f.retryAfterMs), policy.maxRetryAfterMs)
+          : connectionBackoffMs(base.consecutiveFailures, policy)
+      return { ...base, status: 'error', nextAttemptAt: addMs(at, wait) }
+    }
+    case 'config':
+      return { ...base, status: 'error', nextAttemptAt: addMs(at, policy.configRetryMs) }
+    case 'transient':
+    case 'provider': {
+      // A 503 may carry Retry-After too: never retry earlier than the provider asked.
+      const backoff = connectionBackoffMs(base.consecutiveFailures, policy)
+      const asked =
+        f.retryAfterMs !== undefined && Number.isFinite(f.retryAfterMs)
+          ? Math.min(Math.max(0, f.retryAfterMs), policy.maxRetryAfterMs)
+          : 0
+      return { ...base, status: 'error', nextAttemptAt: addMs(at, Math.max(backoff, asked)) }
+    }
+  }
+}
+
 export function connectionTransition(
   current: ConnectionHealth,
   event: ConnectionEvent,
@@ -109,18 +157,23 @@ export function connectionTransition(
   switch (event.type) {
     case 'paused':
       if (paused) return current
-      return { ...current, status: 'paused', pausedAt: event.at, nextAttemptAt: null }
+      // nextAttemptAt is kept: it may hold a provider's Retry-After.
+      return { ...current, status: 'paused', pausedAt: event.at }
 
     case 'resumed': {
       if (!paused) return current
       const status = statusFromLastOutcome(current)
-      return {
-        ...current,
-        status,
-        pausedAt: null,
-        // Check again straight away, unless only a reconnect can help.
-        nextAttemptAt: status === 'needs_reconnect' ? null : event.at,
-      }
+      // Check again straight away, unless only a reconnect can help or the
+      // provider asked us to wait longer.
+      let nextAttemptAt: Date | null = status === 'needs_reconnect' ? null : event.at
+      if (
+        nextAttemptAt &&
+        keepsProviderDeadline(current) &&
+        current.nextAttemptAt &&
+        current.nextAttemptAt.getTime() > nextAttemptAt.getTime()
+      )
+        nextAttemptAt = current.nextAttemptAt
+      return { ...current, status, pausedAt: null, nextAttemptAt }
     }
 
     case 'reconnected':
@@ -128,7 +181,6 @@ export function connectionTransition(
         ...current,
         status: paused ? 'paused' : 'connected',
         lastAttemptAt: event.at,
-        lastSuccessAt: event.at,
         lastErrorCode: null,
         lastErrorMessage: null,
         consecutiveFailures: 0,
@@ -149,45 +201,23 @@ export function connectionTransition(
 
     case 'attempt_failed': {
       const f = event.failure
-      const failures = current.consecutiveFailures + 1
-      const base = {
-        ...current,
-        lastAttemptAt: event.at,
-        lastErrorCode: f.code,
-        lastErrorMessage: sanitizeConnectionErrorMessage(
-          f.message,
-          CONNECTION_MAX_ERROR_MESSAGE_LENGTH,
-        ),
-        consecutiveFailures: failures,
-      }
-      if (paused) return { ...base, status: 'paused', nextAttemptAt: null }
-      switch (f.kind) {
-        case 'auth':
-          return { ...base, status: 'needs_reconnect', nextAttemptAt: null }
-        case 'rate_limited': {
-          const wait =
-            f.retryAfterMs !== undefined && Number.isFinite(f.retryAfterMs)
-              ? Math.min(Math.max(0, f.retryAfterMs), policy.maxRetryAfterMs)
-              : connectionBackoffMs(failures, policy)
-          return { ...base, status: 'error', nextAttemptAt: addMs(event.at, wait) }
-        }
-        case 'config':
-          return { ...base, status: 'error', nextAttemptAt: addMs(event.at, policy.configRetryMs) }
-        case 'transient':
-        case 'provider': {
-          // A 503 may carry Retry-After too: never retry earlier than the provider asked.
-          const backoff = connectionBackoffMs(failures, policy)
-          const asked =
-            f.retryAfterMs !== undefined && Number.isFinite(f.retryAfterMs)
-              ? Math.min(Math.max(0, f.retryAfterMs), policy.maxRetryAfterMs)
-              : 0
-          return {
-            ...base,
-            status: 'error',
-            nextAttemptAt: addMs(event.at, Math.max(backoff, asked)),
-          }
-        }
-      }
+      const next = failedHealth(
+        {
+          ...current,
+          lastAttemptAt: event.at,
+          lastErrorCode: f.code,
+          lastErrorMessage: sanitizeConnectionErrorMessage(
+            f.message,
+            CONNECTION_MAX_ERROR_MESSAGE_LENGTH,
+          ),
+          consecutiveFailures: current.consecutiveFailures + 1,
+        },
+        f,
+        event.at,
+        policy,
+      )
+      // Still paused, but keep the deadline so a later resume honours it.
+      return paused ? { ...next, status: 'paused' } : next
     }
   }
 }

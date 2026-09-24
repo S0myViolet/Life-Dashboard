@@ -196,6 +196,8 @@ describe('complete', () => {
       accountLabel: GOOGLE_EMAIL,
       status: 'connected',
       lastErrorCode: null,
+      lastAttemptAt: clock,
+      lastSuccessAt: clock,
     })
     expect(conn.grantedScopes).toContain('https://www.googleapis.com/auth/gmail.readonly')
     expect(conn.grantedScopes).toContain('email')
@@ -341,6 +343,31 @@ describe('complete', () => {
     expect(conn.status).toBe('error')
     expect(conn.lastErrorCode).toBe('transient.http_503')
     expect(conn.nextAttemptAt).not.toBeNull()
+    // Nothing has ever been read from this account: no "last success".
+    expect(conn.lastAttemptAt).toEqual(clock)
+    expect(conn.lastSuccessAt).toBeNull()
+  })
+
+  it('a reconnect whose first access check fails keeps the real last success', async () => {
+    const first = await begin('google')
+    const a = await complete('google', { state: first.state, code: 'c1' }, first.state)
+    if (!a.result.ok) throw new Error('first connect failed')
+    const id = a.result.connectionId
+    const firstSuccess = clock
+
+    clock = new Date('2026-10-05T10:00:00Z')
+    const second = await begin('google')
+    const b = await complete('google', { state: second.state, code: 'c2' }, second.state, {
+      gmailProfile: () => jsonResponse(googleUnavailable, 503),
+    })
+    expect(b.result).toMatchObject({ ok: true, outcome: 'reconnected', accessChecked: false })
+    const conn = (await withService(env.t.db, (tx) => connectionGet(tx, id)))!
+    expect(conn).toMatchObject({
+      status: 'error',
+      lastErrorCode: 'transient.http_503',
+      lastAttemptAt: clock,
+      lastSuccessAt: firstSuccess,
+    })
   })
 
   it('reconnecting the same account keeps its label and pause, and replaces its tokens', async () => {

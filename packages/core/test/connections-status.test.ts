@@ -141,9 +141,11 @@ describe('connection status state machine', () => {
     })
     expect(h).toMatchObject({
       status: 'paused',
-      nextAttemptAt: null,
+      // Kept for the resume; a paused connection is never due.
+      nextAttemptAt: new Date(at(3).getTime() + 1000),
       lastErrorCode: 'rate_limited.http_429',
     })
+    expect(connectionIsDue(h, at(100))).toBe(false)
     h = connectionTransition(h, { type: 'reconnected', at: at(4) })
     expect(h.status).toBe('paused')
     expect(connectionTransition(h, { type: 'paused', at: at(9) })).toBe(h)
@@ -184,18 +186,75 @@ describe('connection status state machine', () => {
     expect(connectionTransition(transient, { type: 'resumed', at: at(4) })).toBe(transient)
   })
 
-  it('reconnect clears a needs_reconnect state', () => {
+  it('reconnect clears a needs_reconnect state but is not a success by itself', () => {
     const failed = connectionTransition(healthy(), {
       type: 'attempt_failed',
       at: at(1),
       failure: connectionFailure('auth', 'invalid_grant', 'x'),
     })
-    expect(connectionTransition(failed, { type: 'reconnected', at: at(2) })).toMatchObject({
+    const reconnected = connectionTransition(failed, { type: 'reconnected', at: at(2) })
+    expect(reconnected).toMatchObject({
       status: 'connected',
       lastErrorCode: null,
       consecutiveFailures: 0,
-      lastSuccessAt: at(2),
+      lastAttemptAt: at(2),
+      // Only a proven access check moves the last success.
+      lastSuccessAt: t0,
     })
+    // The callback's first access check failing leaves the real last success alone.
+    const checkFailed = connectionTransition(reconnected, {
+      type: 'attempt_failed',
+      at: at(2),
+      failure: connectionFailure('transient', 'http_503', 'x'),
+    })
+    expect(checkFailed).toMatchObject({ status: 'error', lastSuccessAt: t0 })
+  })
+
+  it('pause then resume keeps a provider Retry-After deadline', () => {
+    const limited = connectionTransition(healthy(), {
+      type: 'attempt_failed',
+      at: t0,
+      failure: connectionFailure('rate_limited', 'http_429', 'x', { retryAfterMs: 3_600_000 }),
+    })
+    expect(limited.nextAttemptAt).toEqual(at(60))
+    const paused = connectionTransition(limited, { type: 'paused', at: at(1) })
+    expect(connectionIsDue(paused, at(120))).toBe(false)
+    const resumed = connectionTransition(paused, { type: 'resumed', at: at(2) })
+    expect(resumed).toMatchObject({ status: 'error', pausedAt: null, nextAttemptAt: at(60) })
+    expect(connectionIsDue(resumed, at(59))).toBe(false)
+    expect(connectionIsDue(resumed, at(60))).toBe(true)
+
+    // A 503 with Retry-After is honoured the same way.
+    const unavailable = connectionTransition(healthy(), {
+      type: 'attempt_failed',
+      at: t0,
+      failure: connectionFailure('transient', 'http_503', 'x', { retryAfterMs: 1_800_000 }),
+    })
+    const r = connectionTransition(
+      connectionTransition(unavailable, { type: 'paused', at: at(1) }),
+      {
+        type: 'resumed',
+        at: at(2),
+      },
+    )
+    expect(r.nextAttemptAt).toEqual(at(30))
+
+    // Once the deadline has passed, resume checks straight away.
+    const late = connectionTransition(paused, { type: 'resumed', at: at(90) })
+    expect(late.nextAttemptAt).toEqual(at(90))
+  })
+
+  it('resume after a configuration error checks straight away (the owner may have fixed it)', () => {
+    const cfg = connectionTransition(healthy(), {
+      type: 'attempt_failed',
+      at: t0,
+      failure: connectionFailure('config', 'api_disabled', 'x'),
+    })
+    const r = connectionTransition(connectionTransition(cfg, { type: 'paused', at: at(1) }), {
+      type: 'resumed',
+      at: at(2),
+    })
+    expect(r).toMatchObject({ status: 'error', nextAttemptAt: at(2) })
   })
 
   it('stores sanitised, length-capped messages', () => {
