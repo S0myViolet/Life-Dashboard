@@ -114,6 +114,25 @@ test.describe('Learning', () => {
     await expect(details.getByLabel('Status')).toHaveValue('reading')
   })
 
+  test('deleting a book asks first, then returns to the list', async ({ page }) => {
+    await signIn(page, '/learning')
+    const title = uniqueTitle('Throwaway')
+    await addBook(page, title)
+    await page.getByRole('link', { name: title }).click()
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Delete book' }).click()
+    const confirm = page.getByRole('button', { name: 'Delete', exact: true })
+    await expect(confirm).toBeFocused()
+    await page.getByRole('button', { name: 'Cancel' }).click()
+    await expect(page.getByRole('button', { name: 'Delete book' })).toBeFocused()
+
+    await page.getByRole('button', { name: 'Delete book' }).click()
+    await page.getByRole('button', { name: 'Delete', exact: true }).click()
+    await expect(page).toHaveURL(/\/learning$/)
+    await expect(page.getByRole('link', { name: title })).toHaveCount(0)
+  })
+
   test('touch targets and layout hold at phone width', async ({ page }) => {
     await signIn(page, '/learning')
     await expectNoHorizontalScroll(page)

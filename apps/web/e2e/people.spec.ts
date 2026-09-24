@@ -112,6 +112,19 @@ test.describe('People', () => {
     await expect(page.getByText('No one matches')).toBeVisible()
   })
 
+  test('deleting a person asks first, then returns to the list', async ({ page }) => {
+    await signIn(page, '/people')
+    const name = uniqueName('Temporary')
+    const form = page.getByRole('form', { name: 'Add a person' })
+    await form.getByLabel('Name').fill(name)
+    await form.getByRole('button', { name: 'Add person' }).click()
+    await expect(page.getByRole('heading', { level: 1, name })).toBeVisible()
+    await page.getByRole('button', { name: 'Delete person' }).click()
+    await page.getByRole('button', { name: 'Delete', exact: true }).click()
+    await expect(page).toHaveURL(/\/people$/)
+    await expect(page.getByRole('link', { name })).toHaveCount(0)
+  })
+
   test('a due catch-up shows under Coming up and clears when caught up', async ({ page }) => {
     await signIn(page, '/people')
     const name = uniqueName('Old Friend')

@@ -1,6 +1,6 @@
 'use client'
 
-import { CATCH_UP_PRESETS, PERSON_LIMITS } from '@personal-home/core'
+import { CATCH_UP_LIMITS, CATCH_UP_PRESETS, PERSON_LIMITS } from '@personal-home/core'
 import { createPersonAction, updatePersonAction } from '@/app/(app)/people/actions'
 import {
   FieldError,
@@ -119,8 +119,37 @@ export function PersonForm({
                 {p.label}
               </option>
             ))}
+            <option value="custom">Another interval…</option>
           </select>
           <FieldError state={state} id={id('catchUpEveryDays')} name="catchUpEveryDays" />
+          {cadence === 'custom' ? (
+            <div className="mt-2">
+              <label htmlFor={id('catchUpCustomDays')} className={labelClass}>
+                Every how many days?
+              </label>
+              <input
+                id={id('catchUpCustomDays')}
+                name="catchUpCustomDays"
+                type="number"
+                inputMode="numeric"
+                min={CATCH_UP_LIMITS.minDays}
+                max={CATCH_UP_LIMITS.maxDays}
+                step={1}
+                required
+                className={inputClass}
+                {...fieldAria(
+                  state,
+                  id('catchUpCustomDays'),
+                  'catchUpCustomDays',
+                  id('catchUpCustomDays-hint'),
+                )}
+              />
+              <FieldError state={state} id={id('catchUpCustomDays')} name="catchUpCustomDays" />
+              <p id={id('catchUpCustomDays-hint')} className={hintClass}>
+                Between {CATCH_UP_LIMITS.minDays} and {CATCH_UP_LIMITS.maxDays} days.
+              </p>
+            </div>
+          ) : null}
         </div>
         {person ? (
           <div>

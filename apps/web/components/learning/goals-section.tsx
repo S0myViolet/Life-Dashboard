@@ -29,7 +29,12 @@ export function goalLines(goal: LearningGoalView, today: string): string[] {
     const finished = goal.book.status === 'finished'
     lines.push(finished ? `Book: ${goal.book.title} (finished)` : `Book: ${goal.book.title}`)
   }
-  if (s.pace?.kind === 'pages') {
+  const atEnd =
+    (s.pace?.kind === 'pages' && s.pace.pagesLeft === 0) ||
+    (s.pace?.kind === 'percent' && s.pace.percentLeft === 0)
+  if (atEnd) {
+    lines.push('At the end of the book — mark it finished to close this goal.')
+  } else if (s.pace?.kind === 'pages') {
     lines.push(
       `${plural(s.pace.perDay, 'page')} a day to finish on time (${s.pace.pagesLeft} left)`,
     )
@@ -68,7 +73,7 @@ function GoalItem({ goal, today }: { goal: LearningGoalView; today: string }) {
         <h3 className="min-w-0 text-[15px] font-medium text-ink">
           <Link
             href={`/learning/goals/${goal.id}`}
-            className="rounded-sm hover:text-accent-strong hover:underline"
+            className="inline-flex min-h-11 items-center rounded-sm hover:text-accent-strong hover:underline sm:min-h-0"
           >
             {goal.title}
           </Link>

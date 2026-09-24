@@ -161,6 +161,18 @@ describe('readingProgress — percentages and mixed logs', () => {
     expect(p.pagesLeft).toBe(151)
   })
 
+  it('converts a percentage to a page without floating-point loss', () => {
+    // (58 / 100) * 100 is 57.99999999999999 in binary floating point.
+    const p = readingProgress({ totalPages: 100, status: 'reading' }, [
+      log('2026-09-01', { percent: 58 }),
+    ])
+    expect(p.currentPage).toBe(58)
+    const q = readingProgress({ totalPages: 300, status: 'reading' }, [
+      log('2026-09-01', { percent: 33.33 }),
+    ])
+    expect(q.currentPage).toBe(99)
+  })
+
   it('pages read after a percentage move the position on when the total is known', () => {
     const p = readingProgress({ totalPages: 200, status: 'reading' }, [
       log('2026-09-01', { percent: 25 }),
@@ -223,6 +235,11 @@ describe('readingProgress — percentages and mixed logs', () => {
     expect(withTotal.percent).toBe(100)
     expect(withTotal.currentPage).toBe(320)
     expect(withTotal.pagesLeft).toBe(0)
+    // A finished book with a log past its total is not flagged: the owner said it's done.
+    const over = readingProgress({ totalPages: 100, status: 'finished' }, [
+      log('2026-09-01', { pageReached: 120 }),
+    ])
+    expect(over.pastTotal).toBe(false)
   })
 
   it('paused and want-to-read books report what was logged, nothing more', () => {

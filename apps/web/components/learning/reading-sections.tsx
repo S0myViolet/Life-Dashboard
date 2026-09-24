@@ -27,7 +27,7 @@ function BookTitle({ book }: { book: BookWithProgress }) {
       <h3 className="text-[15px] font-medium text-ink">
         <Link
           href={`/learning/books/${book.id}`}
-          className="rounded-sm hover:text-accent-strong hover:underline"
+          className="inline-flex min-h-11 items-center rounded-sm hover:text-accent-strong hover:underline sm:min-h-0"
         >
           {book.title}
         </Link>

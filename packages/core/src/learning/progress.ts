@@ -157,7 +157,8 @@ export function readingProgress(
     }
   } else if (position.kind === 'percent') {
     if (total != null) {
-      currentPage = Math.floor((position.percent / 100) * total) + position.pagesSince
+      // Multiply first and absorb binary noise: (58 / 100) * 100 is 57.99999999999999.
+      currentPage = Math.floor((position.percent * total) / 100 + 1e-9) + position.pagesSince
       pageBasis = 'percent_of_total'
       if (position.pagesSince === 0) {
         percent = position.percent
@@ -176,9 +177,10 @@ export function readingProgress(
     }
   }
 
-  const pastTotal = total != null && currentPage != null && currentPage > total
+  let pastTotal = total != null && currentPage != null && currentPage > total
 
   if (book.status === 'finished') {
+    pastTotal = false
     percent = 100
     percentBasis = 'finished'
     percentAsOf = null

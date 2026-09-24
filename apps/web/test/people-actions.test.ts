@@ -160,6 +160,29 @@ describe('createPersonAction', () => {
     expect(n).toBe(0)
   })
 
+  it('takes a custom interval, and reports errors on the box that was used', async () => {
+    const id = await create({ name: 'Custom', catchUpEveryDays: 'custom', catchUpCustomDays: '10' })
+    expect(await person(id, '2026-09-24')).toMatchObject({
+      catchUpEveryDays: 10,
+      catchUp: { dueOn: '2026-10-04' },
+    })
+    expect(
+      await createPersonAction(
+        IDLE,
+        form({ name: 'x', catchUpEveryDays: 'custom', catchUpCustomDays: '800' }),
+      ),
+    ).toMatchObject({
+      status: 'error',
+      fieldErrors: { catchUpCustomDays: 'At most every 730 days' },
+    })
+    expect(
+      await createPersonAction(IDLE, form({ name: 'x', catchUpEveryDays: 'custom' })),
+    ).toMatchObject({
+      status: 'error',
+      fieldErrors: { catchUpCustomDays: 'Enter a number of days' },
+    })
+  })
+
   it('without a birthday or cadence, stores just the person', async () => {
     const id = await create({ name: 'Sam', catchUpEveryDays: '' })
     expect(await person(id, '2026-09-24')).toMatchObject({

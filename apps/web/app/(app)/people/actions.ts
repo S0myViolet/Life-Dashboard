@@ -50,19 +50,39 @@ function revalidatePeople(personId?: string | null) {
   revalidatePath('/')
 }
 
+/**
+ * The cadence select offers presets, "No reminder" ('') and "custom", which reads the
+ * number of days from `catchUpCustomDays`. Errors land on whichever box was used.
+ */
+function cadenceFromForm(
+  fd: FormData,
+  errors: Record<string, string>,
+): { days: number | null; field: string } {
+  const choice = formText(fd, 'catchUpEveryDays')
+  if (choice == null) return { days: null, field: 'catchUpEveryDays' }
+  if (choice === 'custom') {
+    const days = formNumber(fd, 'catchUpCustomDays', errors)
+    if (days == null) errors.catchUpCustomDays ??= 'Enter a number of days'
+    return { days, field: 'catchUpCustomDays' }
+  }
+  return { days: formNumber(fd, 'catchUpEveryDays', errors), field: 'catchUpEveryDays' }
+}
+
 function personFromForm(fd: FormData, errors: Record<string, string>) {
-  const cadence = formText(fd, 'catchUpEveryDays')
+  const cadence = cadenceFromForm(fd, errors)
   const raw = {
     name: formText(fd, 'name') ?? '',
     relationship: formText(fd, 'relationship'),
     notes: formMultiline(fd, 'notes'),
-    catchUpEveryDays: cadence == null ? null : formNumber(fd, 'catchUpEveryDays', errors),
+    catchUpEveryDays: cadence.days,
     lastCaughtUpOn: formText(fd, 'lastCaughtUpOn'),
   }
   const parsed = PersonInputSchema.safeParse(raw)
   if (parsed.success) return parsed.data
   // Keep an earlier "Enter a number" over the schema's message for the same field.
-  for (const [key, message] of Object.entries(zodFieldErrors(parsed.error))) errors[key] ??= message
+  for (const [key, message] of Object.entries(zodFieldErrors(parsed.error))) {
+    errors[key === 'catchUpEveryDays' ? cadence.field : key] ??= message
+  }
   return null
 }
 

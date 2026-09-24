@@ -39,9 +39,9 @@ export async function PeopleAttentionCard() {
                   <li key={c.personId} className="flex items-center justify-between gap-2 py-2">
                     <Link
                       href={`/people/${c.personId}`}
-                      className="min-w-0 truncate rounded-sm text-sm text-ink hover:text-accent-strong hover:underline"
+                      className="flex min-h-11 min-w-0 items-center rounded-sm text-sm text-ink hover:text-accent-strong hover:underline sm:min-h-0"
                     >
-                      {c.personName}
+                      <span className="truncate">{c.personName}</span>
                     </Link>
                     <Pill tone={c.daysOverdue > 0 ? 'caution' : 'accent'}>
                       {c.daysOverdue > 0 ? `${plural(c.daysOverdue, 'day')} overdue` : 'Due today'}
@@ -59,12 +59,12 @@ export async function PeopleAttentionCard() {
               <ul className="mt-1 divide-y divide-line">
                 {upcomingDates.map((d) => (
                   <li key={d.dateId} className="py-2">
-                    <div className="flex items-baseline justify-between gap-2">
+                    <div className="flex items-center justify-between gap-2">
                       <Link
                         href={`/people/${d.personId}`}
-                        className="min-w-0 truncate rounded-sm text-sm text-ink hover:text-accent-strong hover:underline"
+                        className="flex min-h-11 min-w-0 items-center rounded-sm text-sm text-ink hover:text-accent-strong hover:underline sm:min-h-0"
                       >
-                        {d.personName}
+                        <span className="truncate">{d.personName}</span>
                       </Link>
                       <span
                         className={`shrink-0 text-xs ${d.reminderDue ? 'font-medium text-accent-strong' : 'text-ink-muted'}`}
