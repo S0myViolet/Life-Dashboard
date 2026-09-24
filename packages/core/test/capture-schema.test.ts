@@ -12,6 +12,8 @@ import {
   captureIssueSummary,
   captureNormalizePairingCode,
   captureNormalizeText,
+  capturePrepareSnapshot,
+  captureSanitizeText,
   type CaptureSnapshot,
 } from '../src/index.ts'
 
@@ -180,6 +182,48 @@ describe('captureNormalizeText', () => {
     const b = 'Line one\nLine two\n\nEnd'
     expect(captureNormalizeText(a)).toBe(b)
     expect(captureNormalizeText('e\u0301')).toBe('\u00E9')
+  })
+
+  it('returns text Postgres can store: no NUL, no lone surrogates', () => {
+    expect(captureNormalizeText('a\u0000b')).toBe('ab')
+    expect(captureNormalizeText('x \ud83d y \ude00 z')).toBe('x \uFFFD y \uFFFD z')
+    expect(captureNormalizeText('pair \ud83d\ude00 kept')).toBe('pair \ud83d\ude00 kept')
+    expect(captureSanitizeText('Title\u0000 \udc00')).toBe('Title \uFFFD')
+  })
+})
+
+describe('capturePrepareSnapshot limits', () => {
+  it('leaves out a message whose normalized text exceeds the stored limit, and is then not complete', async () => {
+    const grows = '\u095B'.repeat(CAPTURE_LIMITS.maxMessageChars / 2 + 1) // NFC doubles it
+    expect(grows.length).toBeLessThanOrEqual(CAPTURE_LIMITS.maxMessageChars)
+    const prepared = await capturePrepareSnapshot(
+      {
+        schemaVersion: 1,
+        snapshotId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+        provider: 'chatgpt',
+        conversation: { externalId: ID, url: `https://chatgpt.com/c/${ID}` },
+        messages: [
+          { key: 'm-1', role: 'user', text: 'short' },
+          { key: 'm-2', role: 'assistant', text: grows },
+        ],
+        capturedAt: '2026-09-24T10:00:00.000Z',
+        coverage: {
+          mode: 'passive',
+          observedFirstMessage: true,
+          observedLastMessage: true,
+          contiguous: true,
+          renderedCount: 2,
+          accumulatedCount: 2,
+          streamingInProgress: false,
+          pageState: 'ok',
+        },
+        extensionVersion: '0.1.0',
+      },
+      { receivedAt: new Date('2026-09-24T10:00:01.000Z') },
+    )
+    expect(prepared.messages.map((m) => m.key)).toEqual(['m-1'])
+    expect(prepared.oversizedMessages).toBe(1)
+    expect(prepared.complete).toBe(false)
   })
 })
 

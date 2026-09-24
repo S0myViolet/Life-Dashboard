@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import {
+  CaptureSnapshotSchema,
   captureApplyOps,
   capturePrepareSnapshot,
   captureReconcile,
@@ -162,6 +163,39 @@ describe('captureIngestSnapshot', () => {
     await ingest(makeSnapshot(at(2), all))
     ;[conv] = await withOwner(t.db, owner, (tx) => captureListConversations(tx))
     expect(conv).toMatchObject({ messageCount: 60, lastSeenCompleteAt: new Date(at(2)) })
+  })
+
+  it('text the database cannot store as-is never makes ingestion fail (NUL, lone surrogates, NFC growth)', async () => {
+    const nul = 'before\u0000after'
+    const lone = 'broken \ud83d emoji'
+    // U+095B is a composition exclusion: NFC turns each one into two code points.
+    const grows = '\u095B'.repeat(150_000)
+    const s = makeSnapshot(
+      at(0),
+      [
+        { key: 'ok-1', role: 'user', text: 'A normal question', orderHint: 0 },
+        { key: 'nul-1', role: 'assistant', text: nul, orderHint: 1 },
+        { key: 'lone-1', role: 'user', text: lone, orderHint: 2 },
+        { key: 'long-1', role: 'assistant', text: grows, orderHint: 3 },
+      ],
+      { title: 'Title with a \u0000 and a \udc00' },
+    )
+    expect(CaptureSnapshotSchema.safeParse(s).success).toBe(true) // the endpoint accepts it
+    const result = await ingest(s)
+    expect(result).toMatchObject({ status: 'ok', outcome: 'applied', newMessages: 3 })
+    const texts = await withService(t.db, (tx) => tx<{ messageKey: string; text: string }[]>`
+      select m.message_key, v.text from public.captured_messages m
+      join public.captured_message_versions v on v.id = m.current_version_id
+      order by m.order_hint`)
+    expect(texts).toEqual([
+      { messageKey: 'ok-1', text: 'A normal question' },
+      { messageKey: 'nul-1', text: 'beforeafter' },
+      { messageKey: 'lone-1', text: 'broken \uFFFD emoji' },
+    ])
+    const [conv] = await withOwner(t.db, owner, (tx) => captureListConversations(tx))
+    expect(conv?.title).toBe('Title with a  and a \uFFFD')
+    // The message that could not be stored whole is left out, so the capture is not complete.
+    expect(conv?.lastSeenCompleteAt).toBeNull()
   })
 
   it('an edited message gets exactly one new version row and the old one is superseded', async () => {

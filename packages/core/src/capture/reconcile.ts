@@ -18,6 +18,7 @@
  * retried, duplicated or out-of-order uploads end in the same state.
  */
 import {
+  CAPTURE_LIMITS,
   captureStateForProblem,
   type CapturePageState,
   type CaptureRole,
@@ -26,6 +27,7 @@ import {
 } from './constants.ts'
 import type { CaptureCoverage, CaptureSnapshot } from './schema.ts'
 import {
+  captureCodePointLength,
   captureContentDerivedKey,
   captureContentHash,
   captureIsDerivedKey,
@@ -80,6 +82,11 @@ export interface CapturePreparedSnapshot {
   messages: CapturePreparedMessage[]
   /** Messages whose text was empty after normalization (for example image-only turns). */
   emptyMessages: number
+  /**
+   * Messages left out because their normalized text is longer than the stored
+   * limit (code points; NFC can lengthen text the helper measured as short enough).
+   */
+  oversizedMessages: number
 }
 
 export type CaptureOp =
@@ -167,12 +174,17 @@ export async function capturePrepareSnapshot(
   const seenKeys = new Set<string>()
   const messages: CapturePreparedMessage[] = []
   let emptyMessages = 0
+  let oversizedMessages = 0
   let anyStreaming = false
 
   for (const m of snapshot.messages) {
     const text = captureNormalizeText(m.text)
     if (text.length === 0) {
       emptyMessages++
+      continue
+    }
+    if (text.length > CAPTURE_LIMITS.maxMessageChars && captureCodePointLength(text) > CAPTURE_LIMITS.maxMessageChars) {
+      oversizedMessages++
       continue
     }
     let key = m.key
@@ -204,9 +216,10 @@ export async function capturePrepareSnapshot(
   return {
     capturedAt: iso(capturedMs),
     pageState: snapshot.coverage.pageState,
-    complete: captureCoverageIsComplete(snapshot.coverage) && !anyStreaming,
+    complete: captureCoverageIsComplete(snapshot.coverage) && !anyStreaming && oversizedMessages === 0,
     messages,
     emptyMessages,
+    oversizedMessages,
   }
 }
 

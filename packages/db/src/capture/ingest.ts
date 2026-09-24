@@ -7,6 +7,7 @@
 import {
   capturePrepareSnapshot,
   captureReconcile,
+  captureSanitizeText,
   captureSortMessages,
   type CaptureOp,
   type CaptureSnapshot,
@@ -318,7 +319,7 @@ export async function captureIngestSnapshot(
             else last_seen_complete_at end,
           -- An older snapshot delivered late never overwrites a newer title.
           title = case when ${capturedAt}::timestamptz >= coalesce(last_captured_at, '-infinity')
-            then coalesce(${snapshot.conversation.title?.trim() || null}, title) else title end,
+            then coalesce(${captureSanitizeText(snapshot.conversation.title ?? '').trim() || null}, title) else title end,
           content_changed_at = case when ${plan.contentChanged}
             then ${receivedAt} else content_changed_at end,
           message_count = (

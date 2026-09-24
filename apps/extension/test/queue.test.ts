@@ -103,6 +103,7 @@ describe('classifyUpload', () => {
     expect(classifyUpload(null, 'network_error')).toBe('retry')
     expect(classifyUpload(503, 'server_error')).toBe('retry')
     expect(classifyUpload(429, null)).toBe('retry')
+    expect(classifyUpload(422, 'unprocessable_data')).toBe('drop')
     expect(classifyUpload(401, 'invalid_token')).toBe('unauthorized')
     expect(classifyUpload(403, 'origin_mismatch')).toBe('forbidden_origin')
     expect(classifyUpload(403, 'not_selected')).toBe('deselected')

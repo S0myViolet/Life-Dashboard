@@ -4,13 +4,33 @@
 import { sha256Hex } from '../crypto/secrets.ts'
 import type { CaptureRole } from './constants.ts'
 
+/** Unpaired UTF-16 surrogates (a high one not followed by a low one, or a lone low one). */
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g
+
+/**
+ * Text Postgres can store: NUL removed (text columns and jsonb reject U+0000)
+ * and unpaired surrogates replaced with U+FFFD (they are not valid Unicode,
+ * and jsonb rejects their escapes). Applied to message text and titles.
+ */
+export function captureSanitizeText(text: string): string {
+  return text.replace(/\u0000/g, '').replace(LONE_SURROGATE, '\uFFFD')
+}
+
+/** Length in Unicode code points (what Postgres length() counts). */
+export function captureCodePointLength(text: string): number {
+  let n = 0
+  for (const _ of text) n++
+  return n
+}
+
 /**
  * Normalize rendered text so the same message rendered twice hashes the same:
- * NFC, LF line endings, no zero-width characters, no trailing whitespace per line,
- * at most one blank line in a row, trimmed.
+ * storable (see captureSanitizeText), NFC, LF line endings, no zero-width
+ * characters, no trailing whitespace per line, at most one blank line in a
+ * row, trimmed.
  */
 export function captureNormalizeText(text: string): string {
-  return text
+  return captureSanitizeText(text)
     .normalize('NFC')
     .replace(/\r\n?/g, '\n')
     .replace(/[\u200B-\u200D\u2060\uFEFF]/g, '')

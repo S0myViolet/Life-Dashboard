@@ -19,6 +19,7 @@ import { POST as pairRoute } from '@/app/api/capture/v1/pair/route'
 import { GET as selectionRoute } from '@/app/api/capture/v1/selection/route'
 import { POST as snapshotRoute } from '@/app/api/capture/v1/snapshots/route'
 import { POST as statusRoute } from '@/app/api/capture/v1/status/route'
+import { captureGuarded } from '@/lib/capture/routes'
 import { getDb } from '@/lib/server/db'
 
 // The db harness reads inject('templateDb'); its type lives in packages/db/test/global-setup.ts,
@@ -330,6 +331,34 @@ describe('POST /api/capture/v1/snapshots', () => {
     const [snapshots] = await withService(t.db, (tx) => tx<{ n: number }[]>`
       select count(*)::int as n from public.capture_snapshots where conversation_id = ${conversationId}`)
     expect(snapshots?.n).toBe(1)
+  })
+
+  it('stores text with NUL or lone surrogates instead of failing (a 500 would be retried for a week)', async () => {
+    const { token } = await pairDevice()
+    const res = await post(
+      '/api/capture/v1/snapshots',
+      token,
+      snapshot([
+        { key: 'msg-0', role: 'user', text: 'nul \u0000 inside', orderHint: 0 },
+        { key: 'msg-1', role: 'assistant', text: 'lone \ud83d surrogate', orderHint: 1 },
+      ]),
+    )
+    expect(res.status).toBe(200)
+    expect(await messageCount()).toBe(2)
+  })
+
+  it('answers a database data error with 422 (dropped by the helper), never a retried 500', async () => {
+    const dataError = (code: string) =>
+      captureGuarded('test', async () => {
+        throw Object.assign(new Error('synthetic'), { code })
+      })
+    for (const code of ['22P02', '22P05', '23514', '22021']) {
+      const res = await dataError(code)
+      expect(res.status).toBe(422)
+      expect(await res.json()).toEqual({ error: 'unprocessable_data' })
+    }
+    expect((await dataError('40001')).status).toBe(500)
+    expect((await dataError('ECONNRESET')).status).toBe(500)
   })
 })
 

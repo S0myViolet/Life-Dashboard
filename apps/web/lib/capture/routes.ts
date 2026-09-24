@@ -26,16 +26,25 @@ import { captureDashboardOrigin } from './config'
 import { authenticateDevice } from './device-auth'
 import { declaredTooLarge, errorResponse, jsonResponse, readJsonBody } from './http'
 
+/**
+ * Postgres errors caused by the data itself (invalid text/JSON, a check
+ * constraint). Retrying the same body can never succeed, so they are answered
+ * with 422, which the helper drops, instead of a 500 it would retry for a week.
+ */
+const DATA_ERROR_CODES = new Set(['22P02', '22P05', '22021', '23514'])
+
 /** Log only the failure kind: never tokens, payloads or database parameters. */
-async function guarded(route: string, fn: () => Promise<Response>): Promise<Response> {
+export async function captureGuarded(route: string, fn: () => Promise<Response>): Promise<Response> {
   try {
     return await fn()
   } catch (err) {
     const code = err && typeof err === 'object' && 'code' in err ? String(err.code) : 'unknown'
     console.error(`[capture] ${route} failed`, { name: err instanceof Error ? err.name : 'Error', code })
+    if (DATA_ERROR_CODES.has(code)) return errorResponse(422, 'unprocessable_data')
     return errorResponse(500, 'server_error')
   }
 }
+const guarded = captureGuarded
 
 /** POST /api/capture/v1/pair {code, deviceName} → 201 {token, dashboardOrigin, deviceId} once. */
 export function handlePair(request: Request): Promise<Response> {
