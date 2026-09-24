@@ -158,6 +158,7 @@ function EditBody({
         tomorrow={tomorrow}
         tz={tz}
         currentReminderLabel={task.status === 'open' ? (task.reminder?.label ?? null) : null}
+        showReminder={task.status === 'open'}
       />
       <p className="text-sm text-ink-muted">Dates and times are in {tz}.</p>
       <div className="flex flex-wrap gap-2">

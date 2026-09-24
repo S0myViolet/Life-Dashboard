@@ -20,9 +20,11 @@ export const HABIT_HISTORY_WEEKS = 8
 /** How far back a completion may be recorded or removed. */
 export const HABIT_BACKFILL_DAYS = 366
 
-export const ISO_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const
-export type IsoWeekday = (typeof ISO_WEEKDAYS)[number]
-export const HABIT_WEEKDAY_LABELS: Readonly<Record<IsoWeekday, { short: string; long: string }>> = {
+export const HABIT_ISO_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const
+export type HabitIsoWeekday = (typeof HABIT_ISO_WEEKDAYS)[number]
+export const HABIT_WEEKDAY_LABELS: Readonly<
+  Record<HabitIsoWeekday, { short: string; long: string }>
+> = {
   1: { short: 'Mon', long: 'Monday' },
   2: { short: 'Tue', long: 'Tuesday' },
   3: { short: 'Wed', long: 'Wednesday' },
@@ -68,7 +70,7 @@ export function describeHabitWeekdays(weekdays: readonly number[]): string {
   if (key === '1,2,3,4,5,6,7') return 'Every day'
   if (key === '1,2,3,4,5') return 'Weekdays'
   if (key === '6,7') return 'Weekends'
-  return set.map((d) => HABIT_WEEKDAY_LABELS[d as IsoWeekday]?.short ?? String(d)).join(', ')
+  return set.map((d) => HABIT_WEEKDAY_LABELS[d as HabitIsoWeekday]?.short ?? String(d)).join(', ')
 }
 
 export type HabitCompletionDateCheck = { ok: true } | { ok: false; message: string }

@@ -90,7 +90,7 @@ export async function loadTaskBoard(tx: Tx, now: Date): Promise<TaskBoardData> {
           : null,
         closedLabel:
           t.status === 'done' && t.completedAt
-            ? `Done ${formatInstantLabel(t.completedAt, now, tz)}`
+            ? `Done ${formatInstantLabel(t.completedAt, now, tz).replace(/^(Today|Yesterday)/, (m) => m.toLowerCase())}`
             : t.status === 'cancelled'
               ? 'Cancelled'
               : null,

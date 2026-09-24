@@ -7,7 +7,7 @@
  */
 import { useCallback, useOptimistic, useState, useTransition } from 'react'
 import { Check, Flame } from 'lucide-react'
-import { HABIT_WEEKDAY_LABELS, ISO_WEEKDAYS } from '@personal-home/core'
+import { HABIT_WEEKDAY_LABELS, HABIT_ISO_WEEKDAYS } from '@personal-home/core'
 import { buttonClass } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -256,7 +256,7 @@ function HabitCard({ habit, onEdit }: { habit: HabitView; onEdit: () => void }) 
         </button>
       </div>
       <ul className="mt-2 flex gap-1" aria-label="Scheduled days">
-        {ISO_WEEKDAYS.map((d) => {
+        {HABIT_ISO_WEEKDAYS.map((d) => {
           const on = habit.weekdays.includes(d)
           return (
             <li

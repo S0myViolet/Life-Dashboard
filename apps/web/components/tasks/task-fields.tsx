@@ -30,6 +30,11 @@ export interface TaskFieldsProps {
   currentReminderLabel?: string | null
   /** Add form: tuck the less common fields into "More options". */
   compact?: boolean
+  /**
+   * False for a closed task: no reminder field is posted, so its reminders are
+   * kept as they are (they come back if the task is reopened).
+   */
+  showReminder?: boolean
 }
 
 const RELATIVE: TaskReminderChoice[] = ['at_due', '15m', '1h', '1d']
@@ -49,6 +54,7 @@ export function TaskFields({
   tz,
   currentReminderLabel,
   compact,
+  showReminder = true,
 }: TaskFieldsProps) {
   const [dueDate, setDueDate] = useState(defaults.dueDate ?? '')
   const [dueTime, setDueTime] = useState(defaults.dueTime ?? '')
@@ -212,73 +218,75 @@ export function TaskFields({
           <FieldError id={project.errorId} message={errors.projectId} />
         </div>
       ) : null}
-      <div className="sm:col-span-2">
-        <label htmlFor={rem.id} className={labelClass}>
-          Reminder
-        </label>
-        <select
-          id={rem.id}
-          name="reminder"
-          value={reminder}
-          onChange={(e) => setReminder(e.target.value as TaskReminderChoice)}
-          aria-invalid={errors.reminder ? true : undefined}
-          aria-describedby={describedBy(rem.errorId, errors.reminder, `${rem.id}-help`)}
-          className={inputClass}
-        >
-          {reminderOptions.map((c) => (
-            <option key={c} value={c} disabled={RELATIVE.includes(c) && !hasTime}>
-              {c === 'keep'
-                ? `Keep: ${currentReminderLabel}`
-                : c === 'none' && mode === 'update' && currentReminderLabel
-                  ? 'Remove reminder'
-                  : TASK_REMINDER_CHOICE_LABELS[c]}
-            </option>
-          ))}
-        </select>
-        {errors.reminder ? (
-          <FieldError id={rem.errorId} message={errors.reminder} />
-        ) : (
-          <p id={`${rem.id}-help`} className={helpClass}>
-            {hasTime
-              ? 'Shown in the app when it is due.'
-              : 'Add a due time to be reminded relative to it.'}
-          </p>
-        )}
-        {reminder === 'custom' ? (
-          <div className="mt-2 grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor={remDate.id} className={labelClass}>
-                Reminder date
-              </label>
-              <input
-                id={remDate.id}
-                name="reminderDate"
-                type="date"
-                defaultValue={defaults.reminderDate ?? dueDate}
-                aria-invalid={errors.reminderDate ? true : undefined}
-                aria-describedby={describedBy(remDate.errorId, errors.reminderDate)}
-                className={inputClass}
-              />
-              <FieldError id={remDate.errorId} message={errors.reminderDate} />
+      {showReminder ? (
+        <div className="sm:col-span-2">
+          <label htmlFor={rem.id} className={labelClass}>
+            Reminder
+          </label>
+          <select
+            id={rem.id}
+            name="reminder"
+            value={reminder}
+            onChange={(e) => setReminder(e.target.value as TaskReminderChoice)}
+            aria-invalid={errors.reminder ? true : undefined}
+            aria-describedby={describedBy(rem.errorId, errors.reminder, `${rem.id}-help`)}
+            className={inputClass}
+          >
+            {reminderOptions.map((c) => (
+              <option key={c} value={c} disabled={RELATIVE.includes(c) && !hasTime}>
+                {c === 'keep'
+                  ? `Keep: ${currentReminderLabel}`
+                  : c === 'none' && mode === 'update' && currentReminderLabel
+                    ? 'Remove reminder'
+                    : TASK_REMINDER_CHOICE_LABELS[c]}
+              </option>
+            ))}
+          </select>
+          {errors.reminder ? (
+            <FieldError id={rem.errorId} message={errors.reminder} />
+          ) : (
+            <p id={`${rem.id}-help`} className={helpClass}>
+              {hasTime
+                ? 'Shown in the app when it is due.'
+                : 'Add a due time to be reminded relative to it.'}
+            </p>
+          )}
+          {reminder === 'custom' ? (
+            <div className="mt-2 grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor={remDate.id} className={labelClass}>
+                  Reminder date
+                </label>
+                <input
+                  id={remDate.id}
+                  name="reminderDate"
+                  type="date"
+                  defaultValue={defaults.reminderDate || dueDate}
+                  aria-invalid={errors.reminderDate ? true : undefined}
+                  aria-describedby={describedBy(remDate.errorId, errors.reminderDate)}
+                  className={inputClass}
+                />
+                <FieldError id={remDate.errorId} message={errors.reminderDate} />
+              </div>
+              <div>
+                <label htmlFor={remTime.id} className={labelClass}>
+                  Reminder time
+                </label>
+                <input
+                  id={remTime.id}
+                  name="reminderTime"
+                  type="time"
+                  defaultValue={defaults.reminderTime ?? ''}
+                  aria-invalid={errors.reminderTime ? true : undefined}
+                  aria-describedby={describedBy(remTime.errorId, errors.reminderTime)}
+                  className={inputClass}
+                />
+                <FieldError id={remTime.errorId} message={errors.reminderTime} />
+              </div>
             </div>
-            <div>
-              <label htmlFor={remTime.id} className={labelClass}>
-                Reminder time
-              </label>
-              <input
-                id={remTime.id}
-                name="reminderTime"
-                type="time"
-                defaultValue={defaults.reminderTime ?? ''}
-                aria-invalid={errors.reminderTime ? true : undefined}
-                aria-describedby={describedBy(remTime.errorId, errors.reminderTime)}
-                className={inputClass}
-              />
-              <FieldError id={remTime.errorId} message={errors.reminderTime} />
-            </div>
-          </div>
-        ) : null}
-      </div>
+          ) : null}
+        </div>
+      ) : null}
       <div className="sm:col-span-2">
         <label
           htmlFor={split.id}

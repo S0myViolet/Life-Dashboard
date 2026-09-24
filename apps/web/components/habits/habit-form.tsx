@@ -5,7 +5,7 @@
  * real checkboxes) and, when editing, optional notes.
  */
 import { useActionState, useEffect, useRef } from 'react'
-import { HABIT_WEEKDAY_LABELS, ISO_WEEKDAYS } from '@personal-home/core'
+import { HABIT_WEEKDAY_LABELS, HABIT_ISO_WEEKDAYS } from '@personal-home/core'
 import { buttonClass } from '@/components/ui/button'
 import { FieldError, FormStatus, inputClass, labelClass } from '@/components/tasks/ui'
 import { createHabitAction, updateHabitAction } from '@/lib/tasks/actions'
@@ -114,7 +114,7 @@ function HabitFormBody({
       >
         <legend className={labelClass}>Days</legend>
         <div className="mt-1 grid grid-cols-7 gap-0.5 sm:flex sm:gap-1">
-          {ISO_WEEKDAYS.map((d) => (
+          {HABIT_ISO_WEEKDAYS.map((d) => (
             <label key={d} className="relative block cursor-pointer">
               <input
                 type="checkbox"

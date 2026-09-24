@@ -4,7 +4,7 @@
  * marked with a cross as well as colour.
  */
 import { Check, X } from 'lucide-react'
-import { HABIT_WEEKDAY_LABELS, ISO_WEEKDAYS, type HabitDayState } from '@personal-home/core'
+import { HABIT_WEEKDAY_LABELS, HABIT_ISO_WEEKDAYS, type HabitDayState } from '@personal-home/core'
 import type { HabitView } from '@/lib/tasks/view-types'
 
 const CELL: Record<HabitDayState, string> = {
@@ -29,7 +29,7 @@ export function HabitHistory({ habit }: { habit: HabitView }) {
             <th scope="col" className="w-14 text-left font-normal text-ink-faint">
               <span className="sr-only">Week</span>
             </th>
-            {ISO_WEEKDAYS.map((d) => (
+            {HABIT_ISO_WEEKDAYS.map((d) => (
               <th key={d} scope="col" className="font-normal text-ink-faint">
                 <abbr title={HABIT_WEEKDAY_LABELS[d].long} className="no-underline">
                   {HABIT_WEEKDAY_LABELS[d].short.slice(0, 2)}
