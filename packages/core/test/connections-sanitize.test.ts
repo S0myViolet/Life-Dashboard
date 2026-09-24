@@ -20,7 +20,7 @@ describe('sanitizeConnectionErrorMessage', () => {
   it('strips JWTs, Google and Microsoft token shapes and long opaque strings', () => {
     const jwt = 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxMjMifQ.c2lnbmF0dXJl'
     const out = clean(
-      `id ${jwt} rt 1//03abcDEF_ghi-jkl code 4/0AVHEtk7abcdefg msa M.C507_BAY.2.U.abc key sk_${"live"}_51Habcdefghijklmnopqrstuvwxyz0123`,
+      `id ${jwt} rt 1//03abcDEF_ghi-jkl code 4/0AVHEtk7abcdefg msa M.C507_BAY.2.U.abc key sk_${'live'}_51Habcdefghijklmnopqrstuvwxyz0123`,
     )
     expect(out).not.toContain('eyJ')
     expect(out).not.toContain('1//03')
