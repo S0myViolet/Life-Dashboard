@@ -1,11 +1,12 @@
 'use server'
 /**
- * Owner-driven connection changes: pause, resume, rename, disconnect.
+ * Owner-driven connection changes: pause, resume, check now, rename, disconnect.
  *
  * Every action re-checks the owner session, insists on a same-origin request
  * (Next.js lets Origin-less action requests through), validates its input with
  * zod and re-reads the connection by id on the server. Nothing here contacts a
- * provider except disconnect's best-effort token revocation.
+ * provider except check now's read-only access check and disconnect's
+ * best-effort token revocation.
  */
 import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
@@ -15,13 +16,14 @@ import { coreEnv } from '@/lib/env'
 import { getDb } from '@/lib/server/db'
 import { requireOwner } from '@/lib/server/session'
 import {
+  connectionAdminCheckNow,
   connectionAdminDisconnect,
   connectionAdminPause,
   connectionAdminRename,
   connectionAdminResume,
 } from '@/lib/integrations/admin'
 import { isSameOriginRequest } from '@/lib/integrations/request-guard'
-import { tokenEncryptionKey } from '@/lib/integrations/settings'
+import { serverSetting, tokenEncryptionKey } from '@/lib/integrations/settings'
 
 const PATH = '/settings/connections'
 
@@ -60,6 +62,23 @@ export async function resumeConnection(formData: FormData): Promise<void> {
   await guard()
   const id = idFrom(formData)
   if (id) await connectionAdminResume(getDb(), id, new Date())
+  revalidatePath(PATH)
+}
+
+export async function checkConnectionNow(formData: FormData): Promise<void> {
+  await guard()
+  const id = idFrom(formData)
+  if (id) {
+    // The outcome is recorded on the connection row, which the page re-renders.
+    await connectionAdminCheckNow({
+      db: getDb(),
+      id,
+      key: await tokenEncryptionKey(),
+      fetch: globalThis.fetch,
+      now: () => new Date(),
+      setting: serverSetting,
+    })
+  }
   revalidatePath(PATH)
 }
 

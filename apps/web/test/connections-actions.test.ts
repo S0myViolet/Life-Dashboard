@@ -1,8 +1,9 @@
 // Owner actions (pause, resume, rename, disconnect) against a real database.
 // Provider responses are SYNTHETIC FIXTURES (not captured from the live service).
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { connectionEncryptToken } from '@personal-home/core'
+import { connectionEncryptToken, connectionFailure } from '@personal-home/core'
 import {
+  connectionApplyEvent,
   connectionGet,
   connectionTokensSave,
   connectionUpsertAuthorized,
@@ -10,6 +11,7 @@ import {
   withService,
 } from '@personal-home/db'
 import {
+  connectionAdminCheckNow,
   connectionAdminDisconnect,
   connectionAdminPause,
   connectionAdminRename,
@@ -17,6 +19,7 @@ import {
 } from '@/lib/integrations/admin'
 import {
   APP_URL,
+  GMAIL_PROFILE_URL,
   GOOGLE_REVOKE_URL,
   coreTestEnv,
   providerFetch,
@@ -76,13 +79,17 @@ beforeEach(async () => {
   await env.t.db`delete from public.connection_events`
 })
 
-async function seed(provider: 'google' | 'microsoft', externalId: string) {
+async function seed(
+  provider: 'google' | 'microsoft',
+  externalId: string,
+  grantedScopes: string[] = [],
+) {
   return withService(env.t.db, async (tx) => {
     const { connection } = await connectionUpsertAuthorized(tx, {
       provider,
       externalAccountId: externalId,
       accountLabel: `${externalId}@example.com`,
-      grantedScopes: [],
+      grantedScopes,
       at: clock,
     })
     await connectionTokensSave(tx, {
@@ -107,6 +114,7 @@ async function seed(provider: 'google' | 'microsoft', externalId: string) {
   })
 }
 
+const GMAIL = ['openid', 'email', 'https://www.googleapis.com/auth/gmail.readonly']
 const get = (id: string) => withService(env.t.db, (tx) => connectionGet(tx, id))
 const events = () =>
   env.t.db<{ kind: string; revokeOutcome: string | null }[]>`
@@ -233,6 +241,60 @@ describe('connection admin', () => {
     ])
   })
 
+  it('check now re-runs the access check at once after a configuration error', async () => {
+    const id = await seed('google', 'cfg', GMAIL)
+    await withService(env.t.db, (tx) =>
+      connectionApplyEvent(tx, id, {
+        type: 'attempt_failed',
+        at: clock,
+        failure: connectionFailure('config', 'api_disabled', 'The API is not enabled.'),
+      }),
+    )
+    expect((await get(id))?.nextAttemptAt).toEqual(new Date('2026-09-24T16:00:00Z'))
+
+    // The owner enables the Gmail API, then presses Check now.
+    clock = new Date('2026-09-24T10:05:00Z')
+    const fake = providerFetch(() => clock)
+    const report = await connectionAdminCheckNow({
+      db: env.t.db,
+      id,
+      key: env.key,
+      fetch: fake.fetch,
+      now: () => clock,
+      setting: env.setting,
+    })
+    expect(report).toMatchObject({ outcome: 'succeeded' })
+    expect(fake.calls.some((c) => c.url === GMAIL_PROFILE_URL)).toBe(true)
+    expect(await get(id)).toMatchObject({
+      status: 'connected',
+      lastErrorCode: null,
+      lastSuccessAt: clock,
+      nextAttemptAt: null,
+    })
+  })
+
+  it('check now still honours a provider Retry-After and needs server settings', async () => {
+    const id = await seed('google', 'rl', GMAIL)
+    await withService(env.t.db, (tx) =>
+      connectionApplyEvent(tx, id, {
+        type: 'attempt_failed',
+        at: clock,
+        failure: connectionFailure('rate_limited', 'http_429', 'x', { retryAfterMs: 3_600_000 }),
+      }),
+    )
+    const fake = providerFetch(() => clock)
+    const deps = { db: env.t.db, id, key: env.key, fetch: fake.fetch, now: () => clock }
+    expect(await connectionAdminCheckNow({ ...deps, setting: env.setting })).toMatchObject({
+      outcome: 'skipped_not_due',
+    })
+    expect(await connectionAdminCheckNow({ ...deps, setting: () => undefined })).toBe('needs_setup')
+    expect(await connectionAdminCheckNow({ ...deps, key: null, setting: env.setting })).toBe(
+      'needs_setup',
+    )
+    expect(fake.calls).toHaveLength(0)
+    expect(await get(id)).toMatchObject({ status: 'error', lastErrorCode: 'rate_limited.http_429' })
+  })
+
   it('disconnecting one account leaves the others alone', async () => {
     const keep = await seed('google', 'keep')
     const drop = await seed('google', 'drop')
@@ -256,12 +318,13 @@ describe('server actions', () => {
   }
 
   it('refuse requests without a same-origin Origin header', async () => {
-    const { pauseConnection, disconnectConnection } =
+    const { pauseConnection, disconnectConnection, checkConnectionNow } =
       await import('@/app/(app)/settings/connections/actions')
     const id = await seed('google', 'h')
     for (const origin of [null, 'https://evil.example', 'null', `${APP_URL}.evil.example`]) {
       request.origin = origin
       await expect(pauseConnection(form({ id }))).rejects.toThrow('did not come from this app')
+      await expect(checkConnectionNow(form({ id }))).rejects.toThrow('did not come from this app')
       await expect(disconnectConnection(form({ id, confirm: 'yes' }))).rejects.toThrow(
         'did not come from this app',
       )
@@ -292,6 +355,26 @@ describe('server actions', () => {
     await renameConnection(form({ id, label: 'Outlook (work)' }))
     expect((await get(id))?.accountLabel).toBe('Outlook (work)')
     expect(request.revalidated.every((p) => p === '/settings/connections')).toBe(true)
+  })
+
+  it('check now runs the access check for one account and refreshes the page', async () => {
+    const { checkConnectionNow } = await import('@/app/(app)/settings/connections/actions')
+    const id = await seed('google', 'k', GMAIL)
+    await withService(env.t.db, (tx) =>
+      connectionApplyEvent(tx, id, {
+        type: 'attempt_failed',
+        at: new Date(),
+        failure: connectionFailure('config', 'api_disabled', 'The API is not enabled.'),
+      }),
+    )
+    const fake = providerFetch(() => new Date())
+    vi.stubGlobal('fetch', fake.fetch)
+    await checkConnectionNow(form({ id: 'not-a-uuid' }))
+    expect(fake.calls).toHaveLength(0)
+    await checkConnectionNow(form({ id }))
+    expect(fake.calls.some((c) => c.url === GMAIL_PROFILE_URL)).toBe(true)
+    expect(await get(id)).toMatchObject({ status: 'connected', lastErrorCode: null })
+    expect(request.revalidated).toEqual(['/settings/connections', '/settings/connections'])
   })
 
   it('disconnect needs the confirm step, then redirects with closed result flags', async () => {

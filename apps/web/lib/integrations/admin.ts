@@ -4,12 +4,15 @@
  * owner's database role can only read connection state.
  *
  * Pause keeps tokens and stops jobs until the owner resumes.
+ * Check now re-runs the background access check for one account (read-only).
  * Disconnect = revoke at the provider (best effort, recorded) + delete tokens,
  * cursors and the connection row (imported data cascades from it later).
  */
 import 'server-only'
 import {
   connectionDecryptToken,
+  connectionErrorKindOf,
+  isOAuthConnectProvider,
   type ConnectionRevokeOutcome,
   type EncryptionKey,
   type Provider,
@@ -25,7 +28,8 @@ import {
   type ConnectionRow,
   type Db,
 } from '@personal-home/db'
-import { googleRevokeToken } from '@personal-home/integrations'
+import { googleRevokeToken, oauthAdapterFromSettings } from '@personal-home/integrations'
+import { connectionVerifyAccess, type ConnectionVerifyReport } from '@personal-home/jobs'
 
 export async function connectionAdminPause(
   db: Db,
@@ -83,6 +87,32 @@ export async function connectionAdminRename(
       })
     return row
   })
+}
+
+/**
+ * "Check now": run the background access check for one account right away, so
+ * an owner who just fixed a configuration problem (e.g. enabled the Gmail API)
+ * does not wait out the slow configuration retry. Only that wait is waived: a
+ * provider's Retry-After or backoff still applies, and paused or
+ * needs-reconnect accounts are left alone (the report says why).
+ */
+export async function connectionAdminCheckNow(deps: {
+  db: Db
+  id: string
+  key: EncryptionKey | null
+  fetch: typeof fetch
+  now: () => Date
+  setting: (name: string) => string | undefined
+}): Promise<ConnectionVerifyReport | 'needs_setup' | null> {
+  const conn = await withService(deps.db, (tx) => connectionGet(tx, deps.id))
+  if (!conn || !isOAuthConnectProvider(conn.provider)) return null
+  const lookup = oauthAdapterFromSettings(conn.provider, deps.setting)
+  if (!lookup.ok || !deps.key) return 'needs_setup'
+  return connectionVerifyAccess(
+    { db: deps.db, fetch: deps.fetch, now: deps.now, adapter: lookup.adapter, key: deps.key },
+    conn.id,
+    { ignoreSchedule: connectionErrorKindOf(conn.lastErrorCode) === 'config' },
+  )
 }
 
 export interface DisconnectResult {

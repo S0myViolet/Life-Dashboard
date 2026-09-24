@@ -9,6 +9,7 @@ import {
   connectionProviders,
   connectionScopeCoverage,
   connectionDescribeScope,
+  connectionErrorKindOf,
   isOAuthConnectProvider,
   type ConnectionGroup,
   type ConnectionProviderInfo,
@@ -38,6 +39,8 @@ export interface AccountView {
   /** Offer "Reconnect": credentials rejected, or some access missing. */
   offerReconnect: boolean
   reconnectHref: string | null
+  /** Offer "Check now": a configuration error the owner may just have fixed. */
+  offerCheckNow: boolean
 }
 
 export type ProviderAvailability =
@@ -92,6 +95,10 @@ function accountView(row: ConnectionRow, connectable: boolean): AccountView {
     paused: row.status === 'paused',
     offerReconnect,
     reconnectHref: offerReconnect && connectable ? connectStartHref(row.provider, row.id) : null,
+    offerCheckNow:
+      connectable &&
+      row.status === 'error' &&
+      connectionErrorKindOf(row.lastErrorCode) === 'config',
   }
 }
 

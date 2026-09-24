@@ -154,6 +154,40 @@ describe('buildConnectionsView', () => {
     expect(google.supportsRevoke).toBe(true)
   })
 
+  it('offers Check now only for a configuration error on a configured provider', () => {
+    const rows = [
+      row({
+        provider: 'google',
+        id: 'cfg',
+        status: 'error',
+        grantedScopes: GOOGLE_ALL,
+        lastErrorCode: 'config.api_disabled',
+        lastErrorMessage: 'The API is not enabled in the Google Cloud project.',
+        nextAttemptAt: new Date('2026-09-24T16:00:00Z'),
+      }),
+      row({
+        provider: 'google',
+        id: 'rl',
+        status: 'error',
+        grantedScopes: GOOGLE_ALL,
+        lastErrorCode: 'rate_limited.http_429',
+        nextAttemptAt: new Date('2026-09-24T11:00:00Z'),
+      }),
+      row({ provider: 'google', id: 'ok', grantedScopes: GOOGLE_ALL }),
+    ]
+    const accounts = find(buildConnectionsView({ rows, setup: configured }), 'google').accounts
+    expect(accounts.map((a) => [a.id, a.offerCheckNow])).toEqual([
+      ['cfg', true],
+      ['rl', false],
+      ['ok', false],
+    ])
+    const unset = buildConnectionsView({
+      rows,
+      setup: () => ({ configured: false, missing: ['GOOGLE_OAUTH_CLIENT_ID'] }),
+    })
+    expect(find(unset, 'google').accounts.some((a) => a.offerCheckNow)).toBe(false)
+  })
+
   it('flags partially granted access and offers a reconnect', () => {
     const groups = buildConnectionsView({
       rows: [

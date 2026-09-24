@@ -2,6 +2,7 @@ import { ChevronDown } from 'lucide-react'
 import { ConnectionStatusPill } from '@/components/ui/status-pill'
 import { buttonClass } from '@/components/ui/button'
 import {
+  checkConnectionNow,
   disconnectConnection,
   pauseConnection,
   renameConnection,
@@ -90,6 +91,13 @@ export function AccountRow({
           <a href={account.reconnectHref} className={buttonClass('primary')}>
             Reconnect
           </a>
+        ) : null}
+
+        {account.offerCheckNow ? (
+          <form action={checkConnectionNow}>
+            <input type="hidden" name="id" value={account.id} />
+            <SubmitButton pendingLabel="Checking…">Check now</SubmitButton>
+          </form>
         ) : null}
 
         <form action={account.paused ? resumeConnection : pauseConnection}>
