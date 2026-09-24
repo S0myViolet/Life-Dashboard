@@ -26,7 +26,9 @@ export interface TestDatabase {
 }
 
 /** Clone the run's template (see global-setup.ts) into a fresh, uniquely named database. */
-export async function createTestDatabase(template: string = inject('templateDb')): Promise<TestDatabase> {
+export async function createTestDatabase(
+  template: string = inject('templateDb'),
+): Promise<TestDatabase> {
   const name = `ph_test_${randomBytes(6).toString('hex')}`
   const admin = postgres(serverUrl('postgres'), { max: 1, onnotice: () => {} })
   try {

@@ -1,2 +1,2 @@
-// Area barrel — owned by the crypto area. Re-export this area's public API here.
-export {}
+export * from './encoding.ts'
+export * from './secrets.ts'

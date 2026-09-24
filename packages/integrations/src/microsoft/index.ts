@@ -1,0 +1,2 @@
+// Area barrel — microsoft.
+export {}
