@@ -24,6 +24,7 @@ import {
   captureSetConversationPaused,
   createProject,
 } from '@personal-home/db'
+import { AttachFormSchema } from '@/lib/capture/forms'
 import { serviceTransaction } from '@/lib/server/db'
 import { requireOwner, withOwnerTx } from '@/lib/server/session'
 
@@ -112,27 +113,25 @@ export type AttachState =
   | {
       status: 'selected'
       created: boolean
+      /** An already selected conversation kept its project (none was chosen). */
+      projectKept: boolean
       provider: string
       url: string
       conversationId: string
     }
   | { status: 'error'; message: string; field?: 'url' | 'projectId' }
 
-const AttachSchema = z.object({
-  url: z.string().trim().min(1).max(2048),
-  projectId: z.union([z.literal(''), uuid]).transform((v) => (v === '' ? null : v)),
-})
-
 /**
  * Select a conversation for collection (and attach it to a project). The Chrome
  * helper's token cannot do this: selection needs the owner's session.
- * Re-attaching an already selected conversation moves it and resumes it.
+ * Re-attaching an already selected conversation resumes it, and moves it only
+ * when a project (or an explicit "No project") was chosen.
  */
 export async function attachConversationAction(
   _prev: AttachState,
   formData: FormData,
 ): Promise<AttachState> {
-  const parsed = AttachSchema.safeParse({
+  const parsed = AttachFormSchema.safeParse({
     url: field(formData, 'url'),
     projectId: field(formData, 'projectId'),
   })
@@ -165,6 +164,7 @@ export async function attachConversationAction(
       return {
         status: 'selected',
         created: result.created,
+        projectKept: !result.created && parsed.data.projectId === undefined,
         provider: CAPTURE_PROVIDER_LABELS[result.conversation.provider],
         url: result.conversation.url,
         conversationId: result.conversation.id,

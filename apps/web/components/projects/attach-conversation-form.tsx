@@ -8,6 +8,9 @@ import { errorClass, helpClass, inputClass, labelClass } from '@/components/capt
 
 const initial: AttachState = { status: 'idle' }
 
+/** Same literal as ATTACH_KEEP_PROJECT in lib/capture/forms.ts (not imported, to keep zod out of the client bundle). */
+const KEEP_PROJECT = 'keep'
+
 export interface ProjectOption {
   id: string
   name: string
@@ -69,11 +72,15 @@ export function AttachConversationForm({
         <select
           id="attach-project"
           name="projectId"
-          defaultValue={defaultProjectId ?? ''}
+          defaultValue={defaultProjectId ?? (fixedUrl ? '' : KEEP_PROJECT)}
           className={inputClass}
           aria-invalid={projectError ? true : undefined}
           aria-describedby={projectError ? 'attach-project-error' : undefined}
         >
+          {fixedUrl ? null : (
+            // The pasted link may already be selected: by default its project is left alone.
+            <option value={KEEP_PROJECT}>Keep its current project (none if new)</option>
+          )}
           <option value="">No project</option>
           {projects.map((p) => (
             <option key={p.id} value={p.id}>
@@ -104,8 +111,8 @@ export function AttachConversationForm({
         {state.status === 'selected' ? (
           <div className="rounded-xl border border-positive/20 bg-positive-soft px-3 py-2 text-sm text-ink">
             <p className="font-medium text-positive">
-              {state.created ? 'Selected.' : 'Updated.'} The helper collects this {state.provider}{' '}
-              conversation whenever it is open in Chrome.
+              {state.created ? 'Selected.' : state.projectKept ? 'Updated; its project is unchanged.' : 'Updated.'}{' '}
+              The helper collects this {state.provider} conversation whenever it is open in Chrome.
             </p>
             <p className="mt-1 text-ink-muted">
               The helper refreshes its list within a few minutes, or when you return to the

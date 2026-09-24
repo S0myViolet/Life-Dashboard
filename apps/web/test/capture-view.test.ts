@@ -3,6 +3,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import { CAPTURE_STATES } from '@personal-home/core'
+import { ATTACH_KEEP_PROJECT, AttachFormSchema } from '@/lib/capture/forms'
 import {
   CAPTURE_RETENTION_NOTE,
   CAPTURE_STATE_COPY,
@@ -103,6 +104,17 @@ describe('captureCoverageSummary', () => {
     })
     expect(never).toContain('1 message saved')
     expect(never).toContain('No capture has seen every message from the first to the last yet')
+  })
+})
+
+describe('attach form', () => {
+  it('keeps the project by default, removes it only on an explicit "No project"', () => {
+    const url = 'https://chatgpt.com/c/0b6a1f5e-9a3c-4c1e-8f2d-3a4b5c6d7e8f'
+    const id = '6a25a5df-c879-422e-b84b-1c2431bfe7e1'
+    expect(AttachFormSchema.parse({ url, projectId: ATTACH_KEEP_PROJECT }).projectId).toBeUndefined()
+    expect(AttachFormSchema.parse({ url, projectId: '' }).projectId).toBeNull()
+    expect(AttachFormSchema.parse({ url, projectId: id }).projectId).toBe(id)
+    expect(AttachFormSchema.safeParse({ url, projectId: 'other' }).success).toBe(false)
   })
 })
 

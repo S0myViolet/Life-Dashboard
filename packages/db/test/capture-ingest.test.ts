@@ -16,6 +16,7 @@ import {
   captureMarkState,
   captureSelectConversation,
   captureSetConversationPaused,
+  createProject,
   withOwner,
   withService,
   type OwnerClaims,
@@ -353,6 +354,24 @@ describe('selection and reported page states', () => {
     expect(result).toMatchObject({ status: 'ok', outcome: 'rejected', captureState: 'active' })
     const [conv] = await withOwner(t.db, owner, (tx) => captureListConversations(tx))
     expect(conv?.captureState).toBe('active')
+  })
+
+  it('re-selecting without choosing a project keeps its project; only an explicit "none" removes it', async () => {
+    const project = await withOwner(t.db, owner, (tx) => createProject(tx, { name: 'Thesis', kind: 'work' }))
+    const projectOf = async () =>
+      (await withOwner(t.db, owner, (tx) => captureListConversations(tx)))[0]!.projectId
+    await withOwner(t.db, owner, (tx) => captureSelectConversation(tx, { url: CHAT_URL, projectId: project.id }))
+    expect(await projectOf()).toBe(project.id)
+
+    // Pasting the link again on /projects with the default project choice.
+    await withOwner(t.db, owner, (tx) => captureSetConversationPaused(tx, conversationId, true))
+    const again = await withOwner(t.db, owner, (tx) => captureSelectConversation(tx, { url: CHAT_URL }))
+    expect(again).toMatchObject({ status: 'selected', created: false, conversation: { captureState: 'active' } })
+    expect(await projectOf()).toBe(project.id)
+
+    // Choosing "No project" explicitly removes the link.
+    await withOwner(t.db, owner, (tx) => captureSelectConversation(tx, { url: CHAT_URL, projectId: null }))
+    expect(await projectOf()).toBeNull()
   })
 
   it('re-selecting a conversation resumes it and can move it to another project', async () => {

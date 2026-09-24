@@ -35,7 +35,8 @@ export type CaptureSelectResult =
 
 /**
  * Owner selects a conversation (and optionally attaches it to a project).
- * Selecting an already-selected conversation updates its project and resumes it.
+ * Selecting an already-selected conversation resumes it. `projectId` undefined
+ * keeps its current project (none for a new conversation); null removes it.
  */
 export async function captureSelectConversation(
   tx: Tx,
@@ -43,6 +44,7 @@ export async function captureSelectConversation(
 ): Promise<CaptureSelectResult> {
   const ref = captureParseConversationUrl(input.url)
   if (!ref) return { status: 'invalid_url' }
+  const keepProject = input.projectId === undefined
   const projectId = input.projectId ?? null
   if (projectId !== null && !(await projectExists(tx, projectId))) {
     return { status: 'unknown_project' }
@@ -51,7 +53,7 @@ export async function captureSelectConversation(
     insert into public.conversations (provider, external_id, url, project_id, state_reason, state_changed_at)
     values (${ref.provider}, ${ref.externalId}::uuid, ${ref.canonicalUrl}, ${projectId}::uuid, 'owner', now())
     on conflict (provider, external_id) do update
-      set project_id = excluded.project_id,
+      set project_id = case when ${keepProject} then public.conversations.project_id else excluded.project_id end,
           url = excluded.url,
           capture_state = 'active',
           state_reason = 'owner',
