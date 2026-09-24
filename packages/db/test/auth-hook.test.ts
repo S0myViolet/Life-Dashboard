@@ -5,6 +5,9 @@
  * shaped from the documented contract in docs/research/supabase.md (Q10):
  * { metadata: { uuid, time, ip_address, name }, user: { id, email, phone,
  *   app_metadata: { provider, providers }, user_metadata, aud, role, is_anonymous } }.
+ * The docs do not list user_metadata's keys: `email_verified` there is an
+ * assumption (Supabase copies Google's claims into user metadata), not verified
+ * against a live project.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { ensureOwnerAllowlisted, removeOwnerAllowlisted, withService } from '../src/index.ts'
@@ -22,8 +25,15 @@ function event(
     email: unknown
     provider: unknown
     is_anonymous: unknown
+    /** undefined = key absent from user_metadata. */
+    email_verified: unknown
+    /** Replaces user_metadata wholesale (e.g. null or a non-object). */
+    user_metadata: unknown
   }> = {},
 ) {
+  const metadata: Record<string, unknown> = { full_name: 'Owner' }
+  const verified = 'email_verified' in user ? user.email_verified : true
+  if (verified !== undefined) metadata.email_verified = verified
   return {
     metadata: {
       uuid: '8b34dcdd-9df1-4c10-850a-b3277c653040',
@@ -41,7 +51,7 @@ function event(
         provider: 'provider' in user ? user.provider : 'google',
         providers: ['google'],
       },
-      user_metadata: { full_name: 'Owner', email_verified: true },
+      user_metadata: 'user_metadata' in user ? user.user_metadata : metadata,
       is_anonymous: 'is_anonymous' in user ? user.is_anonymous : false,
     },
   }
@@ -93,6 +103,21 @@ describe('hook_before_user_created', () => {
     expect(await callHook(event({ email: '' }))).toEqual(REJECT)
     expect(await callHook(event({ email: null }))).toEqual(REJECT)
     expect(await callHook(event({ email: ['owner@example.com'] }))).toEqual(REJECT)
+  })
+
+  it('requires a verified email (user_metadata.email_verified), like the app owner check', async () => {
+    // Google's claim may arrive as a boolean or the string "true" (see evaluateOwnerIdentity).
+    expect(await callHook(event({ email_verified: 'true' }))).toEqual({})
+    expect(await callHook(event({ email_verified: false }))).toEqual(REJECT)
+    expect(await callHook(event({ email_verified: 'false' }))).toEqual(REJECT)
+    expect(await callHook(event({ email_verified: undefined }))).toEqual(REJECT)
+    expect(await callHook(event({ email_verified: null }))).toEqual(REJECT)
+    expect(await callHook(event({ email_verified: 1 }))).toEqual(REJECT)
+    expect(await callHook(event({ user_metadata: null }))).toEqual(REJECT)
+    expect(await callHook(event({ user_metadata: 'email_verified' }))).toEqual(REJECT)
+    const withoutMetadata = event() as { user: Record<string, unknown> }
+    delete withoutMetadata.user.user_metadata
+    expect(await callHook(withoutMetadata)).toEqual(REJECT)
   })
 
   it('fails closed on malformed events', async () => {

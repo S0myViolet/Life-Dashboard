@@ -1,12 +1,20 @@
 -- Shell: auth hardening for the single-owner dashboard.
 --
 -- A Supabase "Before User Created" auth hook (Postgres function) that only lets
--- allowlisted Google identities create an auth.users row. Strangers who finish
--- Google sign-in are rejected by Supabase Auth before any user row exists, so the
--- app never has to clean them up.
+-- allowlisted, verified Google identities create an auth.users row: the provider
+-- must be google, the email must be on private.owner_allowlist and
+-- user_metadata.email_verified must be true (boolean or the string "true", the
+-- same rule as the app's owner check in apps/web/lib/auth/owner-identity.ts).
+-- Strangers who finish Google sign-in are rejected by Supabase Auth before any
+-- user row exists, so the app never has to clean them up.
+--
+-- NOT VERIFIED against a live Supabase project: the documented payload lists
+-- user_metadata but not its keys. If Supabase omits email_verified there, this hook
+-- also rejects the owner's first sign-up (fail closed); confirm the owner can sign
+-- up with the hook enabled before relying on it.
 --
 -- Contract (Supabase docs, auth-hooks / before-user-created-hook):
---   input  event jsonb = { metadata: {...}, user: { email, app_metadata: { provider }, is_anonymous, ... } }
+--   input  event jsonb = { metadata: {...}, user: { email, app_metadata: { provider }, user_metadata, is_anonymous, ... } }
 --   allow  → return '{}'::jsonb
 --   reject → return { "error": { "http_code": 403, "message": "..." } }
 --   The function is invoked by the role supabase_auth_admin.
@@ -42,6 +50,7 @@ declare
   v_email text;
   v_provider text;
   v_anonymous boolean;
+  v_email_verified boolean;
   v_reject constant jsonb := jsonb_build_object(
     'error', jsonb_build_object(
       'http_code', 403,
@@ -58,8 +67,14 @@ begin
   v_provider := case when jsonb_typeof(v_user -> 'app_metadata' -> 'provider') = 'string'
                      then v_user -> 'app_metadata' ->> 'provider' end;
   v_anonymous := coalesce(v_user -> 'is_anonymous' = 'true'::jsonb, false);
+  -- Google's email_verified claim, copied into user_metadata by Supabase Auth.
+  v_email_verified := coalesce(
+    v_user -> 'user_metadata' -> 'email_verified' in ('true'::jsonb, '"true"'::jsonb),
+    false
+  );
 
   if v_anonymous
+     or not v_email_verified
      or coalesce(v_email, '') = ''
      or v_provider is distinct from 'google'
      or not exists (select 1 from private.owner_allowlist a where a.email = v_email) then
@@ -71,7 +86,7 @@ end
 $$;
 
 comment on function public.hook_before_user_created(jsonb) is
-  'Supabase Before User Created hook: allow only allowlisted Google sign-ups. Executable by supabase_auth_admin only.';
+  'Supabase Before User Created hook: allow only allowlisted Google sign-ups with a verified email. Executable by supabase_auth_admin only.';
 
 revoke all on function public.hook_before_user_created(jsonb) from public;
 do $$
