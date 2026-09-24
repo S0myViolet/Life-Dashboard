@@ -1,4 +1,5 @@
 import { AppShell } from '@/components/shell/app-shell'
+import { RegisterServiceWorker } from '@/lib/pwa/register-service-worker'
 import { requireOwner } from '@/lib/server/session'
 
 /**
@@ -8,5 +9,10 @@ import { requireOwner } from '@/lib/server/session'
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   await requireOwner()
-  return <AppShell>{children}</AppShell>
+  return (
+    <AppShell>
+      <RegisterServiceWorker />
+      {children}
+    </AppShell>
+  )
 }
