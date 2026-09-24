@@ -220,6 +220,9 @@ describe('captureIngestSnapshot', () => {
   })
 
   it('a signed-out page pauses capture and keeps the last good data', async () => {
+    // Selected before these (fixed-time) captures.
+    await withService(t.db, (tx) => tx`
+      update public.conversations set state_changed_at = ${at(-60)} where id = ${conversationId}`)
     await ingest(makeSnapshot(at(0), thread(4)))
     const result = await ingest(makeSnapshot(at(2), [], { coverage: { pageState: 'signed_out' } }))
     expect(result).toMatchObject({ outcome: 'rejected', reason: 'signed_out', captureState: 'signed_out' })
@@ -296,7 +299,7 @@ describe('selection and reported page states', () => {
   it('marks problems, never overrides an owner pause, and ignores unselected conversations', async () => {
     const mark = (problem: 'signed_out' | 'challenge' | 'structure_changed', externalId = CHAT_ID) =>
       withService(t.db, (tx) =>
-        captureMarkState(tx, { provider: 'chatgpt', externalId, problem, at: new Date(at(1)) }),
+        captureMarkState(tx, { provider: 'chatgpt', externalId, problem, at: new Date() }),
       )
     expect(await mark('challenge')).toEqual({ status: 'updated', captureState: 'needs_attention' })
     expect(await mark('challenge')).toEqual({ status: 'unchanged', captureState: 'needs_attention' })
@@ -305,6 +308,51 @@ describe('selection and reported page states', () => {
     expect(await mark('signed_out')).toEqual({ status: 'unchanged', captureState: 'paused' })
     expect(await mark('signed_out', '11111111-2222-4333-8444-555555555555')).toEqual({ status: 'not_selected' })
     expect(await mark('signed_out', 'not-a-uuid')).toEqual({ status: 'not_selected' })
+  })
+
+  it('a retried or stale problem report never undoes the owner\'s Reconnect', async () => {
+    // Selected an hour ago.
+    await withService(t.db, (tx) => tx`
+      update public.conversations set state_changed_at = now() - interval '1 hour' where id = ${conversationId}`)
+    const observed = new Date(Date.now() - 10 * 60_000)
+    const mark = (when: Date) =>
+      withService(t.db, (tx) =>
+        captureMarkState(tx, { provider: 'chatgpt', externalId: CHAT_ID, problem: 'signed_out', at: when }),
+      )
+    const state = async () =>
+      (
+        await withService(t.db, (tx) => tx<{ captureState: string; stateChangedAt: Date }[]>`
+          select capture_state, state_changed_at from public.conversations where id = ${conversationId}`)
+      )[0]!
+
+    expect(await mark(observed)).toEqual({ status: 'updated', captureState: 'signed_out' })
+    // The owner signs in again and chooses Reconnect.
+    await withOwner(t.db, owner, (tx) => captureSetConversationPaused(tx, conversationId, false))
+    const reconnected = await state()
+    expect(reconnected.captureState).toBe('active')
+
+    // The helper's first attempt was applied but its response was lost: the retry arrives now.
+    expect(await mark(observed)).toEqual({ status: 'unchanged', captureState: 'active' })
+    expect(await state()).toEqual(reconnected) // state_changed_at did not move backwards
+
+    // A problem seen after the Reconnect still counts.
+    expect(await mark(new Date(reconnected.stateChangedAt.getTime() + 1000))).toEqual({
+      status: 'updated',
+      captureState: 'signed_out',
+    })
+  })
+
+  it('a problem snapshot captured before the owner\'s Reconnect does not undo it', async () => {
+    await withService(t.db, (tx) => tx`
+      update public.conversations set state_changed_at = now() - interval '1 hour' where id = ${conversationId}`)
+    const signedOut = makeSnapshot(new Date(Date.now() - 10 * 60_000).toISOString(), [], {
+      coverage: { pageState: 'signed_out' },
+    })
+    await withOwner(t.db, owner, (tx) => captureSetConversationPaused(tx, conversationId, false))
+    const result = await ingest(signedOut, new Date())
+    expect(result).toMatchObject({ status: 'ok', outcome: 'rejected', captureState: 'active' })
+    const [conv] = await withOwner(t.db, owner, (tx) => captureListConversations(tx))
+    expect(conv?.captureState).toBe('active')
   })
 
   it('re-selecting a conversation resumes it and can move it to another project', async () => {

@@ -303,12 +303,16 @@ export async function captureIngestSnapshot(
 
   let captureState: CaptureState = conv.captureState
   if (plan.nextCaptureState) {
-    captureState = plan.nextCaptureState
-    await tx`
+    // A problem page captured before the last state change (the owner's
+    // Reconnect) is stale and does not undo it.
+    const moved = await tx`
       update public.conversations
-      set capture_state = ${captureState}, state_reason = ${plan.reason}, state_changed_at = ${receivedAt}
+      set capture_state = ${plan.nextCaptureState}, state_reason = ${plan.reason}, state_changed_at = ${receivedAt}
       where id = ${conv.id}
+        and (state_changed_at is null or state_changed_at <= ${prepared.capturedAt}::timestamptz)
+      returning id
     `
+    if (moved.length > 0) captureState = plan.nextCaptureState
   } else if (plan.outcome === 'applied') {
     const capturedAt = prepared.capturedAt
     await tx`

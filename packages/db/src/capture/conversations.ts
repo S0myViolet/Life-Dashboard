@@ -203,21 +203,25 @@ export type CaptureMarkStateResult =
 /**
  * The helper reported a problem on a selected conversation's page. The
  * conversation stops being collected (last good data is kept) until the owner
- * resumes it. An owner pause is never overridden.
+ * resumes it. An owner pause is never overridden, and neither is anything that
+ * happened after the problem was observed: a report retried after the owner's
+ * Reconnect (its first attempt applied, the response lost) is stale. `at` is
+ * the helper's observation time, clamped by the route to the server's clock.
  */
 export async function captureMarkState(
   tx: Tx,
   input: { provider: CaptureProvider; externalId: string; problem: CaptureProblemState; at: Date },
 ): Promise<CaptureMarkStateResult> {
   if (!CAPTURE_UUID_RE.test(input.externalId)) return { status: 'not_selected' }
-  const [row] = await tx<{ id: string; captureState: CaptureState }[]>`
-    select id, capture_state from public.conversations
+  const [row] = await tx<{ id: string; captureState: CaptureState; stateChangedAt: Date | null }[]>`
+    select id, capture_state, state_changed_at from public.conversations
     where provider = ${input.provider} and external_id = ${input.externalId}::uuid
     for update
   `
   if (!row) return { status: 'not_selected' }
   const next = captureStateForProblem(input.problem)
-  if (row.captureState === 'paused' || row.captureState === next) {
+  const stale = row.stateChangedAt !== null && input.at.getTime() < row.stateChangedAt.getTime()
+  if (row.captureState === 'paused' || row.captureState === next || stale) {
     return { status: 'unchanged', captureState: row.captureState }
   }
   await tx`
