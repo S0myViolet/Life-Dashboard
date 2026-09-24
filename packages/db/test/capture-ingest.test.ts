@@ -357,7 +357,7 @@ describe('selection and reported page states', () => {
   })
 
   it('re-selecting without choosing a project keeps its project; only an explicit "none" removes it', async () => {
-    const project = await withOwner(t.db, owner, (tx) => createProject(tx, { name: 'Thesis', kind: 'work' }))
+    const project = await withOwner(t.db, owner, (tx) => createProject(tx, { name: 'Thesis', kind: 'work', goal: undefined }))
     const projectOf = async () =>
       (await withOwner(t.db, owner, (tx) => captureListConversations(tx)))[0]!.projectId
     await withOwner(t.db, owner, (tx) => captureSelectConversation(tx, { url: CHAT_URL, projectId: project.id }))
