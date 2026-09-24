@@ -206,6 +206,71 @@ describe('content runtime', () => {
     expect(last.observation.observedFirstMessage).toBe(true)
   })
 
+  it('collects every window while the owner scrolls steadily, without pausing on any of them', async () => {
+    for (const every of [300, 500]) {
+      const rows = claudeThread(60)
+      const h = start(claudePage({ rows, mounted: [54, 59] }), CLAUDE_URL, 'claude', { collect: true, mode: 'passive' })
+      setScroll(h.win.document, '[data-autoscroll-container]', 'bottom')
+      await settle()
+      // Up to the top and back down, a new 12-row window every `every` ms: never quiet for 1.5 s.
+      const up = [44, 34, 24, 14, 4, 0]
+      const down = [10, 20, 30, 40, 48]
+      for (const from of [...up, ...down]) {
+        h.win.document.body.innerHTML = claudePage({ rows, mounted: [from, from + 11] })
+        setScroll(h.win.document, '[data-autoscroll-container]', from === 0 ? 'top' : from === 48 ? 'bottom' : 'middle')
+        await vi.advanceTimersByTimeAsync(every)
+      }
+      await settle()
+      const last = observations(h).at(-1) as Extract<ContentRequest, { type: 'ph:observation' }>
+      expect(last.observation.messages).toHaveLength(60)
+      expect(last.observation).toMatchObject({
+        observedFirstMessage: true,
+        observedLastMessage: true,
+        contiguous: true,
+        missingCount: 0,
+      })
+      h.runtime.stop()
+    }
+  })
+
+  it('collects a ChatGPT thread scrolled through faster than the settle delay', async () => {
+    const turns = gptThread(40)
+    const h = start(chatgptPage({ turns, mounted: [34, 39] }), CHAT_URL, 'chatgpt', { collect: true, mode: 'passive' })
+    setScroll(h.win.document, '[data-scroll-root]', 'bottom')
+    await settle()
+    for (const from of [28, 22, 16, 10, 4, 0]) {
+      h.win.document.body.innerHTML = chatgptPage({ turns, mounted: [from, from + 7] })
+      setScroll(h.win.document, '[data-scroll-root]', from === 0 ? 'top' : 'middle')
+      await vi.advanceTimersByTimeAsync(400)
+    }
+    await settle()
+    const last = observations(h).at(-1) as Extract<ContentRequest, { type: 'ph:observation' }>
+    expect(last.observation.messages).toHaveLength(40)
+    expect(last.observation).toMatchObject({ observedFirstMessage: true, contiguous: true })
+    // One upload once the page settled, not one per window.
+    expect(observations(h)).toHaveLength(2)
+  })
+
+  it('a jump to the top and back while scrolling fast still reports the gap', async () => {
+    const rows = claudeThread(60)
+    const h = start(claudePage({ rows, mounted: [54, 59] }), CLAUDE_URL, 'claude', { collect: true, mode: 'passive' })
+    setScroll(h.win.document, '[data-autoscroll-container]', 'bottom')
+    await settle()
+    for (const [from, where] of [[0, 'top'], [48, 'bottom']] as const) {
+      h.win.document.body.innerHTML = claudePage({ rows, mounted: [from, from + 11] })
+      setScroll(h.win.document, '[data-autoscroll-container]', where)
+      await vi.advanceTimersByTimeAsync(300)
+    }
+    await settle()
+    const last = observations(h).at(-1) as Extract<ContentRequest, { type: 'ph:observation' }>
+    expect(last.observation).toMatchObject({
+      observedFirstMessage: true,
+      observedLastMessage: true,
+      contiguous: false,
+      missingCount: 36,
+    })
+  })
+
   it('goes quiet when the extension is reloaded under it', async () => {
     const win = pageWindow(chatgptPage({ turns: gptThread(2) }), CHAT_URL)
     let calls = 0

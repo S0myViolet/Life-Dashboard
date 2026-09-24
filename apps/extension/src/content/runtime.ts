@@ -4,9 +4,11 @@
  * PASSIVE by design: it only reads the DOM the owner's own page renders, and
  * only on conversations the owner selected (the service worker answers
  * 'ph:hello'). It never scrolls, clicks, calls the apps' internal APIs, or reads
- * cookies or storage. Observations are debounced, accumulated across the
- * virtualised windows the owner scrolls through, and handed to the service
- * worker, which uploads them.
+ * cookies or storage. While the page keeps changing (the owner scrolling a
+ * virtualised thread, a reply streaming) it is read at least every
+ * readWhileChangingMs, so windows that mount and unmount before the page
+ * settles are still accumulated; uploads to the service worker wait until the
+ * page has been quiet for the settle delay.
  */
 import {
   captureParseConversationUrl,
@@ -21,7 +23,13 @@ import { CaptureAccumulator } from './accumulator.ts'
 import type { PageExtract } from './extract.ts'
 
 export const RUNTIME_TIMING = {
-  /** Quiet period after the last DOM change before reading the page. */
+  /**
+   * While the DOM keeps changing, read it at least this often (merged into the
+   * accumulator, not uploaded). Both apps unmount turns that scroll out of view,
+   * so waiting for the page to settle would lose every window passed on the way.
+   */
+  readWhileChangingMs: 250,
+  /** Quiet period after the last DOM change before reading the page and uploading. */
   settlePassiveMs: 1500,
   /** Revisit tabs load in the background; give them longer to finish rendering. */
   settleRevisitMs: 4000,
@@ -70,6 +78,8 @@ export function startCaptureRuntime(deps: RuntimeDeps): CaptureRuntime {
   let dead = false
   let settleTimer: ReturnType<typeof setTimeout> | undefined
   let followUpTimer: ReturnType<typeof setTimeout> | undefined
+  let readTimer: ReturnType<typeof setTimeout> | undefined
+  let lastReadAt = Number.NEGATIVE_INFINITY
   let observer: MutationObserver | null = null
 
   const send = async <T>(message: ContentRequest): Promise<T | null> => {
@@ -93,6 +103,31 @@ export function startCaptureRuntime(deps: RuntimeDeps): CaptureRuntime {
   const followUp = (delay: number) => {
     clearTimeout(followUpTimer)
     followUpTimer = setTimeout(() => void tick(), delay)
+  }
+
+  /** Read what is mounted now and merge it into the session's accumulator (no upload). */
+  const read = (s: Session): PageExtract => {
+    lastReadAt = deps.now()
+    clearTimeout(readTimer)
+    readTimer = undefined
+    const extract = deps.extract(doc)
+    if (extract.status === 'ok') s.acc.observe(extract)
+    return extract
+  }
+
+  /** On a DOM change: read now, or at the end of the current readWhileChangingMs interval. */
+  const readSoon = () => {
+    const s = session
+    if (!s?.collect || s.stopped || dead) return
+    const wait = lastReadAt + RUNTIME_TIMING.readWhileChangingMs - deps.now()
+    if (wait <= 0) {
+      read(s)
+    } else if (readTimer === undefined) {
+      readTimer = setTimeout(() => {
+        readTimer = undefined
+        if (session === s && s.collect && !s.stopped && !dead) read(s)
+      }, wait)
+    }
   }
 
   const reportProblem = async (s: Session, state: CaptureProblemState) => {
@@ -119,6 +154,7 @@ export function startCaptureRuntime(deps: RuntimeDeps): CaptureRuntime {
     const Observer = (win as Window & typeof globalThis).MutationObserver ?? MutationObserver
     observer = new Observer(() => {
       void checkLocation()
+      readSoon()
       schedule()
     })
     observer.observe(doc.documentElement, {
@@ -146,6 +182,8 @@ export function startCaptureRuntime(deps: RuntimeDeps): CaptureRuntime {
     }
     clearTimeout(settleTimer)
     clearTimeout(followUpTimer)
+    clearTimeout(readTimer)
+    readTimer = undefined
     if (!ref || ref.provider !== deps.provider) {
       session = null
       return
@@ -167,7 +205,7 @@ export function startCaptureRuntime(deps: RuntimeDeps): CaptureRuntime {
   async function tick(): Promise<void> {
     const s = session
     if (!s || !s.collect || s.stopped || dead) return
-    const extract = deps.extract(doc)
+    const extract = read(s)
     const now = deps.now()
 
     if (extract.status === 'signed_out' || extract.status === 'challenge') {
@@ -186,7 +224,6 @@ export function startCaptureRuntime(deps: RuntimeDeps): CaptureRuntime {
       return
     }
 
-    s.acc.observe(extract)
     if (!s.acc.hasUnsent) return
     s.firstUnsentAt ??= now
     if (s.acc.isStreaming && now - s.firstUnsentAt < RUNTIME_TIMING.maxStreamingWaitMs) {
@@ -206,6 +243,7 @@ export function startCaptureRuntime(deps: RuntimeDeps): CaptureRuntime {
     dead = true
     clearTimeout(settleTimer)
     clearTimeout(followUpTimer)
+    clearTimeout(readTimer)
     clearInterval(poll)
     observer?.disconnect()
     observer = null
