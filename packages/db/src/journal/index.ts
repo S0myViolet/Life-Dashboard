@@ -1,2 +1,3 @@
 // Area barrel — journal (Milestone 1).
-export {}
+export * from './entries.ts'
+export * from './recordings.ts'

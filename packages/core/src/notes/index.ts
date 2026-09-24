@@ -1,2 +1,4 @@
 // Area barrel — notes (Milestone 1).
-export {}
+export * from './schemas.ts'
+export * from './merge.ts'
+export * from './search.ts'
