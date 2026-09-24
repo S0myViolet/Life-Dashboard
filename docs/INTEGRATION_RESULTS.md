@@ -41,7 +41,7 @@ an unresolved requirement.**
 | Check | ChatGPT | Claude | Evidence so far |
 |---|---|---|---|
 | New and changed messages arrive without copy/paste | Not yet live | Not yet live | Built extension loaded in real Chromium 141 against synthetic pages served at the real hostnames: 2 messages stored, then 4 after a new exchange |
-| Long conversations (virtualised threads) | Not yet live | Not yet live | Accumulator tests mount and unmount turns the way both apps do (per July–Sept 2026 measurements in the research notes) |
+| Long conversations (virtualised threads) | Not yet live | Not yet live | Accumulator tests mount and unmount turns the way both apps do (per July–Sept 2026 measurements in the research notes), including continuous scrolling; "whole conversation" requires a gap-free thread ([D-26](DECISIONS.md)) |
 | Edited messages | Not yet live | Not yet live | Reconcile tests: one new version per edit; nothing deleted |
 | Phone update later visible on the web | Not yet live | Not yet live | Depends on the services; can only be tested live |
 | Catch-up on browser start / wake | Not yet live | Not yet live | Startup and alarm-gap catch-up tested with Chrome API fakes and in real Chromium |

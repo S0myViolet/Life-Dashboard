@@ -357,29 +357,17 @@ describe('deleteTask', () => {
 })
 
 describe('project options', () => {
-  it('are empty while public.projects does not exist', async () => {
-    expect(await asOwner((tx) => listTaskProjectOptions(tx))).toEqual([])
+  it('reject an unknown project id', async () => {
     expect(
       await asOwner((tx) => tasksProjectExists(tx, '5f0c7c7e-6c1c-4d0e-9d7a-0f6f4c1d2e3a')),
     ).toBe(false)
   })
 
-  it('come from public.projects once it exists (RLS applies)', async () => {
-    // Same shape as the capture area's table (20260924000500_projects_capture.sql).
-    await t.db.unsafe(`
-      create table if not exists public.projects (
-        id uuid primary key default gen_random_uuid(),
-        name text not null,
-        kind text not null default 'personal',
-        status text not null default 'active',
-        created_at timestamptz not null default now(),
-        updated_at timestamptz not null default now()
-      );
-      select private.secure_owner_table('public.projects');
-    `)
+  it('come from public.projects (RLS applies) and deleting a project keeps its tasks', async () => {
     try {
       const [p] = await t.db<{ id: string }[]>`
-        insert into public.projects (name, status) values ('Garden', 'active'), ('Archive', 'done')
+        insert into public.projects (name, kind, status)
+        values ('Garden', 'personal', 'active'), ('Archive', 'work', 'done')
         returning id
       `
       const options = await asOwner((tx) => listTaskProjectOptions(tx))
@@ -390,9 +378,16 @@ describe('project options', () => {
       expect(
         (await asOwner((tx) => listTasks(tx, { projectId: p!.id }))).map((x) => x.title),
       ).toEqual(['Dig'])
+
+      // Foreign key (20260924001500_project_links.sql): the task stays, its link is cleared.
+      await t.db`delete from public.projects where id = ${p!.id}`
+      const [kept] = await t.db<{ projectId: string | null }[]>`
+        select project_id from public.tasks where title = 'Dig'
+      `
+      expect(kept).toEqual({ projectId: null })
     } finally {
       await t.db`delete from public.tasks`
-      await t.db.unsafe('drop table public.projects')
+      await t.db`delete from public.projects`
     }
   })
 })

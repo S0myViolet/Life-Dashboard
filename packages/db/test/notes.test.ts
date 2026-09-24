@@ -22,7 +22,13 @@ import {
   type OwnerClaims,
   type Tx,
 } from '../src/index.ts'
-import { createAuthUser, createTestDatabase, seedOwner, withAnon, type TestDatabase } from './harness.ts'
+import {
+  createAuthUser,
+  createTestDatabase,
+  seedOwner,
+  withAnon,
+  type TestDatabase,
+} from './harness.ts'
 
 let t: TestDatabase
 let owner: OwnerClaims
@@ -38,30 +44,45 @@ afterAll(async () => {
 })
 
 const asOwner = <T>(fn: (tx: Tx) => Promise<T>) => withOwner(t.db, owner, fn)
-const content = (c: Partial<NoteContentInput>): NoteContentInput => ({ ...EMPTY_NOTE_CONTENT, ...c })
+const content = (c: Partial<NoteContentInput>): NoteContentInput => ({
+  ...EMPTY_NOTE_CONTENT,
+  ...c,
+})
 
 describe('saving notes with optimistic concurrency', () => {
   it('creates with a device id, and a repeated create (lost response) is idempotent', async () => {
     const id = randomUUID()
-    const first = await asOwner((tx) => saveNote(tx, { id, baseVersion: 0, content: content({ body: 'hello' }) }))
+    const first = await asOwner((tx) =>
+      saveNote(tx, { id, baseVersion: 0, content: content({ body: 'hello' }) }),
+    )
     expect(first.status).toBe('saved')
     if (first.status !== 'saved') return
     expect(first.note.version).toBe(1)
 
-    const again = await asOwner((tx) => saveNote(tx, { id, baseVersion: 0, content: content({ body: 'hello' }) }))
+    const again = await asOwner((tx) =>
+      saveNote(tx, { id, baseVersion: 0, content: content({ body: 'hello' }) }),
+    )
     expect(again).toEqual({ status: 'saved', note: first.note })
 
     // Same id, different text from a "create": the note exists, so it is a conflict, not an overwrite.
-    const other = await asOwner((tx) => saveNote(tx, { id, baseVersion: 0, content: content({ body: 'other' }) }))
+    const other = await asOwner((tx) =>
+      saveNote(tx, { id, baseVersion: 0, content: content({ body: 'other' }) }),
+    )
     expect(other.status).toBe('conflict')
     expect((await asOwner((tx) => getNote(tx, id)))?.body).toBe('hello')
   })
 
   it('updates only from the current version and never silently overwrites a newer save', async () => {
     const id = randomUUID()
-    await asOwner((tx) => saveNote(tx, { id, baseVersion: 0, content: content({ title: 'T', body: 'v1' }) }))
+    await asOwner((tx) =>
+      saveNote(tx, { id, baseVersion: 0, content: content({ title: 'T', body: 'v1' }) }),
+    )
     const laptop = await asOwner((tx) =>
-      saveNote(tx, { id, baseVersion: 1, content: content({ title: 'T', body: 'v2 from laptop' }) }),
+      saveNote(tx, {
+        id,
+        baseVersion: 1,
+        content: content({ title: 'T', body: 'v2 from laptop' }),
+      }),
     )
     expect(laptop.status).toBe('saved')
     if (laptop.status === 'saved') expect(laptop.note.version).toBe(2)
@@ -90,7 +111,9 @@ describe('saving notes with optimistic concurrency', () => {
     const id = randomUUID()
     await asOwner((tx) => saveNote(tx, { id, baseVersion: 0, content: content({ body: 'a' }) }))
     await asOwner((tx) => saveNote(tx, { id, baseVersion: 1, content: content({ body: 'b' }) }))
-    const retry = await asOwner((tx) => saveNote(tx, { id, baseVersion: 1, content: content({ body: 'b' }) }))
+    const retry = await asOwner((tx) =>
+      saveNote(tx, { id, baseVersion: 1, content: content({ body: 'b' }) }),
+    )
     expect(retry.status).toBe('saved')
     if (retry.status === 'saved') expect(retry.note.version).toBe(2)
   })
@@ -99,7 +122,9 @@ describe('saving notes with optimistic concurrency', () => {
     const id = randomUUID()
     await asOwner((tx) => saveNote(tx, { id, baseVersion: 0, content: content({ body: 'x' }) }))
     expect(await asOwner((tx) => deleteNote(tx, id))).toBe(true)
-    expect(await asOwner((tx) => saveNote(tx, { id, baseVersion: 1, content: content({ body: 'y' }) }))).toEqual({
+    expect(
+      await asOwner((tx) => saveNote(tx, { id, baseVersion: 1, content: content({ body: 'y' }) })),
+    ).toEqual({
       status: 'not_found',
     })
     expect(await asOwner((tx) => deleteNote(tx, id))).toBe(false)
@@ -107,23 +132,40 @@ describe('saving notes with optimistic concurrency', () => {
 
   it('validates input at the boundary and stores links', async () => {
     const bad = await asOwner((tx) =>
-      saveNote(tx, { id: randomUUID(), baseVersion: 0, content: content({ title: 'x'.repeat(301) }) }),
+      saveNote(tx, {
+        id: randomUUID(),
+        baseVersion: 0,
+        content: content({ title: 'x'.repeat(301) }),
+      }),
     )
     expect(bad.status).toBe('invalid')
 
-    const [book] = await t.db<{ id: string }[]>`insert into public.books (title) values ('Dune') returning id`
-    const [person] = await t.db<{ id: string }[]>`insert into public.people (name) values ('Sam') returning id`
+    const [book] = await t.db<
+      { id: string }[]
+    >`insert into public.books (title) values ('Dune') returning id`
+    const [person] = await t.db<
+      { id: string }[]
+    >`insert into public.people (name) values ('Sam') returning id`
     const id = randomUUID()
     const saved = await asOwner((tx) =>
       saveNote(tx, {
         id,
         baseVersion: 0,
-        content: content({ body: 'linked', linkedDate: '2026-09-24', bookId: book!.id, personId: person!.id }),
+        content: content({
+          body: 'linked',
+          linkedDate: '2026-09-24',
+          bookId: book!.id,
+          personId: person!.id,
+        }),
       }),
     )
     expect(saved.status).toBe('saved')
     if (saved.status === 'saved') {
-      expect(saved.note).toMatchObject({ linkedDate: '2026-09-24', bookId: book!.id, personId: person!.id })
+      expect(saved.note).toMatchObject({
+        linkedDate: '2026-09-24',
+        bookId: book!.id,
+        personId: person!.id,
+      })
     }
     // Deleting the linked book clears the link, not the note.
     await t.db`delete from public.books where id = ${book!.id}`
@@ -132,7 +174,9 @@ describe('saving notes with optimistic concurrency', () => {
 
   it('strips NUL characters that Postgres text cannot store', async () => {
     const id = randomUUID()
-    const r = await asOwner((tx) => saveNote(tx, { id, baseVersion: 0, content: content({ body: 'a\u0000b' }) }))
+    const r = await asOwner((tx) =>
+      saveNote(tx, { id, baseVersion: 0, content: content({ body: 'a\u0000b' }) }),
+    )
     expect(r.status === 'saved' && r.note.body).toBe('ab')
   })
 })
@@ -141,7 +185,9 @@ describe('listing', () => {
   it('lists pinned notes first, then most recently edited, with a pinned-only view', async () => {
     const ids: string[] = [randomUUID(), randomUUID(), randomUUID()]
     for (const [i, id] of ids.entries()) {
-      await asOwner((tx) => saveNote(tx, { id, baseVersion: 0, content: content({ title: `List ${i}` }) }))
+      await asOwner((tx) =>
+        saveNote(tx, { id, baseVersion: 0, content: content({ title: `List ${i}` }) }),
+      )
     }
     const pinned = await asOwner((tx) => setNotePinned(tx, ids[0]!, true))
     expect(pinned?.version).toBe(2)
@@ -172,7 +218,10 @@ describe('full-text search', () => {
       saveNote(tx, {
         id: b,
         baseVersion: 0,
-        content: content({ title: 'Groceries', body: 'Remember the planning poker cards and milk.' }),
+        content: content({
+          title: 'Groceries',
+          body: 'Remember the planning poker cards and milk.',
+        }),
       }),
     )
     const hits = await asOwner((tx) => searchNotes(tx, 'plan'))
@@ -180,7 +229,9 @@ describe('full-text search', () => {
     expect(mine.map((h) => h.id)).toEqual([a, b])
     expect(mine[0]!.titleHighlight).toBe(`Quarterly ${S}planning${E}`)
     expect(mine[1]!.snippet).toContain(`${S}planning${E}`)
-    expect(notesHighlightSegments(mine[1]!.snippet).some((s) => s.match && s.text === 'planning')).toBe(true)
+    expect(
+      notesHighlightSegments(mine[1]!.snippet).some((s) => s.match && s.text === 'planning'),
+    ).toBe(true)
 
     // All words must match.
     const both = await asOwner((tx) => searchNotes(tx, 'plan milk'))
@@ -204,46 +255,39 @@ describe('full-text search', () => {
 })
 
 describe('link options', () => {
-  it('returns [] for projects while public.projects does not exist, and reads it once it does', async () => {
-    const before = await asOwner((tx) => listNoteLinkOptions(tx))
-    expect(before.projects).toEqual([])
-    expect(before.people.map((p) => p.label)).toContain('Sam')
-
-    // A table with an unexpected shape must not break the transaction.
-    await t.db`create table public.projects (id uuid primary key default gen_random_uuid(), title text)`
-    await t.db`grant select on public.projects to authenticated`
-    const odd = await asOwner(async (tx) => {
-      const opts = await listNoteLinkOptions(tx)
-      const [still] = await tx<{ ok: number }[]>`select 1 as ok`
-      return { opts, ok: still?.ok }
-    })
-    expect(odd).toEqual({ opts: expect.objectContaining({ projects: [] }), ok: 1 })
-
-    await t.db`drop table public.projects`
+  it('offers active projects from public.projects as link options (owner only)', async () => {
     await t.db`
-      create table public.projects (id uuid primary key default gen_random_uuid(), name text not null,
-        status text not null default 'active')
+      insert into public.projects (name, kind, status)
+      values ('Home office', 'personal', 'active'), ('Old', 'work', 'done')
     `
-    await t.db`grant select on public.projects to authenticated`
-    await t.db`insert into public.projects (name) values ('Home office'), ('Old') `
-    await t.db`update public.projects set status = 'done' where name = 'Old'`
-    const after = await asOwner((tx) => listNoteLinkOptions(tx))
-    expect(after.projects.map((p) => p.label)).toEqual(['Home office'])
-    await t.db`drop table public.projects`
+    const opts = await asOwner((tx) => listNoteLinkOptions(tx))
+    expect(opts.projects.map((p) => p.label)).toEqual(['Home office'])
+    expect(opts.people.map((p) => p.label)).toContain('Sam')
+
+    // RLS: a signed-in user who is not the owner sees no projects.
+    const seen = await withOwner(t.db, stranger, (tx) => listNoteLinkOptions(tx))
+    expect(seen.projects).toEqual([])
+    await t.db`delete from public.projects`
   })
 })
 
 describe('row level security', () => {
   it('hides notes from anon and from a signed-in user who is not the owner', async () => {
     const id = randomUUID()
-    await asOwner((tx) => saveNote(tx, { id, baseVersion: 0, content: content({ body: 'private' }) }))
+    await asOwner((tx) =>
+      saveNote(tx, { id, baseVersion: 0, content: content({ body: 'private' }) }),
+    )
 
-    await expect(withAnon(t.db, (tx) => tx`select id from public.notes`)).rejects.toThrow(/permission denied/)
+    await expect(withAnon(t.db, (tx) => tx`select id from public.notes`)).rejects.toThrow(
+      /permission denied/,
+    )
     const seen = await withOwner(t.db, stranger, (tx) => listNotes(tx, { limit: 200 }))
     expect(seen).toEqual([])
     expect(await withOwner(t.db, stranger, (tx) => searchNotes(tx, 'private'))).toEqual([])
     expect(
-      await withOwner(t.db, stranger, (tx) => saveNote(tx, { id, baseVersion: 1, content: content({ body: 'x' }) })),
+      await withOwner(t.db, stranger, (tx) =>
+        saveNote(tx, { id, baseVersion: 1, content: content({ body: 'x' }) }),
+      ),
     ).toEqual({ status: 'not_found' })
     await expect(
       withOwner(t.db, stranger, (tx) =>

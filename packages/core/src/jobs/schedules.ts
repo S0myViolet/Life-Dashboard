@@ -138,7 +138,7 @@ export const JOB_SCHEDULE_DEFINITIONS: readonly JobScheduleDefinition[] = Object
       cadence: 'daily_local_time',
       localTime: '03:30',
       enabled: true,
-      note: 'Deletes expired journal recordings (7 days); 30-day raw text purge joins as each source lands',
+      note: 'Deletes expired journal recordings (7 days) and clears captured chat text older than 30 days',
     },
   ]),
 )
