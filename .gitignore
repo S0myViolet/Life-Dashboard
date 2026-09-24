@@ -24,3 +24,6 @@ apps/extension/dist/
 *.pem
 *.crx
 next-env.d.ts
+
+# Agent worktrees (temporary)
+.claude/worktrees/
