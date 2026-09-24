@@ -8,7 +8,6 @@ import { Card, CardHeader } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { JournalDay } from '@/components/journal/journal-day'
 import { JournalHistory } from '@/components/journal/journal-history'
-import { PendingDrafts } from '@/components/notes/pending-drafts'
 import { withOwnerTx } from '@/lib/server/session'
 import { formatLocalDate, ownerToday } from '../_lib/data'
 
@@ -76,7 +75,6 @@ export async function JournalView({ date }: { date: string | null }) {
           </nav>
         }
       />
-      <PendingDrafts />
       <div className="grid items-start gap-6 lg:grid-cols-[1fr_18rem]">
         <Card>
           {/* Keyed by date: switching days never carries text from one day into another. */}

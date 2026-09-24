@@ -16,6 +16,11 @@ const nextConfig: NextConfig = {
     '@personal-home/jobs',
   ],
   poweredByHeader: false,
+  experimental: {
+    // Notes and journal entries are saved through Server Actions; allow the largest entry
+    // (200k characters of multi-byte text) instead of the 1 MB default.
+    serverActions: { bodySizeLimit: '2mb' },
+  },
   async headers() {
     return [
       { source: '/:path*', headers: securityHeaders },

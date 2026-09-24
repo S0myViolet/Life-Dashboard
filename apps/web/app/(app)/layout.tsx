@@ -1,3 +1,4 @@
+import { PendingDrafts } from '@/components/notes/pending-drafts'
 import { AppShell } from '@/components/shell/app-shell'
 import { RegisterServiceWorker } from '@/lib/pwa/register-service-worker'
 import { requireOwner } from '@/lib/server/session'
@@ -12,6 +13,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <AppShell>
       <RegisterServiceWorker />
+      {/* Syncs drafts saved on this device (e.g. written offline) from any page. */}
+      <PendingDrafts />
       {children}
     </AppShell>
   )

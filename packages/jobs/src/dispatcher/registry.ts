@@ -11,6 +11,7 @@
 import { aiReconcileJobHandler } from '../ai/reconcile-handler.ts'
 import { briefingJobHandlers } from '../briefings/handler.ts'
 import { connectionJobHandlers } from '../connections/job-handlers.ts'
+import { createJournalRetentionPurgeJobHandler } from '../journal/retention.ts'
 import { createJobHandlerRegistry, type JobHandlerRegistry } from './types.ts'
 
 export interface DefaultJobHandlerDeps {
@@ -28,5 +29,6 @@ export function createDefaultJobHandlerRegistry(
     ...briefingJobHandlers,
     aiReconcileJobHandler,
     ...connectionJobHandlers({ fetch: fetchImpl, env }),
+    createJournalRetentionPurgeJobHandler(),
   ])
 }

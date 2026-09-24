@@ -9,7 +9,6 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Pill } from '@/components/ui/status-pill'
 import { NewNoteButton } from '@/components/notes/new-note-button'
 import { NoteList } from '@/components/notes/note-list'
-import { PendingDrafts } from '@/components/notes/pending-drafts'
 import { CaptureSearch } from '@/components/notes/capture-search'
 import { requireOwner, withOwnerTx } from '@/lib/server/session'
 import { formatLocalDate, ownerTimezone, ownerToday } from './_lib/data'
@@ -101,7 +100,6 @@ export default async function CapturePage({ searchParams }: { searchParams: Sear
   return (
     <>
       <PageHeader title="Capture" subtitle="Notes and journal" actions={<NewNoteButton />} />
-      <PendingDrafts />
       <CaptureSearch>
         <div className="grid items-start gap-4 lg:grid-cols-[1fr_20rem]">
           <Suspense fallback={<Skeleton title="Notes" />}>

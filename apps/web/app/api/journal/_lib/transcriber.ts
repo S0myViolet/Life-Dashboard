@@ -1,19 +1,38 @@
 /**
- * Which transcriber the journal routes use.
+ * Which transcriber the journal routes use: the AI gateway, which checks the source policy,
+ * reserves budget before any call and records actual usage (docs/DECISIONS.md D-23).
  *
- * Until the AI gateway (branch m0/ai) is merged, this is `notConfiguredJournalTranscriber`: every
- * recording is kept (Retry / Download / Delete, visible expiry) and marked "Transcription is not
- * set up yet", which is the honest state. To wire the gateway (integrator):
- *
- *   import { runAiTranscription } from '@personal-home/jobs'
- *   return createGatewayJournalTranscriber((req) =>
- *     runAiTranscription({ db: getDb(), fetch, now: () => new Date(), timezone, apiKey: integrationEnv('gemini')?.GEMINI_API_KEY, ...req }))
- *
- * (`timezone` = owner_settings.timezone; the gateway reserves budget before any call.)
+ * Without GEMINI_API_KEY (or with AI disabled in the budget settings) the gateway reports
+ * `disabled`, which the journal shows honestly: the recording is kept with Retry / Download /
+ * Delete and its expiry, and the owner can type instead.
  */
 import 'server-only'
-import { notConfiguredJournalTranscriber, type JournalTranscriber } from '@personal-home/jobs'
+import {
+  createGatewayJournalTranscriber,
+  runAiTranscription,
+  type JournalTranscriber,
+} from '@personal-home/jobs'
+import { integrationEnv } from '@/lib/env'
+import { getDb, serviceTransaction } from '@/lib/server/db'
+
+async function ownerTimezone(): Promise<string> {
+  const [row] = await serviceTransaction(
+    (tx) => tx<{ timezone: string }[]>`select timezone from public.owner_settings limit 1`,
+  )
+  return row?.timezone ?? 'Europe/London'
+}
 
 export async function getJournalTranscriber(): Promise<JournalTranscriber> {
-  return notConfiguredJournalTranscriber
+  const timezone = await ownerTimezone()
+  const apiKey = integrationEnv('gemini')?.GEMINI_API_KEY ?? null
+  return createGatewayJournalTranscriber((request) =>
+    runAiTranscription({
+      db: getDb(),
+      fetch: (input, init) => fetch(input, init),
+      now: () => new Date(),
+      timezone,
+      apiKey,
+      ...request,
+    }),
+  )
 }

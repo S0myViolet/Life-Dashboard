@@ -137,8 +137,8 @@ export const JOB_SCHEDULE_DEFINITIONS: readonly JobScheduleDefinition[] = Object
       kind: 'retention.purge',
       cadence: 'daily_local_time',
       localTime: '03:30',
-      enabled: false,
-      note: 'Milestone 2: 30-day raw text retention',
+      enabled: true,
+      note: 'Deletes expired journal recordings (7 days); 30-day raw text purge joins as each source lands',
     },
   ]),
 )
