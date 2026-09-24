@@ -10,11 +10,11 @@ import {
   HOME_MODULE_LABELS,
   INTEREST_SECTIONS,
   INTEREST_SECTION_LABELS,
-  summarizeAvailableHours,
   type HomeModule,
 } from '@personal-home/core'
 import type { OwnerSettings } from '@personal-home/db'
 import { DataStatePill, Pill } from '@/components/ui/status-pill'
+import { TodaysPlanCard } from '@/components/planner/todays-plan-card'
 import { ModuleCard, PlannedPill } from './module-card'
 
 export interface HomeModuleProps {
@@ -51,38 +51,9 @@ async function NeedsAttention() {
   )
 }
 
-async function TodaysPlan({ settings }: HomeModuleProps) {
-  const summary = summarizeAvailableHours(settings.availableHours)
-  return (
-    <ModuleCard
-      id="todays-plan"
-      title={HOME_MODULE_LABELS.todays_plan}
-      status={<PlannedPill milestone="Milestone 1" />}
-      wide
-    >
-      <p>
-        Up to three priorities, each with a short reason, and the next suggested action. The planner
-        arrives in Milestone 1 with local tasks.
-      </p>
-      {settings.availableHoursInvalid ? (
-        <p className="text-caution">
-          Your saved available hours could not be read. Set them again so the planner can use them.
-        </p>
-      ) : summary ? (
-        <p>
-          It will plan around your available hours: <span className="text-ink">{summary}</span>.
-        </p>
-      ) : (
-        <p>
-          No available hours are set, so plans will be an ordered list with effort estimates rather
-          than a timed schedule.
-        </p>
-      )}
-      <Link href="/settings/hours" className={linkClass}>
-        {summary ? 'Change available hours' : 'Set available hours'}
-      </Link>
-    </ModuleCard>
-  )
+// Module 2: the planner's own card (drafts today's plan on first use; never blocks Home).
+async function TodaysPlan() {
+  return <TodaysPlanCard />
 }
 
 async function Today() {
