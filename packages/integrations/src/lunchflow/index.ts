@@ -1,2 +1,2 @@
 // Area barrel — lunchflow.
-export {}
+export * from './client.ts'
