@@ -52,7 +52,9 @@ function errorMessage(code: OAuthResultError, name: string): ConnectionsFlash {
         'The sign-in link expired or was already used. Nothing was connected; please try again.',
       )
     case 'denied':
-      return caution(`You cancelled at ${name}. Nothing was connected.`)
+      return caution(
+        `${name} did not grant access: it was cancelled, or the account's organisation does not allow this app. Nothing was connected.`,
+      )
     case 'provider_error':
       return danger(`${name} returned an error. Nothing was connected; please try again.`)
     case 'client_rejected':
