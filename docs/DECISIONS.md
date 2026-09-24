@@ -147,3 +147,11 @@ Recordings are uploaded in chunks of 1 MB or less, which stays under serverless 
 - Unconfirmed tasks (suggestions from email or chat, Milestone 2) stay out of task lists and out of Needs attention until accepted.
 - Streaks count scheduled days only. A scheduled day that passed without a check-off shows as **missed**; it is never hidden. An extra check-off on an unscheduled day is shown but does not affect the streak.
 - Recurring reminders keep the same local time and day of month through clock changes and short months. Missed occurrences are skipped, not replayed. Reminders are in-app until Web Push arrives in Milestone 2.
+
+### D-34 · Notes, journal and drafts
+- There is **one journal entry per day**, in the owner's timezone. Typing, prompt answers and recordings for that day all go into it. The four prompts are optional, and the schema rejects anything else, including mood fields.
+- **A recording is deleted only after its transcript is saved.** "Saved" means the owner has reviewed the draft transcript and added it to the entry; the recording is deleted in the same transaction. Every recording's expiry is fixed at 7 days when it is created, and retries never extend it. A daily job deletes expired recordings.
+- An iPhone `audio/mp4` recording is relabelled as the documented `audio/m4a` type. If the provider still rejects it, the owner sees a specific message and the recording is kept. A transcript is never invented.
+- Notes save with an optimistic version check. A change made on only one side merges automatically. When both sides changed the same field, the owner chooses between this device's version, the saved version, or a prefilled merge.
+- Drafts live in IndexedDB until synced. Their status shows as *Saved on this device*, *Synced* or *Waiting to sync*, and signing out clears them.
+- Search uses Postgres full-text search: every word must match, words match as prefixes, and there is no stemming. Searches are sent as POST requests, so search words never appear in URLs or access logs.
