@@ -66,7 +66,7 @@ export const DEFAULT_CONNECTION_BACKOFF: ConnectionBackoffPolicy = {
   maxRetryAfterMs: 24 * 60 * 60_000,
 }
 
-export const MAX_ERROR_MESSAGE_LENGTH = 300
+export const CONNECTION_MAX_ERROR_MESSAGE_LENGTH = 300
 
 /** Exponential backoff for the n-th consecutive failure (n ≥ 1). */
 export function connectionBackoffMs(
@@ -154,7 +154,10 @@ export function connectionTransition(
         ...current,
         lastAttemptAt: event.at,
         lastErrorCode: f.code,
-        lastErrorMessage: sanitizeConnectionErrorMessage(f.message, MAX_ERROR_MESSAGE_LENGTH),
+        lastErrorMessage: sanitizeConnectionErrorMessage(
+          f.message,
+          CONNECTION_MAX_ERROR_MESSAGE_LENGTH,
+        ),
         consecutiveFailures: failures,
       }
       if (paused) return { ...base, status: 'paused', nextAttemptAt: null }

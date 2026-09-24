@@ -177,8 +177,8 @@ export async function runOAuthVerification(provider, argv = process.argv.slice(2
         '',
         `- Account type: ${accountType(provider, report.accountKind, after.accountLabel)}`,
         `- Consent given: ${iso(consentAt)} (${daysBetween(new Date(consentAt), startedAt)} days ago)`,
-        `- Scopes granted: ${after.grantedScopes.map((s) => core.describeScope(s)).join(', ') || 'none recorded'}`,
-        `- Mail access: ${coverage.mail ? 'yes' : 'no'}; calendar access: ${coverage.calendar ? 'yes' : 'no'}${coverage.missing.length ? `; not granted: ${coverage.missing.map((s) => core.describeScope(s)).join(', ')}` : ''}`,
+        `- Scopes granted: ${after.grantedScopes.map((s) => core.connectionDescribeScope(s)).join(', ') || 'none recorded'}`,
+        `- Mail access: ${coverage.mail ? 'yes' : 'no'}; calendar access: ${coverage.calendar ? 'yes' : 'no'}${coverage.missing.length ? `; not granted: ${coverage.missing.map((s) => core.connectionDescribeScope(s)).join(', ')}` : ''}`,
         `- Access token refreshed: ${report.refreshed ? 'yes' : 'no'}; refresh token rotated: ${report.refreshTokenRotated ? 'yes (new one stored)' : 'no'}`,
         `- New access token expires: ${iso(report.accessTokenExpiresAt)}`,
         `- Identity endpoint: ${report.endpoint ?? 'not reached'}${

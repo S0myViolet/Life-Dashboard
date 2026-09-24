@@ -8,7 +8,7 @@ import {
   CONNECTIONS_CURRENT_MILESTONE,
   connectionProviders,
   connectionScopeCoverage,
-  describeScope,
+  connectionDescribeScope,
   isOAuthConnectProvider,
   type ConnectionGroup,
   type ConnectionProviderInfo,
@@ -73,7 +73,9 @@ function accountView(row: ConnectionRow, connectable: boolean): AccountView {
   const coverage = connectionScopeCoverage(row.provider, row.grantedScopes)
   const oauth = isOAuthConnectProvider(row.provider)
   const missingAccess = oauth
-    ? coverage.missing.filter((s) => !['openid', 'email', 'profile'].includes(s)).map(describeScope)
+    ? coverage.missing
+        .filter((s) => !['openid', 'email', 'profile'].includes(s))
+        .map(connectionDescribeScope)
     : []
   const offerReconnect = oauth && (row.status === 'needs_reconnect' || missingAccess.length > 0)
   return {

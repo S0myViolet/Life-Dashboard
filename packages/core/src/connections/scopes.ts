@@ -41,7 +41,7 @@ export function normalizeGrantedScopes(provider: Provider, scopes: readonly stri
 }
 
 /** Split an OAuth `scope` response field (space-delimited). */
-export function parseScopeString(scope: string | null | undefined): string[] {
+export function connectionParseScopeString(scope: string | null | undefined): string[] {
   return (scope ?? '').split(/\s+/).filter(Boolean)
 }
 
@@ -83,7 +83,7 @@ export function connectionScopeCoverage(
 }
 
 /** Short human names for scopes in the UI ("Gmail", "Calendar list", ...). */
-export function describeScope(scope: string): string {
+export function connectionDescribeScope(scope: string): string {
   const names: Record<string, string> = {
     openid: 'Sign-in identity',
     email: 'Email address',

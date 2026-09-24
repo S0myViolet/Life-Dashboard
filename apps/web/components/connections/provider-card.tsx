@@ -88,7 +88,7 @@ export function ProviderCard({
 
       {a.kind === 'extension' ? (
         <p className="mt-3 text-sm text-ink-muted">
-          Collected by the Chrome helper from conversations you select.{' '}
+          Pair the helper once, then choose which conversations it follows.{' '}
           <Link
             href="/settings/chrome-helper"
             className="text-accent underline-offset-2 hover:underline"

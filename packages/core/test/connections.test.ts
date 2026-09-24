@@ -10,7 +10,7 @@ import {
   isOAuthConnectProvider,
   missingConnectionSettings,
   normalizeGrantedScopes,
-  parseScopeString,
+  connectionParseScopeString,
   STORED_CONNECTION_STATUSES,
 } from '../src/index.ts'
 
@@ -81,7 +81,7 @@ describe('granted scopes', () => {
     expect(
       normalizeGrantedScopes(
         'google',
-        parseScopeString(
+        connectionParseScopeString(
           'https://www.googleapis.com/auth/userinfo.email openid https://www.googleapis.com/auth/gmail.readonly openid',
         ),
       ),

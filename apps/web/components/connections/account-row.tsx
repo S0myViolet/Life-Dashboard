@@ -70,7 +70,7 @@ export function AccountRow({
           Paused: background checks are stopped and stored access is kept until you resume.
         </p>
       ) : null}
-      {account.status === 'needs_reconnect' ? (
+      {account.status === 'needs_reconnect' && !account.errorMessage ? (
         <p className="mt-2 text-sm text-ink-muted">
           {providerName} no longer accepts the stored access. Reconnect to resume background checks.
         </p>

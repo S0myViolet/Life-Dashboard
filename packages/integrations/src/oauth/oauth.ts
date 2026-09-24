@@ -8,7 +8,7 @@ import {
   bytesToBase64Url,
   connectionFailure,
   normalizeGrantedScopes,
-  parseScopeString,
+  connectionParseScopeString,
   randomToken,
   utf8,
   type ConnectionAdapterContext,
@@ -73,7 +73,7 @@ export function oauthTokenSetFromResponse(
     refreshToken: body.refresh_token ?? null,
     grantedScopes:
       body.scope !== undefined
-        ? normalizeGrantedScopes(provider, parseScopeString(body.scope))
+        ? normalizeGrantedScopes(provider, connectionParseScopeString(body.scope))
         : null,
     idToken: body.id_token ?? null,
   }

@@ -13,7 +13,7 @@
 import {
   connectionTransition,
   sanitizeConnectionErrorMessage,
-  MAX_ERROR_MESSAGE_LENGTH,
+  CONNECTION_MAX_ERROR_MESSAGE_LENGTH,
   type ConnectionEvent,
   type ConnectionHealth,
   type ConnectionRevokeOutcome,
@@ -121,7 +121,7 @@ async function writeHealth(tx: Tx, id: string, h: ConnectionHealth): Promise<Con
       last_error_message = ${
         h.lastErrorMessage === null
           ? null
-          : sanitizeConnectionErrorMessage(h.lastErrorMessage, MAX_ERROR_MESSAGE_LENGTH)
+          : sanitizeConnectionErrorMessage(h.lastErrorMessage, CONNECTION_MAX_ERROR_MESSAGE_LENGTH)
       },
       next_attempt_at = ${h.nextAttemptAt},
       consecutive_failures = ${h.consecutiveFailures},
