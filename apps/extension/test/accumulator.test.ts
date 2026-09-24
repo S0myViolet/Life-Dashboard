@@ -85,6 +85,44 @@ describe('CaptureAccumulator with a virtualised ChatGPT thread', () => {
     })
   })
 
+  it('drops a stale streaming flag on a message that is no longer mounted once the stream is over', () => {
+    const acc = new CaptureAccumulator(CHAT_URL, 'session-stale')
+    const msg = (n: number, isStreaming = false) => ({
+      key: gptMessageId(n),
+      localKey: gptMessageId(n),
+      role: 'assistant' as const,
+      text: `Synthetic message ${n}`,
+      orderHint: n,
+      isStreaming,
+    })
+    const base = { status: 'ok' as const, firstMounted: false, renderedPositions: [], threadPositions: null }
+    // Scrolled up while a reply streams: a mounted message was flagged.
+    acc.observe({ ...base, messages: [msg(7), msg(8, true)], lastMounted: false, streaming: true })
+    expect(acc.isStreaming).toBe(true)
+    // Still scrolled up, the stream ended: the page cannot tell yet (the end is not in view).
+    acc.observe({ ...base, messages: [msg(1), msg(2)], lastMounted: false, streaming: false })
+    expect(acc.isStreaming).toBe(true)
+    // Back at the end with nothing streaming: message 8 is not being written.
+    acc.observe({ ...base, messages: [msg(19), msg(20)], lastMounted: true, streaming: false })
+    expect(acc.isStreaming).toBe(false)
+    const obs = acc.toObservation(NOW)!
+    expect(obs.streamingInProgress).toBe(false)
+    expect(obs.messages.find((m) => m.key === gptMessageId(8))).toMatchObject({ isStreaming: false })
+  })
+
+  it('an older reply is never held as streaming after the owner scrolls up during a stream', () => {
+    const acc = new CaptureAccumulator(CHAT_URL, 'session-scrolled-up')
+    const long = gptThread(20)
+    rerender(d, chatgptPage({ turns: long, mounted: [0, 8], streaming: 'stop-button' }))
+    setScroll(d, '[data-scroll-root]', 'top')
+    acc.observe(extractChatGPT(d))
+    expect(acc.toObservation(NOW)!.messages.filter((m) => m.isStreaming)).toEqual([])
+    rerender(d, chatgptPage({ turns: long, mounted: [14, 19] }))
+    setScroll(d, '[data-scroll-root]', 'bottom')
+    acc.observe(extractChatGPT(d))
+    expect(acc.toObservation(NOW)!.streamingInProgress).toBe(false)
+  })
+
   it('keeps both branches when an edited prompt replaces a turn (never deletes)', () => {
     const acc = new CaptureAccumulator(CHAT_URL, 'session-5')
     rerender(d, chatgptPage({ turns: gptThread(2) }))

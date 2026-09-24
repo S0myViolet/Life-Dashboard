@@ -104,6 +104,27 @@ describe('extractChatGPT', () => {
     expect(x.messages.map((m) => m.isStreaming)).toEqual([false, false, false, true])
   })
 
+  it('never flags an older, finished reply while the owner has scrolled up during a stream', () => {
+    // Turns 0-8 of 20 mounted at the top; the reply being written (turn 19) is not mounted.
+    const d = doc(chatgptPage({ turns: gptThread(20), mounted: [0, 8], streaming: 'stop-button' }))
+    setScroll(d, '[data-scroll-root]', 'top')
+    const x = extractChatGPT(d)
+    expect(x.streaming).toBe(true)
+    expect(x.messages.filter((m) => m.isStreaming)).toEqual([])
+
+    // The prompt was just sent and its reply turn does not exist yet: the previous reply is finished.
+    const sent = doc(chatgptPage({ turns: gptThread(5), streaming: 'stop-button' }))
+    setScroll(sent, '[data-scroll-root]', 'bottom')
+    expect(extractChatGPT(sent).messages.filter((m) => m.isStreaming)).toEqual([])
+
+    // Without persistent wrappers the end is only known at the bottom of the scroller.
+    const old = doc(chatgptPage({ turns: gptThread(10), mounted: [4, 9], streaming: 'stop-button', noWrappers: true }))
+    setScroll(old, '[data-scroll-root]', 'middle')
+    expect(extractChatGPT(old).messages.filter((m) => m.isStreaming)).toEqual([])
+    setScroll(old, '[data-scroll-root]', 'bottom')
+    expect(extractChatGPT(old).messages.filter((m) => m.isStreaming).map((m) => m.key)).toEqual([gptMessageId(10)])
+  })
+
   it('flags the message whose markdown carries the streaming class', () => {
     const x = extractChatGPT(doc(chatgptPage({ turns: gptThread(4), streaming: 'class' })))
     expect(x.streaming).toBe(true)

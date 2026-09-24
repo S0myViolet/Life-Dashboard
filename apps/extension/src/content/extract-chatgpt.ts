@@ -147,12 +147,29 @@ export function extractChatGPT(doc: Document): PageExtract {
     }
   }
 
+  // Coverage: the thread's first/last turn must be mounted with text, and the
+  // scroller must be at that end. Persistent empty wrappers mark unmounted turns.
+  const scroller = doc.querySelector(SCROLL_ROOT)
+  const wrappers = outermost(thread, WRAPPER).filter(
+    (w) => w.getAttribute('data-turn-id-container') !== 'client-created-root',
+  )
+  const firstEl = wrappers.length > 0 ? wrappers[0] : turns[0]
+  const lastEl = wrappers.length > 0 ? wrappers[wrappers.length - 1] : turns[turns.length - 1]
+
   const stopVisible = doc.querySelector(STOP) !== null
   const markVisible = doc.querySelector(STREAMING_MARK) !== null
   if (stopVisible && !messages.some((m) => m.isStreaming)) {
-    // The reply being written is the last assistant message on the page.
-    const last = [...messages].reverse().find((m) => m.role === 'assistant')
-    if (last) last.isStreaming = true
+    // The reply being written is the thread's last turn. Flag it only when that
+    // turn is mounted: the owner may have scrolled up while it streams, and an
+    // older, finished reply must not be held back as "streaming". Without
+    // persistent wrappers the last mounted turn is the end only at the bottom.
+    const endKnown = wrappers.length > 0 || (scroller !== null && nearBottom(scroller))
+    const endTurn = endKnown && lastEl ? [...perTurn].filter(([turn]) => turn === lastEl || lastEl.contains(turn)) : []
+    const writing = endTurn
+      .flatMap(([, list]) => list)
+      .reverse()
+      .find((m) => m.role === 'assistant')
+    if (writing) writing.isStreaming = true
   }
   const streaming = stopVisible || markVisible
 
@@ -166,14 +183,6 @@ export function extractChatGPT(doc: Document): PageExtract {
     return emptyExtract('loading')
   }
 
-  // Coverage: the thread's first/last turn must be mounted with text, and the
-  // scroller must be at that end. Persistent empty wrappers mark unmounted turns.
-  const scroller = doc.querySelector(SCROLL_ROOT)
-  const wrappers = outermost(thread, WRAPPER).filter(
-    (w) => w.getAttribute('data-turn-id-container') !== 'client-created-root',
-  )
-  const firstEl = wrappers.length > 0 ? wrappers[0] : turns[0]
-  const lastEl = wrappers.length > 0 ? wrappers[wrappers.length - 1] : turns[turns.length - 1]
   const firstMounted = scroller !== null && nearTop(scroller) && hasText(firstEl, perTurn)
   const lastMounted = scroller !== null && nearBottom(scroller) && hasText(lastEl, perTurn)
 

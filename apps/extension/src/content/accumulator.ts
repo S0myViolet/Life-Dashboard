@@ -102,6 +102,20 @@ export class CaptureAccumulator {
       this.streaming = extract.streaming
       changed = true
     }
+    // The end of the thread is in view and nothing is streaming: a message still
+    // flagged from an earlier read but no longer mounted is not being written
+    // (the stream ended while the owner looked elsewhere, or it was flagged
+    // wrongly). Without this, one stale flag would hold every upload of the
+    // visit for the streaming wait and keep its coverage incomplete.
+    if (extract.lastMounted && !extract.streaming) {
+      const mounted = new Set(window.map((m) => m.localKey))
+      for (const [key, entry] of this.entries) {
+        if (entry.message.isStreaming && !mounted.has(key)) {
+          entry.message = { ...entry.message, isStreaming: false }
+          changed = true
+        }
+      }
+    }
     this.rendered = window.length
     if (extract.title && extract.title !== this.title) {
       this.title = extract.title
