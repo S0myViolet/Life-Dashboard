@@ -111,7 +111,8 @@ export function groupTimezonesForPicker(
   const groups = new Map<string, string[]>()
   for (const name of [...all].sort()) {
     const region = name.split('/')[0] ?? ''
-    const isRegional = (TIMEZONE_REGIONS as readonly string[]).includes(region) && name.includes('/')
+    const isRegional =
+      (TIMEZONE_REGIONS as readonly string[]).includes(region) && name.includes('/')
     if (!isRegional && name !== 'UTC') continue
     const primary = TIMEZONE_LEGACY_ALIASES[name] ?? TIMEZONE_MERGED_INTO[name]
     if (primary && all.has(primary)) continue

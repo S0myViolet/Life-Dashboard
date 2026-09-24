@@ -32,13 +32,18 @@ const SHELL_URLS = [
 const STATIC_PREFIX = '/_next/static/'
 const MAX_OFFLINE_ASSETS = 60
 
-/** Static asset URLs (same origin) referenced by the offline page's HTML. */
+/**
+ * Same-origin build asset paths referenced by the offline page's HTML. A path must
+ * start right after a quote, bracket, space or '=' — never inside an absolute URL
+ * such as https://cdn.example/_next/static/... (which would be fetched from here).
+ */
 function staticAssetsIn(html) {
   const found = new Set()
-  const re = /\/_next\/static\/[A-Za-z0-9_\-./~%]+?\.(?:js|css|woff2?)(?=["'?#\s)\\])/g
+  const re =
+    /(?:^|["'(\s=])(\/_next\/static\/[A-Za-z0-9_\-./~%]+?\.(?:js|css|woff2?))(?=["'?#\s)\\])/g
   let match
   while ((match = re.exec(html)) !== null && found.size < MAX_OFFLINE_ASSETS) {
-    if (!match[0].includes('..')) found.add(match[0])
+    if (!match[1].includes('..')) found.add(match[1])
   }
   return [...found]
 }

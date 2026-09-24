@@ -12,7 +12,9 @@ import { z } from 'zod'
 
 export const AVAILABLE_HOURS_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/
 
-export const AvailableHoursTimeSchema = z.string().regex(AVAILABLE_HOURS_TIME_RE, 'Use a 24-hour time like 09:30')
+export const AvailableHoursTimeSchema = z
+  .string()
+  .regex(AVAILABLE_HOURS_TIME_RE, 'Use a 24-hour time like 09:30')
 
 export const AvailableHoursWeekdaySchema = z.number().int().min(1).max(7)
 export type AvailableHoursWeekday = 1 | 2 | 3 | 4 | 5 | 6 | 7
@@ -127,7 +129,10 @@ function minutes(time: string): number {
 }
 
 /** Total available minutes on a weekday (slots never overlap once validated). */
-export function availableMinutesForWeekday(hours: AvailableHours, weekday: AvailableHoursWeekday): number {
+export function availableMinutesForWeekday(
+  hours: AvailableHours,
+  weekday: AvailableHoursWeekday,
+): number {
   return availableHoursForWeekday(hours, weekday).reduce(
     (sum, s) => sum + minutes(s.end) - minutes(s.start),
     0,

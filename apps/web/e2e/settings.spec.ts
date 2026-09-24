@@ -81,14 +81,9 @@ test('home layout: hiding and reordering persist across reloads and shape Home',
   await page.goto('/')
   const modules = page.locator('[data-home-module]')
   await expect(modules).toHaveCount(6)
-  expect(await modules.evaluateAll((els) => els.map((e) => e.getAttribute('data-home-module')))).toEqual([
-    'needs-attention',
-    'todays-plan',
-    'briefing',
-    'today',
-    'money-preview',
-    'interests',
-  ])
+  expect(
+    await modules.evaluateAll((els) => els.map((e) => e.getAttribute('data-home-module'))),
+  ).toEqual(['needs-attention', 'todays-plan', 'briefing', 'today', 'money-preview', 'interests'])
 
   // Show it again and reset.
   await page.goto('/settings/home-layout')
@@ -154,6 +149,6 @@ test('settings links to connections and the Chrome helper, and shows honest plac
   await page.goto('/settings/budget')
   await expect(page.getByRole('row', { name: /AI and transcription/ })).toContainText('£15')
   await page.goto('/settings/install')
-  await expect(page.getByRole('heading', { name: 'On iPhone' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'On iPhone', exact: true })).toBeVisible()
   await expect(page.getByText('Add to Home Screen', { exact: true })).toBeVisible()
 })

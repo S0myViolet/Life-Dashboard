@@ -25,7 +25,11 @@ export function TimezoneBanner({ savedTimezone }: { savedTimezone: string }) {
       className="mb-5 rounded-[var(--radius-card)] border border-accent/20 bg-accent-soft p-4 sm:p-5"
     >
       <div className="flex items-start gap-3">
-        <Globe aria-hidden className="mt-0.5 size-5 shrink-0 text-accent-strong" strokeWidth={1.8} />
+        <Globe
+          aria-hidden
+          className="mt-0.5 size-5 shrink-0 text-accent-strong"
+          strokeWidth={1.8}
+        />
         <div className="min-w-0 flex-1">
           <h2 id="tz-banner-title" className="text-[15px] font-semibold text-ink">
             Confirm your timezone

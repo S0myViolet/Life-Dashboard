@@ -3,13 +3,7 @@ import { ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react'
 import { PageHeader } from '@/components/shell/app-shell'
 
 /** A titled group of settings rows (iOS-style list, comfortable on phones). */
-export function SettingsGroup({
-  title,
-  children,
-}: {
-  title: string
-  children: React.ReactNode
-}) {
+export function SettingsGroup({ title, children }: { title: string; children: React.ReactNode }) {
   const id = `settings-group-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
   return (
     <section aria-labelledby={id} className="mb-6">

@@ -19,8 +19,12 @@ export default async function NotificationsPage() {
             Reminders you create, and verified explicit deadlines due within 24 hours. Uncertain AI
             guesses never trigger an urgent alert.
           </li>
-          <li>Interest alerts (news, football, music) stay off until you turn them on per section.</li>
-          <li>Repeats are grouped; backfilled mail, old albums and resynced matches do not alert.</li>
+          <li>
+            Interest alerts (news, football, music) stay off until you turn them on per section.
+          </li>
+          <li>
+            Repeats are grouped; backfilled mail, old albums and resynced matches do not alert.
+          </li>
           <li>
             Lock-screen text is generic. Email, money and journal details appear only after you open
             the app.
@@ -29,8 +33,11 @@ export default async function NotificationsPage() {
         <p>
           Delivery uses standard Web Push plus an in-app inbox. Permission is requested only when
           you tap Enable notifications, and saying no does not block anything. On iPhone this needs
-          the <Link href="/settings/install" className="text-accent hover:text-accent-strong">Home
-          Screen app</Link>.
+          the{' '}
+          <Link href="/settings/install" className="text-accent hover:text-accent-strong">
+            Home Screen app
+          </Link>
+          .
         </p>
       </PlannedSection>
     </>

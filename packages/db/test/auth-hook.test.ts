@@ -8,7 +8,13 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { ensureOwnerAllowlisted, removeOwnerAllowlisted, withService } from '../src/index.ts'
-import { createAuthUser, createTestDatabase, withAnon, withOwner, type TestDatabase } from './harness.ts'
+import {
+  createAuthUser,
+  createTestDatabase,
+  withAnon,
+  withOwner,
+  type TestDatabase,
+} from './harness.ts'
 
 // SYNTHETIC FIXTURE (not captured from the live service)
 function event(
@@ -188,7 +194,9 @@ describe('owner allowlist', () => {
     expect(stored).toBe('second@example.org')
     // Idempotent.
     await withService(t.db, (tx) => ensureOwnerAllowlisted(tx, 'second@example.org'))
-    const rows = await t.db<{ email: string }[]>`select email from private.owner_allowlist order by 1`
+    const rows = await t.db<
+      { email: string }[]
+    >`select email from private.owner_allowlist order by 1`
     expect(rows.map((r) => r.email)).toEqual(['owner@example.com', 'second@example.org'])
     await expect(
       withService(t.db, (tx) => ensureOwnerAllowlisted(tx, 'not-an-email')),
@@ -201,9 +209,9 @@ describe('owner allowlist', () => {
     await expect(
       withOwner(t.db, stranger, (tx) => tx`select * from private.owner_allowlist`),
     ).rejects.toThrow(/permission denied/)
-    await expect(
-      withAnon(t.db, (tx) => tx`select * from private.owner_allowlist`),
-    ).rejects.toThrow(/permission denied/)
+    await expect(withAnon(t.db, (tx) => tx`select * from private.owner_allowlist`)).rejects.toThrow(
+      /permission denied/,
+    )
     expect(await withService(t.db, (tx) => removeOwnerAllowlisted(tx, 'second@example.org'))).toBe(
       true,
     )

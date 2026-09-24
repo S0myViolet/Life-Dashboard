@@ -18,9 +18,9 @@ test('iPhone width shows the five-item bottom navigation and no sidebar', async 
   await expect(page.locator('aside')).toBeHidden()
 
   // Touch targets are at least 44px tall.
-  for (const box of await nav.getByRole('link').evaluateAll((els) =>
-    els.map((e) => e.getBoundingClientRect().height),
-  )) {
+  for (const box of await nav
+    .getByRole('link')
+    .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height))) {
     expect(box).toBeGreaterThanOrEqual(44)
   }
   // No sideways scrolling at phone width, on Home or Settings.

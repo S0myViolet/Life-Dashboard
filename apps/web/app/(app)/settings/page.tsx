@@ -41,8 +41,18 @@ export default async function SettingsPage() {
     <>
       <PageHeader title="Settings" />
       <SettingsGroup title="General">
-        <SettingsRow href="/settings/timezone" label="Timezone" value={timezoneValue} icon={Globe} />
-        <SettingsRow href="/settings/hours" label="Available hours" value={hoursValue} icon={Clock} />
+        <SettingsRow
+          href="/settings/timezone"
+          label="Timezone"
+          value={timezoneValue}
+          icon={Globe}
+        />
+        <SettingsRow
+          href="/settings/hours"
+          label="Available hours"
+          value={hoursValue}
+          icon={Clock}
+        />
         <SettingsRow
           href="/settings/home-layout"
           label="Home layout"

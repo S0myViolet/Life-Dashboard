@@ -60,9 +60,7 @@ describe('getOwnerSettings', () => {
 
   it('returns null for a signed-in stranger and permission denied for anon', async () => {
     expect(await asStranger((tx) => getOwnerSettings(tx))).toBeNull()
-    await expect(withAnon(t.db, (tx) => getOwnerSettings(tx))).rejects.toThrow(
-      /permission denied/,
-    )
+    await expect(withAnon(t.db, (tx) => getOwnerSettings(tx))).rejects.toThrow(/permission denied/)
   })
 
   it('flags invalid stored hours instead of presenting them as empty', async () => {
@@ -136,9 +134,7 @@ describe('updateTimezone', () => {
 describe('home layout', () => {
   it('applies operations atomically and persists them', async () => {
     await asOwner((tx) => changeHomeLayout(tx, { op: 'hide', module: 'health_preview' }))
-    await asOwner((tx) =>
-      changeHomeLayout(tx, { op: 'move', module: 'briefing', direction: 'up' }),
-    )
+    await asOwner((tx) => changeHomeLayout(tx, { op: 'move', module: 'briefing', direction: 'up' }))
     const s = await asOwner((tx) => getOwnerSettings(tx))
     expect(visibleHomeModules(s!.homeLayout)).toEqual([
       'needs_attention',
@@ -167,11 +163,12 @@ describe('home layout', () => {
       asOwner((tx) => changeHomeLayout(tx, { op: 'hide', module: 'health_preview' })),
     ])
     const s = await asOwner((tx) => getOwnerSettings(tx))
-    expect(s!.homeLayout.filter((e) => e.hidden).map((e) => e.module).sort()).toEqual([
-      'health_preview',
-      'interests',
-      'money_preview',
-    ])
+    expect(
+      s!.homeLayout
+        .filter((e) => e.hidden)
+        .map((e) => e.module)
+        .sort(),
+    ).toEqual(['health_preview', 'interests', 'money_preview'])
   })
 
   it('validates full layouts on write', async () => {

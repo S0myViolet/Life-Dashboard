@@ -44,7 +44,9 @@ export function e2eSessionCookie(
 }
 
 export async function setSessionCookie(context: BrowserContext, baseURL: string, value: string) {
-  await context.addCookies([{ name: E2E_COOKIE, value, url: baseURL, httpOnly: true, sameSite: 'Lax' }])
+  await context.addCookies([
+    { name: E2E_COOKIE, value, url: baseURL, httpOnly: true, sameSite: 'Lax' },
+  ])
 }
 
 /** Sign in through the app's test-only route (the same cookie a real test login sets). */
@@ -56,7 +58,24 @@ export async function signInAsOwner(page: Page, next = '/') {
 export function sql(query: string): string {
   const res = spawnSync(
     'psql',
-    ['-X', '-q', '-t', '-A', '-v', 'ON_ERROR_STOP=1', '-h', '127.0.0.1', '-p', process.env.PH_PG_PORT ?? '54329', '-U', 'postgres', '-d', env('PH_E2E_DATABASE'), '-c', query],
+    [
+      '-X',
+      '-q',
+      '-t',
+      '-A',
+      '-v',
+      'ON_ERROR_STOP=1',
+      '-h',
+      '127.0.0.1',
+      '-p',
+      process.env.PH_PG_PORT ?? '54329',
+      '-U',
+      'postgres',
+      '-d',
+      env('PH_E2E_DATABASE'),
+      '-c',
+      query,
+    ],
     { encoding: 'utf8' },
   )
   if (res.status !== 0) throw new Error(`psql failed: ${res.stderr}`)

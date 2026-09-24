@@ -27,7 +27,10 @@ export default async function AvailableHoursPage() {
       ) : (
         <>
           {settings.availableHoursInvalid ? (
-            <p role="alert" className="mb-4 rounded-xl bg-caution-soft px-3 py-2 text-sm text-caution">
+            <p
+              role="alert"
+              className="mb-4 rounded-xl bg-caution-soft px-3 py-2 text-sm text-caution"
+            >
               The saved hours could not be read, so none are shown. Set them again and save.
             </p>
           ) : null}

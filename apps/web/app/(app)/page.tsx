@@ -20,8 +20,8 @@ export default async function HomePage() {
       <>
         <PageHeader title="Home" />
         <EmptyState title="Settings could not be loaded">
-          The owner settings record is missing, so Home cannot pick your timezone or layout. Run
-          the database migrations and reload.
+          The owner settings record is missing, so Home cannot pick your timezone or layout. Run the
+          database migrations and reload.
         </EmptyState>
       </>
     )

@@ -56,7 +56,8 @@ async function cachedEntries(page: Page) {
     const out: { cache: string; path: string }[] = []
     for (const name of await caches.keys()) {
       const cache = await caches.open(name)
-      for (const req of await cache.keys()) out.push({ cache: name, path: new URL(req.url).pathname })
+      for (const req of await cache.keys())
+        out.push({ cache: name, path: new URL(req.url).pathname })
     }
     return out
   })

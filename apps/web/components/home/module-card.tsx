@@ -28,7 +28,13 @@ export function ModuleCard({
       data-home-module={id}
       className={wide ? 'lg:col-span-2' : ''}
     >
-      <CardHeader id={`${id}-title`} title={title} href={href} hrefLabel={hrefLabel} meta={status} />
+      <CardHeader
+        id={`${id}-title`}
+        title={title}
+        href={href}
+        hrefLabel={hrefLabel}
+        meta={status}
+      />
       <div className="space-y-3 text-sm text-ink-muted">{children}</div>
     </Card>
   )

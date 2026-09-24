@@ -27,7 +27,8 @@ export function isWideHomeModule(module: HomeModule): boolean {
   return WIDE_MODULES.has(module)
 }
 
-const linkClass = 'inline-flex min-h-11 items-center font-medium text-accent hover:text-accent-strong sm:min-h-0'
+const linkClass =
+  'inline-flex min-h-11 items-center font-medium text-accent hover:text-accent-strong sm:min-h-0'
 
 async function NeedsAttention() {
   return (

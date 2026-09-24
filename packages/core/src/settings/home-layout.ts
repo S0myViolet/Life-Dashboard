@@ -123,8 +123,7 @@ export const HomeLayoutOperationSchema = z.discriminatedUnion('op', [
 export type HomeLayoutOperation = z.infer<typeof HomeLayoutOperationSchema>
 
 export type HomeLayoutResult =
-  | { ok: true; layout: HomeLayout; changed: boolean }
-  | { ok: false; error: 'required_module' }
+  { ok: true; layout: HomeLayout; changed: boolean } | { ok: false; error: 'required_module' }
 
 function sameLayout(a: HomeLayout, b: HomeLayout): boolean {
   return (

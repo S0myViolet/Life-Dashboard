@@ -140,10 +140,7 @@ export async function updateTimezone(
 }
 
 /** Replace the home layout. The layout must be complete and valid (HomeLayoutSchema). */
-export async function updateHomeLayout(
-  tx: Tx,
-  layout: HomeLayout,
-): Promise<OwnerSettings | null> {
+export async function updateHomeLayout(tx: Tx, layout: HomeLayout): Promise<OwnerSettings | null> {
   const valid = HomeLayoutSchema.parse(layout)
   const rows = await tx<OwnerSettingsRow[]>`
     update public.owner_settings set home_layout = ${tx.json(asJson(valid))}

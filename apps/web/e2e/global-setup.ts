@@ -35,7 +35,24 @@ function run(cmd: string, args: string[], options: { cwd?: string; env?: NodeJS.
 }
 
 function psql(db: string, sql: string): string {
-  return run('psql', ['-X', '-q', '-t', '-A', '-v', 'ON_ERROR_STOP=1', '-h', '127.0.0.1', '-p', PG_PORT, '-U', 'postgres', '-d', db, '-c', sql])
+  return run('psql', [
+    '-X',
+    '-q',
+    '-t',
+    '-A',
+    '-v',
+    'ON_ERROR_STOP=1',
+    '-h',
+    '127.0.0.1',
+    '-p',
+    PG_PORT,
+    '-U',
+    'postgres',
+    '-d',
+    db,
+    '-c',
+    sql,
+  ])
 }
 
 async function waitForServer(url: string, server: ChildProcess, timeoutMs: number) {
@@ -55,7 +72,10 @@ async function waitForServer(url: string, server: ChildProcess, timeoutMs: numbe
 
 async function portInUse(port: number): Promise<boolean> {
   try {
-    await fetch(`http://127.0.0.1:${port}/`, { redirect: 'manual', signal: AbortSignal.timeout(1000) })
+    await fetch(`http://127.0.0.1:${port}/`, {
+      redirect: 'manual',
+      signal: AbortSignal.timeout(1000),
+    })
     return true
   } catch {
     return false
@@ -70,7 +90,10 @@ export default async function globalSetup(config: FullConfig) {
   }
 
   // 1–2. Template (shim + all migrations) and a fresh clone of it.
-  const templateUrl = run(process.execPath, ['scripts/local-db.mjs', 'template']).trim().split('\n').pop()!
+  const templateUrl = run(process.execPath, ['scripts/local-db.mjs', 'template'])
+    .trim()
+    .split('\n')
+    .pop()!
   const template = new URL(templateUrl).pathname.slice(1)
   const database = `ph_e2e_${randomBytes(5).toString('hex')}`
   run('createdb', ['-h', '127.0.0.1', '-p', PG_PORT, '-U', 'postgres', '-T', template, database])

@@ -25,11 +25,15 @@ const iconButton = buttonClass('secondary', 'size-11 shrink-0 px-0 sm:size-10')
 export function HomeLayoutEditor({ layout }: { layout: HomeLayout }) {
   const [state, action, pending] = useActionState(changeHomeLayoutAction, IDLE_STATE)
 
-  const op = (fields: Record<string, string>, children: React.ReactNode, props: {
-    label: string
-    disabled?: boolean
-    className?: string
-  }) => (
+  const op = (
+    fields: Record<string, string>,
+    children: React.ReactNode,
+    props: {
+      label: string
+      disabled?: boolean
+      className?: string
+    },
+  ) => (
     <form action={action}>
       {Object.entries(fields).map(([name, value]) => (
         <input key={name} type="hidden" name={name} value={value} />
@@ -64,7 +68,9 @@ export function HomeLayoutEditor({ layout }: { layout: HomeLayout }) {
             >
               <div className="min-w-0 flex-1 basis-full sm:basis-auto">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`text-[15px] font-medium ${entry.hidden ? 'text-ink-muted' : 'text-ink'}`}>
+                  <span
+                    className={`text-[15px] font-medium ${entry.hidden ? 'text-ink-muted' : 'text-ink'}`}
+                  >
                     {label}
                   </span>
                   {required ? (

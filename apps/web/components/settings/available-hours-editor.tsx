@@ -55,16 +55,14 @@ export function AvailableHoursEditor({ initial }: { initial: AvailableHours | nu
 
   // Submission order: weekday, then the order ranges were added.
   const ordered = useMemo(
-    () =>
-      AVAILABLE_HOURS_WEEKDAYS.flatMap((weekday) => rows.filter((r) => r.weekday === weekday)),
+    () => AVAILABLE_HOURS_WEEKDAYS.flatMap((weekday) => rows.filter((r) => r.weekday === weekday)),
     [rows],
   )
   const payload = JSON.stringify(
     ordered.map(({ weekday, start, end }) => ({ weekday, start, end })),
   )
   // Field errors refer to the submitted order; hide them once the ranges change.
-  const errors =
-    state.status === 'error' && submitted === payload ? (state.fieldErrors ?? {}) : {}
+  const errors = state.status === 'error' && submitted === payload ? (state.fieldErrors ?? {}) : {}
   const errorFor = (row: Row) => errors[String(ordered.indexOf(row))]
 
   const update = (key: number, patch: Partial<Row>) =>
@@ -123,7 +121,9 @@ export function AvailableHoursEditor({ initial }: { initial: AvailableHours | nu
                               aria-label={`${label}${n} from`}
                               aria-invalid={error ? true : undefined}
                               aria-describedby={error ? errorId : undefined}
-                              onChange={(e) => update(row.key, { start: e.target.value.slice(0, 5) })}
+                              onChange={(e) =>
+                                update(row.key, { start: e.target.value.slice(0, 5) })
+                              }
                               className={inputClass}
                             />
                           </label>
