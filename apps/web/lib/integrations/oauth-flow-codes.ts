@@ -17,6 +17,7 @@ export const OAUTH_RESULT_ERRORS = [
   'identity_failed',
   'rate_limited',
   'provider_unavailable',
+  'internal_error',
 ] as const
 export type OAuthResultError = (typeof OAUTH_RESULT_ERRORS)[number]
 

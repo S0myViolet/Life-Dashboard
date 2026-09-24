@@ -9,7 +9,7 @@ import {
   ProviderSchema,
   type Provider,
 } from '@personal-home/core'
-import { OAUTH_RESULT_ERRORS, type OAuthResultError } from './oauth-flow-codes'
+import { isOAuthResultError, type OAuthResultError } from './oauth-flow-codes'
 
 export interface ConnectionsFlash {
   tone: 'positive' | 'caution' | 'danger'
@@ -58,6 +58,8 @@ function errorMessage(code: OAuthResultError, name: string): ConnectionsFlash {
       return caution(`${name} is limiting requests right now. Try again in a few minutes.`)
     case 'provider_unavailable':
       return caution(`Could not reach ${name}. Try again shortly.`)
+    case 'internal_error':
+      return danger('Something went wrong on the server. Nothing was connected; please try again.')
   }
 }
 
@@ -102,7 +104,6 @@ export function connectionsFlash(sp: SearchParams): ConnectionsFlash | null {
   }
 
   const error = one(sp.error)
-  if (error && (OAUTH_RESULT_ERRORS as readonly string[]).includes(error))
-    return errorMessage(error as OAuthResultError, name)
+  if (isOAuthResultError(error)) return errorMessage(error, name)
   return null
 }

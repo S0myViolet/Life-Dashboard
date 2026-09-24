@@ -54,6 +54,8 @@ export interface ProviderView {
   /** Plain link (never prefetched) that starts the OAuth flow. */
   connectHref: string | null
   setupHref: string
+  /** Disconnect can revoke the grant at the provider (Google); Microsoft has no revocation API. */
+  supportsRevoke: boolean
 }
 
 export interface GroupView {
@@ -115,6 +117,7 @@ export function buildConnectionsView(input: {
       accounts: (byProvider.get(info.provider) ?? []).map((r) => accountView(r, connectable)),
       connectHref: connectable ? connectStartHref(info.provider) : null,
       setupHref: `/settings/connections/setup#${info.provider}`,
+      supportsRevoke: info.provider === 'google',
     }
   })
 
