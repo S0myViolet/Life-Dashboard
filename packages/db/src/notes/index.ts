@@ -1,2 +1,2 @@
 // Area barrel — notes (Milestone 1).
-export {}
+export * from './repository.ts'
