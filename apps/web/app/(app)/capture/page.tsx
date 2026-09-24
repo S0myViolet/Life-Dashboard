@@ -101,7 +101,7 @@ export default async function CapturePage({ searchParams }: { searchParams: Sear
     <>
       <PageHeader title="Capture" subtitle="Notes and journal" actions={<NewNoteButton />} />
       <CaptureSearch>
-        <div className="grid items-start gap-4 lg:grid-cols-[1fr_20rem]">
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
           <Suspense fallback={<Skeleton title="Notes" />}>
             <NotesSection view={view} />
           </Suspense>

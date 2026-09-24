@@ -1,7 +1,7 @@
 /**
- * Demo data for a LOCAL database: realistic, clearly labelled rows across tasks, habits (with
- * history), reminders, books with reading logs, learning goals, people with dates and catch-up
- * cadences, notes and a journal entry.
+ * Demo data for a LOCAL database: realistic, clearly labelled rows across projects, tasks,
+ * habits (with history), reminders, books with reading logs, learning goals, people with dates
+ * and catch-up cadences, notes and a journal entry.
  *
  * Every demo row carries the `[demo]` marker at the start of its title, name or body, so the
  * owner can always tell it apart from their own data and `removeDemoData` can find it again.
@@ -22,6 +22,7 @@ import {
   localTimeInZone,
 } from '@personal-home/core'
 import type { Tx } from '../client.ts'
+import { createProject } from '../capture/projects.ts'
 import { createTask, setTaskStatus } from '../tasks/tasks.ts'
 import { createHabit, setHabitCompletion } from '../tasks/habits.ts'
 import { createReminder } from '../tasks/reminders.ts'
@@ -48,6 +49,7 @@ export function isDemoLabel(text: string | null | undefined): boolean {
 const DEMO_LIKE = `${DEMO_MARKER}%`
 
 export interface DemoCounts {
+  projects: number
   tasks: number
   reminders: number
   habits: number
@@ -64,6 +66,7 @@ export interface DemoCounts {
 }
 
 export const DEMO_TABLES = [
+  'projects',
   'tasks',
   'reminders',
   'habits',
@@ -86,6 +89,7 @@ export function demoTotal(counts: DemoCounts): number {
 export async function countDemoRows(tx: Tx): Promise<DemoCounts> {
   const [row] = await tx<DemoCounts[]>`
     select
+      (select count(*) from public.projects where name like ${DEMO_LIKE})::int as projects,
       (select count(*) from public.tasks where title like ${DEMO_LIKE})::int as tasks,
       (select count(*) from public.reminders r
         where r.title like ${DEMO_LIKE}
@@ -117,6 +121,7 @@ export async function demoDataPresent(tx: Tx): Promise<boolean> {
   const [row] = await tx<{ present: boolean }[]>`
     select (
       exists (select 1 from public.tasks where title like ${DEMO_LIKE})
+      or exists (select 1 from public.projects where name like ${DEMO_LIKE})
       or exists (select 1 from public.reminders where title like ${DEMO_LIKE})
       or exists (select 1 from public.habits where title like ${DEMO_LIKE})
       or exists (select 1 from public.books where title like ${DEMO_LIKE})
@@ -151,6 +156,8 @@ export async function removeDemoData(tx: Tx): Promise<DemoCounts> {
   await tx`delete from public.books where title like ${DEMO_LIKE}`
   await tx`delete from public.people where name like ${DEMO_LIKE}`
   await tx`delete from public.journal_entries where body like ${DEMO_LIKE}`
+  // Last: the owner's own tasks or notes linked to a demo project keep existing (link cleared).
+  await tx`delete from public.projects where name like ${DEMO_LIKE}`
   return before
 }
 
@@ -217,6 +224,18 @@ export async function seedDemoData(tx: Tx, opts: { now?: Date } = {}): Promise<D
   // next visit. Plans the owner has acted on are left alone.
   await tx`delete from public.daily_plans where local_date >= ${today}::date and status = 'draft'`
 
+  // --- Projects ------------------------------------------------------------
+  const kitchen = await createProject(tx, {
+    name: demoLabel('Kitchen renovation'),
+    kind: 'personal',
+    goal: 'New worktops and lighting before the holidays, within the agreed budget.',
+  })
+  const launch = await createProject(tx, {
+    name: demoLabel('Q4 product launch'),
+    kind: 'work',
+    goal: 'Ship the new onboarding flow and brief the support team.',
+  })
+
   // --- Tasks ---------------------------------------------------------------
   const soon = localSlot(new Date(now.getTime() + 3 * 3_600_000), tz)
   const task = async (
@@ -245,6 +264,7 @@ export async function seedDemoData(tx: Tx, opts: { now?: Date } = {}): Promise<D
   )
   await task('task due today', {
     title: demoLabel('Draft the project kickoff notes'),
+    projectId: launch.id,
     dueDate: today,
     priority: 2,
     durationMinutes: 60,
@@ -265,6 +285,13 @@ export async function seedDemoData(tx: Tx, opts: { now?: Date } = {}): Promise<D
     title: demoLabel('Order a birthday present for Maya'),
     dueDate: day(4),
     durationMinutes: 30,
+  })
+  await task('project task', {
+    title: demoLabel('Get three quotes for the worktops'),
+    projectId: kitchen.id,
+    dueDate: day(6),
+    priority: 2,
+    durationMinutes: 45,
   })
   await task('undated task', {
     title: demoLabel('Sort out the photo backup'),
@@ -435,7 +462,7 @@ export async function seedDemoData(tx: Tx, opts: { now?: Date } = {}): Promise<D
   const note = async (
     title: string,
     body: string,
-    links: { bookId?: string; personId?: string },
+    links: { bookId?: string; personId?: string; projectId?: string },
   ) => {
     const r = await saveNote(tx, {
       id: globalThis.crypto.randomUUID(),
@@ -444,7 +471,7 @@ export async function seedDemoData(tx: Tx, opts: { now?: Date } = {}): Promise<D
         title: demoLabel(title),
         body,
         pinned: false,
-        projectId: null,
+        projectId: links.projectId ?? null,
         linkedDate: null,
         bookId: links.bookId ?? null,
         personId: links.personId ?? null,
@@ -455,7 +482,7 @@ export async function seedDemoData(tx: Tx, opts: { now?: Date } = {}): Promise<D
   await note(
     'Kickoff agenda',
     'Goals for the first month\nWho owns what\nOpen questions: budget sign-off, launch date',
-    {},
+    { projectId: launch.id },
   )
   await note(
     'Ideas from The Pragmatic Programmer',

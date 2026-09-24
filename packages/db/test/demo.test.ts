@@ -50,7 +50,8 @@ async function wipe() {
   await t.db`
     delete from public.daily_plans; delete from public.learning_goals; delete from public.tasks;
     delete from public.reminders; delete from public.habits; delete from public.books;
-    delete from public.people; delete from public.notes; delete from public.journal_entries
+    delete from public.people; delete from public.notes; delete from public.journal_entries;
+    delete from public.projects
   `.simple()
 }
 
@@ -72,7 +73,8 @@ describe('seedDemoData', () => {
     expect(result.timezone).toBe(TZ)
     expect(demoTotal(result.replaced)).toBe(0)
     expect(result.counts).toMatchObject({
-      tasks: 8,
+      projects: 2,
+      tasks: 9,
       reminders: 3,
       habits: 4,
       books: 4,
@@ -89,6 +91,7 @@ describe('seedDemoData', () => {
     const unmarked = await t.db<{ n: number }[]>`
       select (
         (select count(*) from public.tasks where title not like '[demo]%') +
+        (select count(*) from public.projects where name not like '[demo]%') +
         (select count(*) from public.reminders where subject_kind = 'custom' and title not like '[demo]%') +
         (select count(*) from public.habits where title not like '[demo]%') +
         (select count(*) from public.books where title not like '[demo]%') +
