@@ -6,7 +6,6 @@
 import { z } from 'zod'
 import {
   CONNECTION_PROVIDER_INFO,
-  GOOGLE_CALENDAR_SCOPES,
   GOOGLE_GMAIL_SCOPE,
   connectionFailure,
   normalizeGrantedScopes,
@@ -35,7 +34,13 @@ export const GOOGLE_ENDPOINTS = {
   userinfo: 'https://openidconnect.googleapis.com/v1/userinfo',
   gmailProfile: 'https://gmail.googleapis.com/gmail/v1/users/me/profile',
   calendarList: 'https://www.googleapis.com/calendar/v3/users/me/calendarList',
+  // `primary` is the Calendar API's alias for the signed-in user's own calendar
+  // (Calendar API reference; not re-checked from this container).
+  primaryEvents: 'https://www.googleapis.com/calendar/v3/calendars/primary/events',
 } as const
+
+const GOOGLE_CALENDAR_LIST_SCOPE = 'https://www.googleapis.com/auth/calendar.calendarlist.readonly'
+const GOOGLE_CALENDAR_EVENTS_SCOPE = 'https://www.googleapis.com/auth/calendar.events.readonly'
 
 const GOOGLE_ISSUERS = ['https://accounts.google.com', 'accounts.google.com']
 const LABEL = 'Google'
@@ -56,7 +61,7 @@ const UserInfoSchema = z.object({
   hd: z.string().max(255).optional(),
 })
 
-const CalendarListSchema = z.object({ items: z.array(z.unknown()).optional() })
+const CalendarItemsSchema = z.object({ items: z.array(z.unknown()).optional() })
 
 const RATE_LIMIT_REASONS = new Set([
   'ratelimitexceeded',
@@ -254,11 +259,23 @@ export function createGoogleAdapter(config: GoogleOAuthConfig): ConnectionOAuthA
           },
         }
       }
-      if (GOOGLE_CALENDAR_SCOPES.some((s) => granted.includes(s))) {
+      // Each calendar call needs its own scope (docs/research/oauth.md): calendarList.list
+      // does not accept calendar.events.readonly, events.list does.
+      if (granted.includes(GOOGLE_CALENDAR_LIST_SCOPE)) {
         const url = `${GOOGLE_ENDPOINTS.calendarList}?maxResults=1`
-        await httpRequestJson(api(ctx, 'calendar list', url, accessToken), CalendarListSchema)
+        await httpRequestJson(api(ctx, 'calendar list', url, accessToken), CalendarItemsSchema)
         return {
           endpoint: 'calendar.calendarList.list',
+          accountLabel: null,
+          externalAccountId: null,
+          facts: {},
+        }
+      }
+      if (granted.includes(GOOGLE_CALENDAR_EVENTS_SCOPE)) {
+        const url = `${GOOGLE_ENDPOINTS.primaryEvents}?maxResults=1`
+        await httpRequestJson(api(ctx, 'calendar events', url, accessToken), CalendarItemsSchema)
+        return {
+          endpoint: 'calendar.events.list',
           accountLabel: null,
           externalAccountId: null,
           facts: {},

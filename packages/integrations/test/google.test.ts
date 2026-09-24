@@ -258,6 +258,27 @@ describe('Google identity and access checks', () => {
     expect(idOnly).toMatchObject({ endpoint: 'openid.userinfo', externalAccountId: GOOGLE_SUB })
   })
 
+  it('uses the primary calendar events when only calendar events were granted', async () => {
+    // calendarList.list does not accept calendar.events.readonly: Google answers 403.
+    const { ctx: c, calls } = ctx((req) =>
+      req.url.startsWith(GOOGLE_ENDPOINTS.calendarList)
+        ? jsonResponse(googleInsufficientScope, 403)
+        : jsonResponse({ kind: 'calendar#events', items: [] }),
+    )
+    const check = await adapter.verifyAccess(
+      't',
+      ['openid', 'email', 'https://www.googleapis.com/auth/calendar.events.readonly'],
+      c,
+    )
+    expect(check).toEqual({
+      endpoint: 'calendar.events.list',
+      accountLabel: null,
+      externalAccountId: null,
+      facts: {},
+    })
+    expect(calls.map((r) => r.url)).toEqual([`${GOOGLE_ENDPOINTS.primaryEvents}?maxResults=1`])
+  })
+
   it('classifies Gmail API failures: 401, insufficient scope, rate limits, disabled API, 5xx', async () => {
     const scopes = googleExchangeResponse(now).scope.split(' ')
     const cases: [number, unknown, Record<string, string>, Partial<ConnectionFailure>][] = [
