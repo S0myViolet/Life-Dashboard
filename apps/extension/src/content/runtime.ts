@@ -116,7 +116,8 @@ export function startCaptureRuntime(deps: RuntimeDeps): CaptureRuntime {
 
   const ensureObserver = () => {
     if (observer || dead) return
-    observer = new MutationObserver(() => {
+    const Observer = (win as Window & typeof globalThis).MutationObserver ?? MutationObserver
+    observer = new Observer(() => {
       void checkLocation()
       schedule()
     })
