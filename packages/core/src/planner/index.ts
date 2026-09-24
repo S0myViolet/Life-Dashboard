@@ -51,6 +51,7 @@ export {
   plannerSplitLabels,
   plannerValidateBlockEdit,
   plannerValidateMove,
+  plannerValidateRestore,
   type PlannerBlockTimeUpdate,
   type PlannerEditContext,
   type PlannerEditErrorCode,

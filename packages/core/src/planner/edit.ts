@@ -162,6 +162,26 @@ export function plannerValidateBlockEdit(
 }
 
 /**
+ * Undo a dismissal. A timed block can come back only if its slot is still free (the owner or
+ * a replan may have used it since); list items can always come back.
+ */
+export function plannerValidateRestore(
+  ctx: PlannerEditContext,
+  blockId: string,
+): PlannerEditResult<null> {
+  const block = ctx.blocks.find((b) => b.id === blockId)
+  if (!block) return fail('not_found', 'That plan item no longer exists.')
+  if (block.state !== 'dismissed') return fail('not_editable', 'Only dismissed items can be restored.')
+  const span = spanOf(block)
+  if (!span) return { ok: true, value: null }
+  const checked = validateSpan(ctx, span, new Set([block.id]), false)
+  if (!checked.ok && (checked.code === 'overlaps_block' || checked.code === 'overlaps_event')) {
+    return fail(checked.code, `Its time is taken now. ${checked.message} Or replan the day.`)
+  }
+  return checked
+}
+
+/**
  * Move a block one place earlier or later. Timed blocks swap slots with their neighbour
  * (the pair keeps its overall span and the gap between them); list items swap positions.
  * Done and dismissed items are skipped as neighbours.

@@ -281,6 +281,7 @@ export type PlanNoteCode =
   | 'calendars_unavailable'
   | 'day_over'
   | 'nothing_to_plan'
+  | 'sources_partial'
 
 export interface PlanNote {
   code: PlanNoteCode
