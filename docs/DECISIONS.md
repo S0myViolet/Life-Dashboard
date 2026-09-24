@@ -100,3 +100,43 @@ requirement until it is verified on real accounts.
 Both chat apps now unmount turns that are off screen. The helper builds up turns as they mount and
 records honest coverage (`observedFirstMessage`, `observedLastMessage`). A partial page can add to or
 update stored messages but can never shrink them.
+
+### D-22 · Background jobs
+- The dispatcher Edge Function runs for at most 40 seconds and 20 jobs per call. pg_cron calls it every minute with a 55-second timeout.
+- Briefings wait until an owner exists **and** has confirmed their timezone, so no briefing is dated before the dashboard was claimed or computed in the wrong zone.
+- After an outage only the latest due briefing of each kind is published, labelled late, with no notification. Older ones are marked superseded rather than published as a backlog.
+- Briefing content is an honest skeleton until Milestone 2. It never claims it was "published on schedule" when it wasn't.
+
+### D-23 · AI spending
+- Reservations assume USD→GBP at **1.00**, deliberately above the market rate so £ figures are overestimated. The rate is configurable.
+- Thinking tokens are billed at the output rate. Every request reserves a separate thinking allowance because providers do not document whether `maxOutputTokens` caps thinking.
+- Any HTTP error, timeout or unreadable response is treated as **ambiguous**: the full reservation stays counted until someone reconciles it. Only failures before a connection was made release money. An hourly job marks reservations older than 24 hours as ambiguous; nothing is released automatically.
+- Model output may cite only the evidence ids it was given. Links the model invents are removed, which blocks exfiltration through output.
+
+### D-24 · Mail and calendar connections
+- In Milestone 0 the 15-minute `sync.google`/`sync.microsoft` jobs only refresh tokens and call an identity endpoint. That proves background access with the laptop closed. Import arrives in Milestone 2.
+- The owner can read connection rows but not write them. Every change goes through server code that applies one state machine, so a job result cannot undo a pause, for example.
+- Partial Google consent is recorded honestly and offers Reconnect for the missing scopes. Microsoft has no revoke endpoint: disconnect deletes local tokens and links to the account's app-permissions page.
+
+### D-25 · Chrome helper details
+- Message identity: ChatGPT uses `data-message-id`, falling back to `data-turn-id`. Claude uses the row position. When no key is available the server derives a content hash key.
+- Nothing is deleted because a page did not show it. A message too long to send is left out and counted, never truncated.
+- There is one live pairing code at a time, valid for 10 minutes and usable once. The helper's permissions are `storage` and `alarms`, the two chat hosts, and the dashboard host requested at pairing.
+
+---
+
+## Milestone 1
+
+### D-30 · Voice recordings are stored in Postgres, not Supabase Storage
+Recordings are uploaded in chunks of 1 MB or less, which stays under serverless request-size limits, and stored in `journal_recording_chunks`. That gives them the same owner-only RLS as all other data and includes them in database backups; Storage objects are excluded from backups. A recording is deleted once its transcript is saved. A failed recording is kept for up to seven days with Retry, Download and Delete.
+
+### D-31 · Daily planner
+- Only confirmed tasks, project actions and email deadlines that are under real pressure can be priorities. When nothing is pressing, no priorities are invented. Unconfirmed items are scheduled after everything else, shown as tentative, and skipped by "Accept all".
+- **List mode** is used when available hours are unset or none apply to that weekday. It shows an ordered list with effort estimates and never invents a schedule.
+- A task marked splittable is placed whole if any gap fits it, and otherwise split into parts of at least 15 minutes, labelled "1 of 2". Items under deadline pressure that do not fit go to **Does not fit**. Items without pressure go to **Can wait**.
+- A replan never touches accepted, pinned, done, dismissed or owner-edited blocks. The database enforces no overlap between active timed blocks. When data changes, the owner sees a notice and nothing moves until they choose Replan.
+- Marking a plan block done also completes the underlying task, once no other part of it is left, or records the habit.
+
+### D-32 · Learning and people
+- A reading log records one measure: page reached, pages read, a percentage or minutes. Percentages are shown only when they can be derived, and they are rounded down so a book is never shown as finished early. Logging on a want-to-read or paused book marks it as reading. Nothing is marked finished automatically.
+- A 29 February date is shown on 28 February in non-leap years. A catch-up cadence counts from the day it is set, not "due immediately".
