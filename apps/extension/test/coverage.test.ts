@@ -134,6 +134,17 @@ describe('coverage on a virtualised ChatGPT thread', () => {
     expect(obs.contiguous).toBe(true)
   })
 
+  it('a turn shell with only an icon action bar is not counted as seen', () => {
+    const d = pageDocument(chatgptPage({ turns: gptThread(4) }), CHAT_URL)
+    setScroll(d, '[data-scroll-root]', 'bottom')
+    const shell = d.querySelectorAll('[data-testid^="conversation-turn-"]')[1]!
+    shell.querySelector('[data-message-author-role]')!.remove()
+    shell.insertAdjacentHTML('beforeend', '<button aria-label="Copy"><svg viewBox="0 0 1 1"></svg><img alt="" src="data:,"></button>')
+    const acc = new CaptureAccumulator(CHAT_URL, 'shell')
+    acc.observe(extractChatGPT(d))
+    expect(acc.toObservation(NOW)!).toMatchObject({ contiguous: false, missingCount: 1 })
+  })
+
   it('a turn that has not hydrated yet is not counted as seen', () => {
     const blank = gptThread(4, (i) => (i === 1 ? '' : `Synthetic message ${i}`))
     const acc = new CaptureAccumulator(CHAT_URL, 'hydrate')

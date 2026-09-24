@@ -19,9 +19,9 @@ import { capturePositionKey, type CaptureRole } from '@personal-home/core'
 import {
   cleanTitle,
   emptyExtract,
+  hasContentMedia,
   localKeyFor,
   looksLikeChallenge,
-  MEDIA,
   nearBottom,
   nearTop,
   type ExtractedMessage,
@@ -115,7 +115,7 @@ export function extractClaude(doc: Document): PageExtract {
   for (const row of allRows) {
     const index = rowIndex(row)
     if (index === null || rows.includes(row)) continue
-    if (renderedText(row).length > 0 || row.querySelector(MEDIA) !== null) renderedPositions.push(String(index))
+    if (renderedText(row).length > 0 || hasContentMedia(row)) renderedPositions.push(String(index))
   }
 
   if (messages.length === 0) return emptyExtract('structure_changed')

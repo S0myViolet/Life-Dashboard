@@ -88,11 +88,16 @@ export function captureCoverageSummary(c: CoverageInput): string {
   if (cov.observedFirstMessage === false) parts.push('the start was not in view (scroll to the top once to collect older messages)')
   if (cov.observedLastMessage === false) parts.push('the end was not in view')
   const missing = cov.missingCount ?? 0
-  if (missing > 0 || (cov.contiguous !== true && cov.observedFirstMessage && cov.observedLastMessage)) {
-    const count = missing > 0 ? ` (${missing} turn${missing === 1 ? '' : 's'} not seen)` : ''
-    parts.push(
-      `some messages between the first and the last were never in view${count}; scroll through the whole conversation once, without jumping to the top or bottom`,
-    )
+  const turns = `${missing} turn${missing === 1 ? '' : 's'}`
+  if (cov.observedFirstMessage === true && cov.observedLastMessage === true) {
+    // Both ends seen: anything missing is in between (older helpers did not say, so it is not ruled out).
+    if (missing > 0 || cov.contiguous !== true) {
+      parts.push(
+        `some messages between the first and the last were never in view${missing > 0 ? ` (${turns} not seen)` : ''}; scroll through the whole conversation once, without jumping to the top or bottom`,
+      )
+    }
+  } else if (missing > 0) {
+    parts.push(`${turns} of the conversation ${missing === 1 ? 'was' : 'were'} not seen`)
   }
   if (cov.streamingInProgress) parts.push('a reply was still being written')
   if ((cov.omittedCount ?? 0) > 0) parts.push(`${cov.omittedCount} message(s) were too large to send`)

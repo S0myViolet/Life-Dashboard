@@ -17,9 +17,9 @@ import type { CaptureRole } from '@personal-home/core'
 import {
   cleanTitle,
   emptyExtract,
+  hasContentMedia,
   localKeyFor,
   looksLikeChallenge,
-  MEDIA,
   nearBottom,
   nearTop,
   safeKey,
@@ -108,7 +108,7 @@ export function extractChatGPT(doc: Document): PageExtract {
     const elements = (turn.matches(MESSAGE) ? [turn] : outermost(turn, MESSAGE)).filter((el) =>
       isRole(el.getAttribute('data-message-author-role')),
     )
-    const mediaOnly = elements.length === 0 && turn.querySelector(MEDIA) !== null
+    const mediaOnly = elements.length === 0 && hasContentMedia(turn)
     if (elements.length === 0 && isRole(turnRole)) {
       recognised++
       const text = contentText(turn, turnRole)

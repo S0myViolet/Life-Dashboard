@@ -65,8 +65,16 @@ export const emptyExtract = (status: ExtractStatus): PageExtract => ({
   threadPositions: null,
 })
 
-/** Non-text content (images, generated media, attachment previews) that is never collected as text. */
-export const MEDIA = 'img, picture, video, audio, canvas, svg, iframe, object'
+const MEDIA = 'img, picture, video, audio, canvas, iframe, object'
+
+/**
+ * The element shows non-text content (a generated image, an attachment
+ * preview) that is never collected as text. Icons in buttons (and SVG icons
+ * generally) do not count, so an action bar alone is not "content".
+ */
+export function hasContentMedia(el: Element): boolean {
+  return Array.from(el.querySelectorAll(MEDIA)).some((m) => !m.closest('button, [role="button"]'))
+}
 
 export function safeKey(value: string | null | undefined): string | undefined {
   if (!value) return undefined

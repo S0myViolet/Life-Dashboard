@@ -163,8 +163,8 @@ export function startCaptureRuntime(deps: RuntimeDeps): CaptureRuntime {
   const flushNow = () => {
     const s = session
     if (!s || !s.collect || s.stopped || dead) return
-    read(s)
-    void upload(s)
+    // null: the URL moved on, and leaving the conversation already sent it.
+    if (read(s)) void upload(s)
   }
 
   const reportProblem = async (s: Session, state: CaptureProblemState) => {

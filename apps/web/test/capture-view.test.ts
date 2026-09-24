@@ -68,6 +68,22 @@ describe('captureCoverageSummary', () => {
       },
     })
     expect(legacy).toContain('some messages between the first and the last were never in view;')
+
+    // The start was not seen either: the count covers it, without claiming where the gaps are.
+    const startMissing = captureCoverageSummary({
+      messageCount: 6,
+      lastCapturedAt: at('2026-09-24T10:00:00Z'),
+      lastSeenCompleteAt: null,
+      lastSnapshot: {
+        outcome: 'applied',
+        reason: null,
+        mode: 'passive',
+        coverage: { observedFirstMessage: false, observedLastMessage: true, contiguous: false, missingCount: 34 },
+      },
+    })
+    expect(startMissing).toContain('the start was not in view')
+    expect(startMissing).toContain('34 turns of the conversation were not seen')
+    expect(startMissing).not.toContain('between the first and the last')
   })
 
   it('claims the whole conversation only when the latest capture saw first to last', () => {
