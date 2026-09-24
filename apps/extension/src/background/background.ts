@@ -339,11 +339,29 @@ export class Background {
     }
     const mode = collector ? 'revisit' : 'passive'
     const now = this.clock()
+    // Shape check before building; the endpoint schema validates everything again below.
+    const messages = observation.messages.filter(
+      (m) =>
+        m !== null &&
+        typeof m === 'object' &&
+        typeof m.text === 'string' &&
+        (m.role === 'user' || m.role === 'assistant') &&
+        (m.key === undefined || typeof m.key === 'string') &&
+        (m.orderHint === undefined || typeof m.orderHint === 'number'),
+    )
     const built = buildSnapshots({
       provider: ref.provider,
       externalId: ref.externalId,
       canonicalUrl: ref.canonicalUrl,
-      observation: { ...observation, capturedAt: safeInstant(observation.capturedAt, now) },
+      observation: {
+        ...observation,
+        messages,
+        observedFirstMessage: observation.observedFirstMessage === true,
+        observedLastMessage: observation.observedLastMessage === true,
+        streamingInProgress: observation.streamingInProgress === true,
+        renderedCount: Number.isInteger(observation.renderedCount) ? Math.max(0, observation.renderedCount) : 0,
+        capturedAt: safeInstant(observation.capturedAt, now),
+      },
       mode,
       extensionVersion: this.chrome.version,
       newId: this.newId,
