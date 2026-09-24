@@ -59,6 +59,25 @@ export function ModuleCard({
   )
 }
 
+/** A text link inside a module: a 44px touch target on phones, compact on larger screens. */
+export const homeLinkClass =
+  'inline-flex min-h-11 items-center font-medium text-accent hover:text-accent-strong sm:min-h-0'
+
+/**
+ * The saved timezone cannot be used by this server (e.g. unknown to its time zone data):
+ * say so instead of computing "today" in some other zone.
+ */
+export function TimezoneUnusable({ what }: { what: string }) {
+  return (
+    <p role="alert" className="text-danger">
+      Your saved timezone can&rsquo;t be used here, so {what} can&rsquo;t be worked out.{' '}
+      <Link href="/settings/timezone" className={homeLinkClass}>
+        Choose your timezone again
+      </Link>
+    </p>
+  )
+}
+
 /** Honest label for a module whose data arrives in a later milestone. */
 export function PlannedPill({ milestone }: { milestone: string }) {
   return <Pill>Planned · {milestone}</Pill>

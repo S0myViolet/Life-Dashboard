@@ -1,11 +1,11 @@
 /**
- * Home modules. Each is an async server component rendered inside its own
- * <Suspense> boundary, so a slow source never blocks the rest of Home.
+ * Home modules. Each is an async server component rendered inside its own <Suspense>
+ * boundary (app/(app)/page.tsx), so a slow or failing source never blocks the rest of Home.
+ * Modules read saved data only: no provider or AI call happens while Home renders.
  *
- * Milestone 0 has no data sources yet. Every module says plainly what will
- * appear, when, and what the owner can do now — never "all clear" or zeros.
+ * Health, money and interests arrive with Milestone 3 and say so; nothing shows fabricated
+ * zeros or "all clear".
  */
-import Link from 'next/link'
 import {
   HOME_MODULE_LABELS,
   INTEREST_SECTIONS,
@@ -13,9 +13,12 @@ import {
   type HomeModule,
 } from '@personal-home/core'
 import type { OwnerSettings } from '@personal-home/db'
-import { DataStatePill, Pill } from '@/components/ui/status-pill'
-import { TodaysPlanCard } from '@/components/planner/todays-plan-card'
+import { Pill } from '@/components/ui/status-pill'
+import { BriefingModule } from './briefing'
 import { ModuleCard, PlannedPill } from './module-card'
+import { NeedsAttentionModule } from './needs-attention'
+import { PlanModule } from './plan-module'
+import { TodayModule } from './today'
 
 export interface HomeModuleProps {
   settings: OwnerSettings
@@ -25,73 +28,6 @@ const WIDE_MODULES: ReadonlySet<HomeModule> = new Set(['needs_attention', 'today
 
 export function isWideHomeModule(module: HomeModule): boolean {
   return WIDE_MODULES.has(module)
-}
-
-const linkClass =
-  'inline-flex min-h-11 items-center font-medium text-accent hover:text-accent-strong sm:min-h-0'
-
-async function NeedsAttention() {
-  return (
-    <ModuleCard
-      id="needs-attention"
-      title={HOME_MODULE_LABELS.needs_attention}
-      status={<DataStatePill state="unavailable" />}
-      wide
-    >
-      <p>Explicit deadlines, overdue tasks and time-sensitive messages will be listed here.</p>
-      <p>
-        Nothing is feeding this section yet, so an empty list here would not mean all clear. Local
-        tasks arrive in Milestone 1; deadlines from connected Gmail and Outlook accounts in
-        Milestone 2.
-      </p>
-      <Link href="/settings/connections" className={linkClass}>
-        Review connections
-      </Link>
-    </ModuleCard>
-  )
-}
-
-// Module 2: the planner's own card (drafts today's plan on first use; never blocks Home).
-async function TodaysPlan() {
-  return <TodaysPlanCard />
-}
-
-async function Today() {
-  return (
-    <ModuleCard
-      id="today"
-      title={HOME_MODULE_LABELS.today}
-      status={<PlannedPill milestone="Milestone 1" />}
-      href="/plan"
-      hrefLabel="Week"
-      wide
-    >
-      <p>Today&rsquo;s calendar events, tasks and habits.</p>
-      <p>
-        Local tasks and habits arrive in Milestone 1. Events from connected Google and Outlook
-        calendars (read-only, with links back to the original) follow in Milestone 2.
-      </p>
-    </ModuleCard>
-  )
-}
-
-async function Briefing({ settings }: HomeModuleProps) {
-  return (
-    <ModuleCard
-      id="briefing"
-      title={HOME_MODULE_LABELS.briefing}
-      status={<PlannedPill milestone="Milestone 2" />}
-    >
-      <p>
-        The 11:00 briefing and the 22:00 project review will appear here, showing how fresh each
-        source was and which connections were unavailable.
-      </p>
-      <p>
-        They will run in <span className="text-ink">{settings.timezone}</span>
-        {settings.timezoneConfirmed ? '' : ' (not confirmed yet)'}.
-      </p>
-    </ModuleCard>
-  )
 }
 
 async function HealthPreview() {
@@ -149,11 +85,11 @@ async function Interests() {
   )
 }
 
-const MODULES: Record<HomeModule, (props: HomeModuleProps) => Promise<React.ReactNode>> = {
-  needs_attention: NeedsAttention,
-  todays_plan: TodaysPlan,
-  today: Today,
-  briefing: Briefing,
+const MODULES: Record<HomeModule, (props: HomeModuleProps) => React.ReactNode> = {
+  needs_attention: NeedsAttentionModule,
+  todays_plan: PlanModule,
+  today: TodayModule,
+  briefing: BriefingModule,
   health_preview: HealthPreview,
   money_preview: MoneyPreview,
   interests: Interests,

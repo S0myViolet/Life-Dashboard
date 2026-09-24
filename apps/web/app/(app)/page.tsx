@@ -2,10 +2,16 @@ import { Suspense } from 'react'
 import { HOME_MODULE_LABELS, homeHeading, visibleHomeModules } from '@personal-home/core'
 import { getOwnerSettings } from '@personal-home/db'
 import { PageHeader } from '@/components/shell/app-shell'
+import { DemoNotice } from '@/components/home/demo-notice'
 import { HomeModuleSection, isWideHomeModule } from '@/components/home/home-modules'
 import { ModuleSkeleton } from '@/components/home/module-card'
-import { QuickCapture } from '@/components/home/quick-capture'
 import { TimezoneBanner } from '@/components/home/timezone-banner'
+import { CaptureJump } from '@/components/quick-capture/capture-jump'
+import {
+  QUICK_CAPTURE_ID,
+  QuickCapture,
+  QuickCaptureSkeleton,
+} from '@/components/quick-capture/quick-capture'
 import { EmptyState } from '@/components/ui/empty-state'
 import { requireOwner, withOwnerTx } from '@/lib/server/session'
 
@@ -29,6 +35,7 @@ export default async function HomePage() {
 
   const heading = homeHeading(new Date(), settings.timezone)
   const name = settings.displayName?.trim()
+  // Saved order; hidden optional modules are not rendered at all.
   const modules = visibleHomeModules(settings.homeLayout)
 
   return (
@@ -43,8 +50,12 @@ export default async function HomePage() {
             <span className="text-ink-faint"> · {heading.timezone}</span>
           </>
         }
+        actions={<CaptureJump targetId={QUICK_CAPTURE_ID} />}
       />
       {settings.timezoneConfirmed ? null : <TimezoneBanner savedTimezone={settings.timezone} />}
+      <Suspense fallback={null}>
+        <DemoNotice />
+      </Suspense>
       <div className="grid gap-4 lg:grid-cols-2">
         {modules.map((module) => (
           <Suspense
@@ -57,7 +68,9 @@ export default async function HomePage() {
           </Suspense>
         ))}
       </div>
-      <QuickCapture />
+      <Suspense fallback={<QuickCaptureSkeleton />}>
+        <QuickCapture />
+      </Suspense>
     </>
   )
 }
