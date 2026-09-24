@@ -66,7 +66,8 @@ export function findJobJsonKeyProblem(value: unknown, path = '$'): string | null
 /** A JSON object for job payloads/results: camelCase keys, bounded size. */
 export const JobJsonObjectSchema = JsonObjectSchema.superRefine((value, ctx) => {
   const bad = findJobJsonKeyProblem(value)
-  if (bad) ctx.addIssue({ code: 'custom', message: `use camelCase keys without "_" (found ${bad})` })
+  if (bad)
+    ctx.addIssue({ code: 'custom', message: `use camelCase keys without "_" (found ${bad})` })
   let size = Number.POSITIVE_INFINITY
   try {
     size = new TextEncoder().encode(JSON.stringify(value)).length
@@ -74,7 +75,10 @@ export const JobJsonObjectSchema = JsonObjectSchema.superRefine((value, ctx) => 
     // Not serialisable (cycle, BigInt): reported below.
   }
   if (size > JOB_JSON_MAX_BYTES) {
-    ctx.addIssue({ code: 'custom', message: `must be JSON-serialisable and at most ${JOB_JSON_MAX_BYTES} bytes` })
+    ctx.addIssue({
+      code: 'custom',
+      message: `must be JSON-serialisable and at most ${JOB_JSON_MAX_BYTES} bytes`,
+    })
   }
 })
 
@@ -91,7 +95,12 @@ export const EnqueueJobInputSchema = z.object({
   payload: JobJsonObjectSchema.default({}),
   /** When the job becomes claimable. Defaults to now. */
   runAt: z.date().optional(),
-  maxAttempts: z.number().int().min(1).max(JOB_MAX_ATTEMPTS_LIMIT).default(JOB_DEFAULT_MAX_ATTEMPTS),
+  maxAttempts: z
+    .number()
+    .int()
+    .min(1)
+    .max(JOB_MAX_ATTEMPTS_LIMIT)
+    .default(JOB_DEFAULT_MAX_ATTEMPTS),
   /** The recurring schedule that produced this job, if any. */
   scheduleName: z.string().min(1).max(64).nullish(),
 })

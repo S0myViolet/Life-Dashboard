@@ -12,7 +12,13 @@ import {
   type BriefingKind,
   type ClaimedJob,
 } from '@personal-home/core'
-import { enqueueJob, insertOrGetBriefing, listJobs, withService, type BriefingRow } from '@personal-home/db'
+import {
+  enqueueJob,
+  insertOrGetBriefing,
+  listJobs,
+  withService,
+  type BriefingRow,
+} from '@personal-home/db'
 import { createTestDatabase, seedOwner, type TestDatabase } from '@personal-home/db/testing'
 import {
   briefingJobHandlers,
@@ -50,13 +56,31 @@ async function setTimezone(t: TestDatabase, timezone: string) {
   await t.db`update public.owner_settings set timezone = ${timezone}`
 }
 
-function tick(t: TestDatabase, at: Date | string, handlers: JobHandlerRegistry = registry, workerId = 'tick') {
+function tick(
+  t: TestDatabase,
+  at: Date | string,
+  handlers: JobHandlerRegistry = registry,
+  workerId = 'tick',
+) {
   const now = typeof at === 'string' ? new Date(at) : at
-  return runDispatcher({ db: t.db, workerId, handlers, budgetMs: 30_000, maxJobs: 20, now: () => now })
+  return runDispatcher({
+    db: t.db,
+    workerId,
+    handlers,
+    budgetMs: 30_000,
+    maxJobs: 20,
+    now: () => now,
+  })
 }
 
 /** Run the dispatcher every `stepMinutes` from `from` (inclusive) to `to` (exclusive). */
-async function tickEvery(t: TestDatabase, from: string, to: string, stepMinutes: number, handlers = registry) {
+async function tickEvery(
+  t: TestDatabase,
+  from: string,
+  to: string,
+  stepMinutes: number,
+  handlers = registry,
+) {
   for (let ms = Date.parse(from); ms < Date.parse(to); ms += stepMinutes * 60_000) {
     const s = await tick(t, new Date(ms), handlers)
     expect(s.errors).toEqual([])
@@ -64,11 +88,19 @@ async function tickEvery(t: TestDatabase, from: string, to: string, stepMinutes:
 }
 
 async function rows(t: TestDatabase, kind?: BriefingKind): Promise<BriefingRow[]> {
-  const all = await withService(t.db, (tx) => tx<BriefingRow[]>`select * from public.briefings order by kind, local_date`)
+  const all = await withService(
+    t.db,
+    (tx) => tx<BriefingRow[]>`select * from public.briefings order by kind, local_date`,
+  )
   return kind ? all.filter((r) => r.kind === kind) : [...all]
 }
 
-function directContext(t: TestDatabase, kind: BriefingKind, payload: Record<string, unknown>, now: Date): JobContext {
+function directContext(
+  t: TestDatabase,
+  kind: BriefingKind,
+  payload: Record<string, unknown>,
+  now: Date,
+): JobContext {
   const job = {
     id: randomUUID(),
     kind: kind === 'morning' ? 'briefing.morning' : 'briefing.evening',
@@ -88,7 +120,14 @@ function directContext(t: TestDatabase, kind: BriefingKind, payload: Record<stri
     updatedAt: now,
     finishedAt: null,
   } satisfies ClaimedJob
-  return { job, db: t.db, now: () => now, signal: new AbortController().signal, workerId: 'direct', heartbeat: async () => true }
+  return {
+    job,
+    db: t.db,
+    now: () => now,
+    signal: new AbortController().signal,
+    workerId: 'direct',
+    heartbeat: async () => true,
+  }
 }
 
 const london = (date: string, time: string) => zonedLocalToUtc(date, time, 'Europe/London')
@@ -96,7 +135,11 @@ const london = (date: string, time: string) => zonedLocalToUtc(date, time, 'Euro
 describe('briefing idempotency', () => {
   it('running the same morning job twice publishes one briefing', async () => {
     const t = await setup()
-    const payload = { localDate: '2026-09-24', scheduledFor: '2026-09-24T10:00:00.000Z', timezone: 'Europe/London' }
+    const payload = {
+      localDate: '2026-09-24',
+      scheduledFor: '2026-09-24T10:00:00.000Z',
+      timezone: 'Europe/London',
+    }
     const handler = createBriefingJobHandler('morning')
     const now = new Date('2026-09-24T10:00:30Z')
     const first = await handler.run(directContext(t, 'morning', payload, now))
@@ -105,12 +148,22 @@ describe('briefing idempotency', () => {
     expect(second).toMatchObject({ outcome: 'already_published' })
     const r = await rows(t)
     expect(r).toHaveLength(1)
-    expect(r[0]).toMatchObject({ kind: 'morning', localDate: '2026-09-24', status: 'published', notify: true, isLate: false })
+    expect(r[0]).toMatchObject({
+      kind: 'morning',
+      localDate: '2026-09-24',
+      status: 'published',
+      notify: true,
+      isLate: false,
+    })
   })
 
   it('running it concurrently publishes one briefing', async () => {
     const t = await setup()
-    const payload = { localDate: '2026-09-24', scheduledFor: '2026-09-24T21:00:00.000Z', timezone: 'Europe/London' }
+    const payload = {
+      localDate: '2026-09-24',
+      scheduledFor: '2026-09-24T21:00:00.000Z',
+      timezone: 'Europe/London',
+    }
     const handler = createBriefingJobHandler('evening')
     const now = new Date('2026-09-24T21:00:05Z')
     const results = await Promise.all(
@@ -128,8 +181,12 @@ describe('briefing idempotency', () => {
       tick(t2, '2026-09-24T10:00:00Z', registry, 'b'),
       tick(t2, '2026-09-24T10:00:00Z', registry, 'c'),
     ])
-    expect((await rows(t2)).map((r) => `${r.kind}:${r.localDate}:${r.status}`)).toEqual(['morning:2026-09-24:published'])
-    expect(await withService(t2.db, (tx) => listJobs(tx, { kind: 'briefing.morning' }))).toHaveLength(1)
+    expect((await rows(t2)).map((r) => `${r.kind}:${r.localDate}:${r.status}`)).toEqual([
+      'morning:2026-09-24:published',
+    ])
+    expect(
+      await withService(t2.db, (tx) => listJobs(tx, { kind: 'briefing.morning' })),
+    ).toHaveLength(1)
   })
 
   it('a failed attempt is retried into the same row', async () => {
@@ -152,9 +209,18 @@ describe('briefing idempotency', () => {
     await tick(t, '2026-09-24T10:02:00Z', flaky)
     const r = await rows(t, 'morning')
     expect(r).toHaveLength(1)
-    expect(r[0]).toMatchObject({ status: 'published', isLate: false, notify: true, publishedAt: new Date('2026-09-24T10:02:00Z') })
+    expect(r[0]).toMatchObject({
+      status: 'published',
+      isLate: false,
+      notify: true,
+      publishedAt: new Date('2026-09-24T10:02:00Z'),
+    })
     const [job] = await withService(t.db, (tx) => listJobs(tx, { kind: 'briefing.morning' }))
-    expect(job).toMatchObject({ status: 'succeeded', attempts: 2, lastError: 'cache refresh failed' })
+    expect(job).toMatchObject({
+      status: 'succeeded',
+      attempts: 2,
+      lastError: 'cache refresh failed',
+    })
   })
 
   it('marks the briefing failed (not "preparing") when the job dies', async () => {
@@ -181,8 +247,16 @@ describe('local-time scheduling', () => {
   it('publishes at 11:00 and 22:00 Europe/London each day across both 2026 DST changes', async () => {
     const t = await setup('Europe/London')
     for (const [from, to, days] of [
-      ['2026-03-27T00:00:00Z', '2026-04-01T00:00:00Z', ['2026-03-27', '2026-03-28', '2026-03-29', '2026-03-30', '2026-03-31']],
-      ['2026-10-23T00:00:00Z', '2026-10-28T00:00:00Z', ['2026-10-23', '2026-10-24', '2026-10-25', '2026-10-26', '2026-10-27']],
+      [
+        '2026-03-27T00:00:00Z',
+        '2026-04-01T00:00:00Z',
+        ['2026-03-27', '2026-03-28', '2026-03-29', '2026-03-30', '2026-03-31'],
+      ],
+      [
+        '2026-10-23T00:00:00Z',
+        '2026-10-28T00:00:00Z',
+        ['2026-10-23', '2026-10-24', '2026-10-25', '2026-10-26', '2026-10-27'],
+      ],
     ] as const) {
       await tickEvery(t, from, to, 30)
       for (const kind of ['morning', 'evening'] as const) {
@@ -194,13 +268,20 @@ describe('local-time scheduling', () => {
           // Published on the first tick at/after the scheduled instant: exactly on time.
           expect(r.publishedAt).toEqual(r.scheduledFor)
           expect(localTimeInZone(r.publishedAt!, 'Europe/London')).toBe(localTime)
-          expect(r).toMatchObject({ status: 'published', isLate: false, notify: true, timezone: 'Europe/London' })
+          expect(r).toMatchObject({
+            status: 'published',
+            isLate: false,
+            notify: true,
+            timezone: 'Europe/London',
+          })
         }
       }
     }
     // The UTC hour moves with DST; the local hour does not. (22 October is the one
     // catch-up briefing after the gap between the two simulated periods: late, silent.)
-    const utcHours = (await rows(t, 'morning')).map((r) => `${r.localDate}@${r.scheduledFor.getUTCHours()}`)
+    const utcHours = (await rows(t, 'morning')).map(
+      (r) => `${r.localDate}@${r.scheduledFor.getUTCHours()}`,
+    )
     expect(utcHours).toEqual([
       '2026-03-27@11',
       '2026-03-28@11',
@@ -233,11 +314,14 @@ describe('local-time scheduling', () => {
     ])
     expect(morning[1]?.scheduledFor).toEqual(new Date('2026-06-11T15:00:00Z'))
     const evening = await rows(t, 'evening')
-    expect(evening.map((r) => `${r.localDate}:${r.timezone}:${r.scheduledFor.toISOString()}`)).toEqual([
-      '2026-06-10:America/New_York:2026-06-11T02:00:00.000Z',
-    ])
+    expect(
+      evening.map((r) => `${r.localDate}:${r.timezone}:${r.scheduledFor.toISOString()}`),
+    ).toEqual(['2026-06-10:America/New_York:2026-06-11T02:00:00.000Z'])
     const morningJobs = await withService(t.db, (tx) => listJobs(tx, { kind: 'briefing.morning' }))
-    expect(morningJobs.map((j) => j.dedupeKey)).toEqual(['briefing.morning:2026-06-10', 'briefing.morning:2026-06-11'])
+    expect(morningJobs.map((j) => j.dedupeKey)).toEqual([
+      'briefing.morning:2026-06-10',
+      'briefing.morning:2026-06-11',
+    ])
   })
 
   it('moving east mid-day does not duplicate a date; a missed evening is published once, late', async () => {
@@ -257,10 +341,11 @@ describe('local-time scheduling', () => {
     // 22:00 EDT on 10 June never comes (the owner left). 22:00 JST on 10 June (13:00Z) had
     // already passed when the owner switched, so it is the latest due evening review:
     // published once, labelled late, no notification. 11 June is on time.
-    expect(evening.map((r) => `${r.localDate}:${r.timezone}:${r.isLate ? 'late' : 'on-time'}:${r.notify}`)).toEqual([
-      '2026-06-10:Asia/Tokyo:late:false',
-      '2026-06-11:Asia/Tokyo:on-time:true',
-    ])
+    expect(
+      evening.map(
+        (r) => `${r.localDate}:${r.timezone}:${r.isLate ? 'late' : 'on-time'}:${r.notify}`,
+      ),
+    ).toEqual(['2026-06-10:Asia/Tokyo:late:false', '2026-06-11:Asia/Tokyo:on-time:true'])
   })
 })
 
@@ -274,8 +359,16 @@ describe('late publication and outages', () => {
     await tick(t, '2026-09-24T21:31:00Z')
     const [evening] = await rows(t, 'evening')
     const [morning] = await rows(t, 'morning')
-    expect(morning).toMatchObject({ isLate: false, notify: true, publishedAt: new Date('2026-09-24T10:30:00Z') })
-    expect(evening).toMatchObject({ isLate: true, notify: false, publishedAt: new Date('2026-09-24T21:31:00Z') })
+    expect(morning).toMatchObject({
+      isLate: false,
+      notify: true,
+      publishedAt: new Date('2026-09-24T10:30:00Z'),
+    })
+    expect(evening).toMatchObject({
+      isLate: true,
+      notify: false,
+      publishedAt: new Date('2026-09-24T21:31:00Z'),
+    })
   })
 
   it('after a 3-day outage publishes only the latest due briefing per kind, late and silent', async () => {
@@ -286,7 +379,12 @@ describe('late publication and outages', () => {
     // Outage: nothing runs until 09:00 BST on 4 June.
     await tick(t, '2026-06-04T08:00:00Z')
     let all = await rows(t)
-    expect(all.map((r) => `${r.kind}:${r.localDate}:${r.isLate ? 'late' : 'on-time'}:${r.notify ? 'notify' : 'silent'}`)).toEqual([
+    expect(
+      all.map(
+        (r) =>
+          `${r.kind}:${r.localDate}:${r.isLate ? 'late' : 'on-time'}:${r.notify ? 'notify' : 'silent'}`,
+      ),
+    ).toEqual([
       'evening:2026-06-01:on-time:notify',
       'evening:2026-06-03:late:silent', // only the latest missed evening
       'morning:2026-06-01:on-time:notify',
@@ -318,7 +416,11 @@ describe('late publication and outages', () => {
           {
             kind: 'briefing.morning',
             dedupeKey: `briefing.morning:${d}`,
-            payload: { localDate: d, scheduledFor: london(d, '11:00').toISOString(), timezone: 'Europe/London' },
+            payload: {
+              localDate: d,
+              scheduledFor: london(d, '11:00').toISOString(),
+              timezone: 'Europe/London',
+            },
             runAt: london(d, '11:00'),
           },
           london(d, '11:00'),
@@ -327,18 +429,26 @@ describe('late publication and outages', () => {
     }
     // An attempt for 1 June had already created its row before crashing.
     await withService(t.db, (tx) =>
-      insertOrGetBriefing(tx, { kind: 'morning', localDate: '2026-06-01', timezone: 'Europe/London', scheduledFor: london('2026-06-01', '11:00') }),
+      insertOrGetBriefing(tx, {
+        kind: 'morning',
+        localDate: '2026-06-01',
+        timezone: 'Europe/London',
+        scheduledFor: london('2026-06-01', '11:00'),
+      }),
     )
     await tick(t, '2026-06-03T11:00:00Z') // 12:00 BST on 3 June
     const morning = await rows(t, 'morning')
-    expect(morning.map((r) => `${r.localDate}:${r.status}:${r.notify ? 'notify' : 'silent'}`)).toEqual([
-      '2026-06-01:failed:silent',
-      '2026-06-03:published:silent',
-    ])
+    expect(
+      morning.map((r) => `${r.localDate}:${r.status}:${r.notify ? 'notify' : 'silent'}`),
+    ).toEqual(['2026-06-01:failed:silent', '2026-06-03:published:silent'])
     expect(morning[0]?.content).toMatchObject({ failure: { code: 'superseded' } })
     expect(morning[1]).toMatchObject({ isLate: true })
     const jobs = await withService(t.db, (tx) => listJobs(tx, { kind: 'briefing.morning' }))
-    expect(jobs.map((j) => `${j.dedupeKey}:${j.status}:${(j.result as { outcome?: string } | null)?.outcome}`)).toEqual([
+    expect(
+      jobs.map(
+        (j) => `${j.dedupeKey}:${j.status}:${(j.result as { outcome?: string } | null)?.outcome}`,
+      ),
+    ).toEqual([
       'briefing.morning:2026-06-01:succeeded:superseded',
       'briefing.morning:2026-06-02:succeeded:superseded',
       'briefing.morning:2026-06-03:succeeded:published',
@@ -353,16 +463,32 @@ describe('briefing content and setup states', () => {
     await tick(t, '2026-09-24T05:30:00Z') // 11:00 IST
     const [row] = await rows(t, 'morning')
     expect(row?.content).toEqual(buildBriefingSkeletonContent('morning', '2026-09-24'))
-    expect(row?.sourceFreshness).toEqual({ version: 1, sources: [], note: expect.stringMatching(/Milestone 2/) })
+    expect(row?.sourceFreshness).toEqual({
+      version: 1,
+      sources: [],
+      note: expect.stringMatching(/Milestone 2/),
+    })
   })
 
   it('a manual job with an empty payload publishes the latest due briefing in the owner timezone', async () => {
     const t = await setup('Pacific/Chatham')
     const now = new Date('2026-09-26T23:00:00Z') // 12:45 on 27 Sep (+13:45)
     await withService(t.db, (tx) => enqueueJob(tx, { kind: 'briefing.morning', payload: {} }, now))
-    await runDispatcher({ db: t.db, workerId: 'manual', handlers: registry, budgetMs: 30_000, maxJobs: 5, now: () => now, schedules: [] })
+    await runDispatcher({
+      db: t.db,
+      workerId: 'manual',
+      handlers: registry,
+      budgetMs: 30_000,
+      maxJobs: 5,
+      now: () => now,
+      schedules: [],
+    })
     const [row] = await rows(t, 'morning')
-    expect(row).toMatchObject({ localDate: '2026-09-27', timezone: 'Pacific/Chatham', scheduledFor: new Date('2026-09-26T21:15:00Z') })
+    expect(row).toMatchObject({
+      localDate: '2026-09-27',
+      timezone: 'Pacific/Chatham',
+      scheduledFor: new Date('2026-09-26T21:15:00Z'),
+    })
     expect(row).toMatchObject({ isLate: true, notify: false })
   })
 
@@ -371,7 +497,13 @@ describe('briefing content and setup states', () => {
     dbs.push(t)
     const s = await tick(t, '2026-09-24T10:00:00Z')
     expect(s.schedules?.skipped.map((x) => x.reason)).toEqual(['no_owner', 'no_owner'])
-    await withService(t.db, (tx) => enqueueJob(tx, { kind: 'briefing.evening', payload: { localDate: 'yesterday' } }, new Date('2026-09-24T10:00:00Z')))
+    await withService(t.db, (tx) =>
+      enqueueJob(
+        tx,
+        { kind: 'briefing.evening', payload: { localDate: 'yesterday' } },
+        new Date('2026-09-24T10:00:00Z'),
+      ),
+    )
     const s2 = await tick(t, '2026-09-24T10:00:00Z')
     expect(s2.totals).toMatchObject({ claimed: 1, dead: 1 })
     expect(await rows(t)).toEqual([])

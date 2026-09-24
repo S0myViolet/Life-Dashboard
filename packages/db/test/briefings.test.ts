@@ -11,7 +11,13 @@ import {
   withService,
   type OwnerClaims,
 } from '../src/index.ts'
-import { createAuthUser, createTestDatabase, seedOwner, withAnon, type TestDatabase } from './harness.ts'
+import {
+  createAuthUser,
+  createTestDatabase,
+  seedOwner,
+  withAnon,
+  type TestDatabase,
+} from './harness.ts'
 
 let t: TestDatabase
 let owner: OwnerClaims
@@ -31,12 +37,19 @@ afterAll(async () => {
 describe('public.briefings access', () => {
   it('owner can read, nobody but the service connection can write', async () => {
     await withService(t.db, (tx) =>
-      insertOrGetBriefing(tx, { kind: 'morning', localDate: '2026-09-01', timezone: 'Europe/London', scheduledFor }),
+      insertOrGetBriefing(tx, {
+        kind: 'morning',
+        localDate: '2026-09-01',
+        timezone: 'Europe/London',
+        scheduledFor,
+      }),
     )
     const mine = await withOwner(t.db, owner, (tx) => listRecentBriefings(tx))
     expect(mine.map((b) => b.localDate)).toContain('2026-09-01')
     expect(await withOwner(t.db, stranger, (tx) => listRecentBriefings(tx))).toEqual([])
-    await expect(withAnon(t.db, (tx) => tx`select * from public.briefings`)).rejects.toThrow(/permission denied/)
+    await expect(withAnon(t.db, (tx) => tx`select * from public.briefings`)).rejects.toThrow(
+      /permission denied/,
+    )
 
     await expect(
       withOwner(
@@ -67,7 +80,12 @@ describe('briefing rows', () => {
     const results = await Promise.all(
       Array.from({ length: 12 }, () =>
         withService(t.db, (tx) =>
-          insertOrGetBriefing(tx, { kind: 'morning', localDate: '2026-09-24', timezone: 'Europe/London', scheduledFor }),
+          insertOrGetBriefing(tx, {
+            kind: 'morning',
+            localDate: '2026-09-24',
+            timezone: 'Europe/London',
+            scheduledFor,
+          }),
         ),
       ),
     )
@@ -85,7 +103,12 @@ describe('briefing rows', () => {
     })
     // A later insert with another timezone keeps the original row.
     const again = await withService(t.db, (tx) =>
-      insertOrGetBriefing(tx, { kind: 'morning', localDate: '2026-09-24', timezone: 'Asia/Kolkata', scheduledFor: new Date() }),
+      insertOrGetBriefing(tx, {
+        kind: 'morning',
+        localDate: '2026-09-24',
+        timezone: 'Asia/Kolkata',
+        scheduledFor: new Date(),
+      }),
     )
     expect(again.created).toBe(false)
     expect(again.briefing.timezone).toBe('Europe/London')
@@ -93,26 +116,58 @@ describe('briefing rows', () => {
 
   it('publishes once; a second publish is a no-op', async () => {
     const { briefing } = await withService(t.db, (tx) =>
-      insertOrGetBriefing(tx, { kind: 'evening', localDate: '2026-09-24', timezone: 'Europe/London', scheduledFor }),
+      insertOrGetBriefing(tx, {
+        kind: 'evening',
+        localDate: '2026-09-24',
+        timezone: 'Europe/London',
+        scheduledFor,
+      }),
     )
     const content = buildBriefingSkeletonContent('evening', '2026-09-24')
     const sourceFreshness = buildBriefingSourceFreshness()
     const publishedAt = new Date('2026-09-24T21:00:10Z')
     const [a, b] = await Promise.all([
-      withService(t.db, (tx) => publishBriefing(tx, { id: briefing.id, publishedAt, isLate: false, notify: true, content, sourceFreshness })),
-      withService(t.db, (tx) => publishBriefing(tx, { id: briefing.id, publishedAt, isLate: false, notify: true, content, sourceFreshness })),
+      withService(t.db, (tx) =>
+        publishBriefing(tx, {
+          id: briefing.id,
+          publishedAt,
+          isLate: false,
+          notify: true,
+          content,
+          sourceFreshness,
+        }),
+      ),
+      withService(t.db, (tx) =>
+        publishBriefing(tx, {
+          id: briefing.id,
+          publishedAt,
+          isLate: false,
+          notify: true,
+          content,
+          sourceFreshness,
+        }),
+      ),
     ])
     expect([a, b].filter(Boolean)).toHaveLength(1)
-    const row = await withService(t.db, (tx) => getBriefing(tx, { kind: 'evening', localDate: '2026-09-24' }))
+    const row = await withService(t.db, (tx) =>
+      getBriefing(tx, { kind: 'evening', localDate: '2026-09-24' }),
+    )
     expect(row).toMatchObject({ status: 'published', publishedAt, notify: true, isLate: false })
     expect(row?.content).toEqual(content)
     expect(row?.sourceFreshness).toEqual(sourceFreshness)
-    expect(await withOwner(t.db, owner, (tx) => getLatestPublishedBriefing(tx, 'evening'))).toMatchObject({ id: briefing.id })
+    expect(
+      await withOwner(t.db, owner, (tx) => getLatestPublishedBriefing(tx, 'evening')),
+    ).toMatchObject({ id: briefing.id })
   })
 
   it('never notifies for a late briefing, even if asked to', async () => {
     const { briefing } = await withService(t.db, (tx) =>
-      insertOrGetBriefing(tx, { kind: 'morning', localDate: '2026-09-02', timezone: 'Europe/London', scheduledFor }),
+      insertOrGetBriefing(tx, {
+        kind: 'morning',
+        localDate: '2026-09-02',
+        timezone: 'Europe/London',
+        scheduledFor,
+      }),
     )
     const row = await withService(t.db, (tx) =>
       publishBriefing(tx, {
@@ -133,15 +188,38 @@ describe('briefing rows', () => {
 
   it('marks only preparing briefings as failed', async () => {
     await withService(t.db, (tx) =>
-      insertOrGetBriefing(tx, { kind: 'evening', localDate: '2026-09-03', timezone: 'Europe/London', scheduledFor }),
+      insertOrGetBriefing(tx, {
+        kind: 'evening',
+        localDate: '2026-09-03',
+        timezone: 'Europe/London',
+        scheduledFor,
+      }),
     )
     expect(
-      await withService(t.db, (tx) => markBriefingFailed(tx, { kind: 'evening', localDate: '2026-09-03' }, { code: 'x', message: 'y' })),
+      await withService(t.db, (tx) =>
+        markBriefingFailed(
+          tx,
+          { kind: 'evening', localDate: '2026-09-03' },
+          { code: 'x', message: 'y' },
+        ),
+      ),
     ).toBe(true)
-    expect((await withService(t.db, (tx) => getBriefing(tx, { kind: 'evening', localDate: '2026-09-03' })))?.status).toBe('failed')
+    expect(
+      (
+        await withService(t.db, (tx) =>
+          getBriefing(tx, { kind: 'evening', localDate: '2026-09-03' }),
+        )
+      )?.status,
+    ).toBe('failed')
     // The published evening briefing for 2026-09-24 is untouched.
     expect(
-      await withService(t.db, (tx) => markBriefingFailed(tx, { kind: 'evening', localDate: '2026-09-24' }, { code: 'x', message: 'y' })),
+      await withService(t.db, (tx) =>
+        markBriefingFailed(
+          tx,
+          { kind: 'evening', localDate: '2026-09-24' },
+          { code: 'x', message: 'y' },
+        ),
+      ),
     ).toBe(false)
   })
 

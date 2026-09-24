@@ -36,7 +36,16 @@ describe('isValidTimeZone', () => {
   })
 
   it('rejects offsets, wrong case, unknown names and non-strings', () => {
-    for (const tz of ['+05:30', '-08:00', 'europe/london', 'Mars/Olympus_Mons', '', ' Europe/London', 42, null]) {
+    for (const tz of [
+      '+05:30',
+      '-08:00',
+      'europe/london',
+      'Mars/Olympus_Mons',
+      '',
+      ' Europe/London',
+      42,
+      null,
+    ]) {
       expect(isValidTimeZone(tz), String(tz)).toBe(false)
     }
     expect(IanaTimeZoneSchema.safeParse('Europe/London').success).toBe(true)
@@ -82,40 +91,76 @@ describe('localDateInZone / localTimeInZone', () => {
 
 describe('zonedLocalToUtc', () => {
   it('converts ordinary times', () => {
-    expect(iso(zonedLocalToUtc('2026-03-28', '11:00', 'Europe/London'))).toBe('2026-03-28T11:00:00.000Z')
-    expect(iso(zonedLocalToUtc('2026-03-30', '11:00', 'Europe/London'))).toBe('2026-03-30T10:00:00.000Z')
-    expect(iso(zonedLocalToUtc('2026-09-24', '11:00', 'Asia/Kolkata'))).toBe('2026-09-24T05:30:00.000Z')
-    expect(iso(zonedLocalToUtc('2026-09-24', '22:00', 'America/New_York'))).toBe('2026-09-25T02:00:00.000Z')
+    expect(iso(zonedLocalToUtc('2026-03-28', '11:00', 'Europe/London'))).toBe(
+      '2026-03-28T11:00:00.000Z',
+    )
+    expect(iso(zonedLocalToUtc('2026-03-30', '11:00', 'Europe/London'))).toBe(
+      '2026-03-30T10:00:00.000Z',
+    )
+    expect(iso(zonedLocalToUtc('2026-09-24', '11:00', 'Asia/Kolkata'))).toBe(
+      '2026-09-24T05:30:00.000Z',
+    )
+    expect(iso(zonedLocalToUtc('2026-09-24', '22:00', 'America/New_York'))).toBe(
+      '2026-09-25T02:00:00.000Z',
+    )
   })
 
   describe('Europe/London 2026', () => {
     it('spring forward (29 March): a time in the gap shifts forward by the gap', () => {
       // 01:00 GMT → 02:00 BST. 01:30 does not exist; it becomes 02:30 BST = 01:30Z.
-      expect(iso(zonedLocalToUtc('2026-03-29', '00:59', 'Europe/London'))).toBe('2026-03-29T00:59:00.000Z')
-      expect(iso(zonedLocalToUtc('2026-03-29', '01:00', 'Europe/London'))).toBe('2026-03-29T01:00:00.000Z')
-      expect(iso(zonedLocalToUtc('2026-03-29', '01:30', 'Europe/London'))).toBe('2026-03-29T01:30:00.000Z')
-      expect(localTimeInZone(zonedLocalToUtc('2026-03-29', '01:30', 'Europe/London'), 'Europe/London')).toBe(
-        '02:30',
+      expect(iso(zonedLocalToUtc('2026-03-29', '00:59', 'Europe/London'))).toBe(
+        '2026-03-29T00:59:00.000Z',
       )
-      expect(iso(zonedLocalToUtc('2026-03-29', '02:00', 'Europe/London'))).toBe('2026-03-29T01:00:00.000Z')
-      expect(iso(zonedLocalToUtc('2026-03-29', '11:00', 'Europe/London'))).toBe('2026-03-29T10:00:00.000Z')
+      expect(iso(zonedLocalToUtc('2026-03-29', '01:00', 'Europe/London'))).toBe(
+        '2026-03-29T01:00:00.000Z',
+      )
+      expect(iso(zonedLocalToUtc('2026-03-29', '01:30', 'Europe/London'))).toBe(
+        '2026-03-29T01:30:00.000Z',
+      )
+      expect(
+        localTimeInZone(zonedLocalToUtc('2026-03-29', '01:30', 'Europe/London'), 'Europe/London'),
+      ).toBe('02:30')
+      expect(iso(zonedLocalToUtc('2026-03-29', '02:00', 'Europe/London'))).toBe(
+        '2026-03-29T01:00:00.000Z',
+      )
+      expect(iso(zonedLocalToUtc('2026-03-29', '11:00', 'Europe/London'))).toBe(
+        '2026-03-29T10:00:00.000Z',
+      )
     })
 
     it('fall back (25 October): an ambiguous time resolves to the earlier instant', () => {
       // 02:00 BST → 01:00 GMT. 01:30 happens at 00:30Z (BST) and 01:30Z (GMT).
-      expect(iso(zonedLocalToUtc('2026-10-25', '01:30', 'Europe/London'))).toBe('2026-10-25T00:30:00.000Z')
-      expect(iso(zonedLocalToUtc('2026-10-25', '00:59', 'Europe/London'))).toBe('2026-10-24T23:59:00.000Z')
-      expect(iso(zonedLocalToUtc('2026-10-25', '02:00', 'Europe/London'))).toBe('2026-10-25T02:00:00.000Z')
-      expect(iso(zonedLocalToUtc('2026-10-25', '11:00', 'Europe/London'))).toBe('2026-10-25T11:00:00.000Z')
-      expect(iso(zonedLocalToUtc('2026-10-24', '11:00', 'Europe/London'))).toBe('2026-10-24T10:00:00.000Z')
+      expect(iso(zonedLocalToUtc('2026-10-25', '01:30', 'Europe/London'))).toBe(
+        '2026-10-25T00:30:00.000Z',
+      )
+      expect(iso(zonedLocalToUtc('2026-10-25', '00:59', 'Europe/London'))).toBe(
+        '2026-10-24T23:59:00.000Z',
+      )
+      expect(iso(zonedLocalToUtc('2026-10-25', '02:00', 'Europe/London'))).toBe(
+        '2026-10-25T02:00:00.000Z',
+      )
+      expect(iso(zonedLocalToUtc('2026-10-25', '11:00', 'Europe/London'))).toBe(
+        '2026-10-25T11:00:00.000Z',
+      )
+      expect(iso(zonedLocalToUtc('2026-10-24', '11:00', 'Europe/London'))).toBe(
+        '2026-10-24T10:00:00.000Z',
+      )
     })
   })
 
   it('America/New_York 2026: gap on 8 March, overlap on 1 November', () => {
-    expect(iso(zonedLocalToUtc('2026-03-08', '02:30', 'America/New_York'))).toBe('2026-03-08T07:30:00.000Z') // 03:30 EDT
-    expect(iso(zonedLocalToUtc('2026-03-08', '03:00', 'America/New_York'))).toBe('2026-03-08T07:00:00.000Z')
-    expect(iso(zonedLocalToUtc('2026-11-01', '01:30', 'America/New_York'))).toBe('2026-11-01T05:30:00.000Z') // EDT, earlier
-    expect(iso(zonedLocalToUtc('2026-11-01', '11:00', 'America/New_York'))).toBe('2026-11-01T16:00:00.000Z')
+    expect(iso(zonedLocalToUtc('2026-03-08', '02:30', 'America/New_York'))).toBe(
+      '2026-03-08T07:30:00.000Z',
+    ) // 03:30 EDT
+    expect(iso(zonedLocalToUtc('2026-03-08', '03:00', 'America/New_York'))).toBe(
+      '2026-03-08T07:00:00.000Z',
+    )
+    expect(iso(zonedLocalToUtc('2026-11-01', '01:30', 'America/New_York'))).toBe(
+      '2026-11-01T05:30:00.000Z',
+    ) // EDT, earlier
+    expect(iso(zonedLocalToUtc('2026-11-01', '11:00', 'America/New_York'))).toBe(
+      '2026-11-01T16:00:00.000Z',
+    )
   })
 
   it('Australia/Lord_Howe: 30-minute DST shift', () => {
@@ -124,16 +169,28 @@ describe('zonedLocalToUtc', () => {
     expect(iso(gap)).toBe('2026-10-03T15:45:00.000Z')
     expect(localTimeInZone(gap, 'Australia/Lord_Howe')).toBe('02:45')
     // 5 Apr 2026, 02:00 (+11) → 01:30 (+10:30). 01:45 is ambiguous: 14:45Z or 15:15Z.
-    expect(iso(zonedLocalToUtc('2026-04-05', '01:45', 'Australia/Lord_Howe'))).toBe('2026-04-04T14:45:00.000Z')
-    expect(iso(zonedLocalToUtc('2026-04-05', '11:00', 'Australia/Lord_Howe'))).toBe('2026-04-05T00:30:00.000Z')
+    expect(iso(zonedLocalToUtc('2026-04-05', '01:45', 'Australia/Lord_Howe'))).toBe(
+      '2026-04-04T14:45:00.000Z',
+    )
+    expect(iso(zonedLocalToUtc('2026-04-05', '11:00', 'Australia/Lord_Howe'))).toBe(
+      '2026-04-05T00:30:00.000Z',
+    )
   })
 
   it('Pacific/Chatham: +12:45/+13:45 with a gap on 27 September 2026', () => {
     // 02:45 (+12:45) → 03:45 (+13:45). 03:00 becomes 04:00 local = 14:15Z the day before.
-    expect(iso(zonedLocalToUtc('2026-09-27', '03:00', 'Pacific/Chatham'))).toBe('2026-09-26T14:15:00.000Z')
-    expect(iso(zonedLocalToUtc('2026-09-26', '11:00', 'Pacific/Chatham'))).toBe('2026-09-25T22:15:00.000Z')
-    expect(iso(zonedLocalToUtc('2026-09-28', '11:00', 'Pacific/Chatham'))).toBe('2026-09-27T21:15:00.000Z')
-    expect(iso(zonedLocalToUtc('2027-01-01', '11:00', 'Pacific/Chatham'))).toBe('2026-12-31T21:15:00.000Z')
+    expect(iso(zonedLocalToUtc('2026-09-27', '03:00', 'Pacific/Chatham'))).toBe(
+      '2026-09-26T14:15:00.000Z',
+    )
+    expect(iso(zonedLocalToUtc('2026-09-26', '11:00', 'Pacific/Chatham'))).toBe(
+      '2026-09-25T22:15:00.000Z',
+    )
+    expect(iso(zonedLocalToUtc('2026-09-28', '11:00', 'Pacific/Chatham'))).toBe(
+      '2026-09-27T21:15:00.000Z',
+    )
+    expect(iso(zonedLocalToUtc('2027-01-01', '11:00', 'Pacific/Chatham'))).toBe(
+      '2026-12-31T21:15:00.000Z',
+    )
   })
 
   it('Asia/Kolkata has no DST', () => {
@@ -144,7 +201,13 @@ describe('zonedLocalToUtc', () => {
   })
 
   it('round-trips 11:00 and 22:00 on every day of 2026 in every test zone', () => {
-    const zones = ['Europe/London', 'America/New_York', 'Australia/Lord_Howe', 'Asia/Kolkata', 'Pacific/Chatham']
+    const zones = [
+      'Europe/London',
+      'America/New_York',
+      'Australia/Lord_Howe',
+      'Asia/Kolkata',
+      'Pacific/Chatham',
+    ]
     for (const tz of zones) {
       let d = '2026-01-01'
       for (let i = 0; i < 365; i++) {
@@ -254,9 +317,9 @@ describe('latestLocalDailyOccurrence', () => {
     const ny = latestLocalDailyOccurrence(at('2027-01-01T03:30:00Z'), '22:00', 'America/New_York')
     expect(ny).toEqual({ localDate: '2026-12-31', at: at('2027-01-01T03:00:00Z') })
     // 02:00Z is 21:00 EST on 31 Dec, so the latest 22:00 was on 30 Dec.
-    expect(latestLocalDailyOccurrence(at('2027-01-01T02:00:00Z'), '22:00', 'America/New_York').localDate).toBe(
-      '2026-12-30',
-    )
+    expect(
+      latestLocalDailyOccurrence(at('2027-01-01T02:00:00Z'), '22:00', 'America/New_York').localDate,
+    ).toBe('2026-12-30')
   })
 })
 

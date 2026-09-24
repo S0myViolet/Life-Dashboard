@@ -10,7 +10,11 @@
  */
 import { z } from 'zod'
 import { JobKindSchema, type JobKind } from '../catalog.ts'
-import { latestLocalDailyOccurrence, nextLocalDailyRun, WallClockTimeSchema } from '../time/zoned.ts'
+import {
+  latestLocalDailyOccurrence,
+  nextLocalDailyRun,
+  WallClockTimeSchema,
+} from '../time/zoned.ts'
 
 export const JOB_SCHEDULE_CADENCES = ['daily_local_time', 'interval'] as const
 export const JobScheduleCadenceSchema = z.enum(JOB_SCHEDULE_CADENCES)
@@ -37,7 +41,11 @@ export const JobScheduleDefinitionSchema = z.discriminatedUnion('cadence', [
     ...Common,
     cadence: z.literal('interval'),
     /** Period length. Periods are aligned to the Unix epoch (UTC). */
-    intervalSeconds: z.number().int().min(60).max(7 * 86_400),
+    intervalSeconds: z
+      .number()
+      .int()
+      .min(60)
+      .max(7 * 86_400),
   }),
 ])
 export type JobScheduleDefinition = z.infer<typeof JobScheduleDefinitionSchema>
@@ -45,17 +53,85 @@ export type JobScheduleDefinition = z.infer<typeof JobScheduleDefinitionSchema>
 export const JOB_SCHEDULE_DEFINITIONS: readonly JobScheduleDefinition[] = Object.freeze(
   z.array(JobScheduleDefinitionSchema).parse([
     // Brief §5: 11:00 briefing and 22:00 project review, owner-local time.
-    { name: 'briefing.morning', kind: 'briefing.morning', cadence: 'daily_local_time', localTime: '11:00', enabled: true },
-    { name: 'briefing.evening', kind: 'briefing.evening', cadence: 'daily_local_time', localTime: '22:00', enabled: true },
+    {
+      name: 'briefing.morning',
+      kind: 'briefing.morning',
+      cadence: 'daily_local_time',
+      localTime: '11:00',
+      enabled: true,
+    },
+    {
+      name: 'briefing.evening',
+      kind: 'briefing.evening',
+      cadence: 'daily_local_time',
+      localTime: '22:00',
+      enabled: true,
+    },
     // Brief §4 cadences. Disabled until their handlers exist (Milestones 2–3).
-    { name: 'sync.google', kind: 'sync.google', cadence: 'interval', intervalSeconds: 900, enabled: false, note: 'Milestone 2: Gmail/Calendar incremental sync every 15 minutes' },
-    { name: 'sync.microsoft', kind: 'sync.microsoft', cadence: 'interval', intervalSeconds: 900, enabled: false, note: 'Milestone 2: Outlook incremental sync every 15 minutes' },
-    { name: 'sync.lunchflow', kind: 'sync.lunchflow', cadence: 'interval', intervalSeconds: 21_600, enabled: false, note: 'Milestone 3: provider refreshes about daily; poll every 6 hours' },
-    { name: 'sync.whoop', kind: 'sync.whoop', cadence: 'interval', intervalSeconds: 3_600, enabled: false, note: 'Milestone 3: hourly incremental polling' },
-    { name: 'sync.spotify', kind: 'sync.spotify', cadence: 'daily_local_time', localTime: '05:00', enabled: false, note: 'Milestone 3: daily refresh' },
-    { name: 'sync.football', kind: 'sync.football', cadence: 'interval', intervalSeconds: 900, enabled: false, note: 'Milestone 3: handler decides 6-hourly fixtures vs 15-minute match-day results' },
-    { name: 'sync.rss', kind: 'sync.rss', cadence: 'interval', intervalSeconds: 3_600, enabled: false, note: 'Milestone 3: hourly feed refresh' },
-    { name: 'retention.purge', kind: 'retention.purge', cadence: 'daily_local_time', localTime: '03:30', enabled: false, note: 'Milestone 2: 30-day raw text retention' },
+    {
+      name: 'sync.google',
+      kind: 'sync.google',
+      cadence: 'interval',
+      intervalSeconds: 900,
+      enabled: false,
+      note: 'Milestone 2: Gmail/Calendar incremental sync every 15 minutes',
+    },
+    {
+      name: 'sync.microsoft',
+      kind: 'sync.microsoft',
+      cadence: 'interval',
+      intervalSeconds: 900,
+      enabled: false,
+      note: 'Milestone 2: Outlook incremental sync every 15 minutes',
+    },
+    {
+      name: 'sync.lunchflow',
+      kind: 'sync.lunchflow',
+      cadence: 'interval',
+      intervalSeconds: 21_600,
+      enabled: false,
+      note: 'Milestone 3: provider refreshes about daily; poll every 6 hours',
+    },
+    {
+      name: 'sync.whoop',
+      kind: 'sync.whoop',
+      cadence: 'interval',
+      intervalSeconds: 3_600,
+      enabled: false,
+      note: 'Milestone 3: hourly incremental polling',
+    },
+    {
+      name: 'sync.spotify',
+      kind: 'sync.spotify',
+      cadence: 'daily_local_time',
+      localTime: '05:00',
+      enabled: false,
+      note: 'Milestone 3: daily refresh',
+    },
+    {
+      name: 'sync.football',
+      kind: 'sync.football',
+      cadence: 'interval',
+      intervalSeconds: 900,
+      enabled: false,
+      note: 'Milestone 3: handler decides 6-hourly fixtures vs 15-minute match-day results',
+    },
+    {
+      name: 'sync.rss',
+      kind: 'sync.rss',
+      cadence: 'interval',
+      intervalSeconds: 3_600,
+      enabled: false,
+      note: 'Milestone 3: hourly feed refresh',
+    },
+    {
+      name: 'retention.purge',
+      kind: 'retention.purge',
+      cadence: 'daily_local_time',
+      localTime: '03:30',
+      enabled: false,
+      note: 'Milestone 2: 30-day raw text retention',
+    },
   ]),
 )
 

@@ -61,9 +61,15 @@ describe('backoff', () => {
   it('rejects invalid attempts and policies', () => {
     expect(() => computeJobBackoffMs(0, 'x')).toThrow(RangeError)
     expect(() => computeJobBackoffMs(1.5, 'x')).toThrow(RangeError)
-    expect(() => computeJobBackoffMs(1, 'x', { baseMs: 0, capMs: 1, jitterRatio: 0 })).toThrow(RangeError)
-    expect(() => computeJobBackoffMs(1, 'x', { baseMs: 10, capMs: 5, jitterRatio: 0 })).toThrow(RangeError)
-    expect(() => computeJobBackoffMs(1, 'x', { baseMs: 10, capMs: 50, jitterRatio: 2 })).toThrow(RangeError)
+    expect(() => computeJobBackoffMs(1, 'x', { baseMs: 0, capMs: 1, jitterRatio: 0 })).toThrow(
+      RangeError,
+    )
+    expect(() => computeJobBackoffMs(1, 'x', { baseMs: 10, capMs: 5, jitterRatio: 0 })).toThrow(
+      RangeError,
+    )
+    expect(() => computeJobBackoffMs(1, 'x', { baseMs: 10, capMs: 50, jitterRatio: 2 })).toThrow(
+      RangeError,
+    )
   })
 
   it('seededUnitInterval stays in [0, 1)', () => {
@@ -80,23 +86,38 @@ describe('backoff', () => {
     const later = new Date(now.getTime() + 120_000)
     expect(computeJobRetryAt({ now, attempt: 1, seed: 's', retryAt: later, policy })).toEqual(later)
     const sooner = new Date(now.getTime() + 1_000)
-    expect(computeJobRetryAt({ now, attempt: 1, seed: 's', retryAt: sooner, policy }).getTime()).toBe(
-      now.getTime() + 30_000,
-    )
+    expect(
+      computeJobRetryAt({ now, attempt: 1, seed: 's', retryAt: sooner, policy }).getTime(),
+    ).toBe(now.getTime() + 30_000)
     const absurd = new Date(now.getTime() + 30 * 86_400_000)
-    expect(computeJobRetryAt({ now, attempt: 1, seed: 's', retryAt: absurd, policy }).getTime()).toBe(
-      now.getTime() + JOB_RETRY_AFTER_MAX_MS,
+    expect(
+      computeJobRetryAt({ now, attempt: 1, seed: 's', retryAt: absurd, policy }).getTime(),
+    ).toBe(now.getTime() + JOB_RETRY_AFTER_MAX_MS)
+    expect(computeJobRetryAt({ now, attempt: 2, seed: 's', policy }).getTime()).toBe(
+      now.getTime() + 60_000,
     )
-    expect(computeJobRetryAt({ now, attempt: 2, seed: 's', policy }).getTime()).toBe(now.getTime() + 60_000)
   })
 
   it('parses Retry-After seconds and HTTP dates', () => {
     const now = new Date('2026-09-24T12:00:00Z')
     expect(parseRetryAfter('120', now)).toEqual(new Date('2026-09-24T12:02:00Z'))
     expect(parseRetryAfter(' 0 ', now)).toEqual(now)
-    expect(parseRetryAfter('Thu, 24 Sep 2026 12:05:00 GMT', now)).toEqual(new Date('2026-09-24T12:05:00Z'))
-    expect(parseRetryAfter('99999999', now)).toEqual(new Date(now.getTime() + JOB_RETRY_AFTER_MAX_MS))
-    for (const bad of [null, undefined, '', '-5', '1.5', 'soon', '2026-09-24 12:05:00', 'Thu, 99 Sep 2026 12:05:00 GMT']) {
+    expect(parseRetryAfter('Thu, 24 Sep 2026 12:05:00 GMT', now)).toEqual(
+      new Date('2026-09-24T12:05:00Z'),
+    )
+    expect(parseRetryAfter('99999999', now)).toEqual(
+      new Date(now.getTime() + JOB_RETRY_AFTER_MAX_MS),
+    )
+    for (const bad of [
+      null,
+      undefined,
+      '',
+      '-5',
+      '1.5',
+      'soon',
+      '2026-09-24 12:05:00',
+      'Thu, 99 Sep 2026 12:05:00 GMT',
+    ]) {
       expect(parseRetryAfter(bad, now), String(bad)).toBeNull()
     }
   })
@@ -130,7 +151,9 @@ describe('sanitizeJobError', () => {
 
   it('redacts JSON-style secret fields but keeps ordinary words', () => {
     const out = sanitizeJobError(
-      new Error('token refresh failed: {"refresh_token":"1//0gSecretRefresh","error":"invalid_grant"} password=hunter2'),
+      new Error(
+        'token refresh failed: {"refresh_token":"1//0gSecretRefresh","error":"invalid_grant"} password=hunter2',
+      ),
     )
     expect(out).toContain('token refresh failed')
     expect(out).toContain('invalid_grant')
@@ -167,11 +190,18 @@ describe('enqueue input', () => {
       maxAttempts: 5,
     })
     expect(EnqueueJobInputSchema.safeParse({ kind: 'nope' }).success).toBe(false)
-    expect(EnqueueJobInputSchema.safeParse({ kind: 'sync.rss', dedupeKey: 'has space' }).success).toBe(false)
-    expect(EnqueueJobInputSchema.safeParse({ kind: 'sync.rss', dedupeKey: 'x'.repeat(201) }).success).toBe(false)
-    expect(EnqueueJobInputSchema.safeParse({ kind: 'sync.rss', maxAttempts: 0 }).success).toBe(false)
     expect(
-      EnqueueJobInputSchema.safeParse({ kind: 'sync.rss', payload: { blob: 'x'.repeat(20_000) } }).success,
+      EnqueueJobInputSchema.safeParse({ kind: 'sync.rss', dedupeKey: 'has space' }).success,
+    ).toBe(false)
+    expect(
+      EnqueueJobInputSchema.safeParse({ kind: 'sync.rss', dedupeKey: 'x'.repeat(201) }).success,
+    ).toBe(false)
+    expect(EnqueueJobInputSchema.safeParse({ kind: 'sync.rss', maxAttempts: 0 }).success).toBe(
+      false,
+    )
+    expect(
+      EnqueueJobInputSchema.safeParse({ kind: 'sync.rss', payload: { blob: 'x'.repeat(20_000) } })
+        .success,
     ).toBe(false)
   })
 })
@@ -183,8 +213,16 @@ describe('schedule definitions', () => {
     for (const d of JOB_SCHEDULE_DEFINITIONS) expect(JOB_KINDS).toContain(d.kind)
     const morning = JOB_SCHEDULE_DEFINITIONS.find((d) => d.name === 'briefing.morning')
     const evening = JOB_SCHEDULE_DEFINITIONS.find((d) => d.name === 'briefing.evening')
-    expect(morning).toMatchObject({ cadence: 'daily_local_time', localTime: '11:00', enabled: true })
-    expect(evening).toMatchObject({ cadence: 'daily_local_time', localTime: '22:00', enabled: true })
+    expect(morning).toMatchObject({
+      cadence: 'daily_local_time',
+      localTime: '11:00',
+      enabled: true,
+    })
+    expect(evening).toMatchObject({
+      cadence: 'daily_local_time',
+      localTime: '22:00',
+      enabled: true,
+    })
     expect(briefingLocalTime('morning')).toBe('11:00')
     expect(briefingLocalTime('evening')).toBe('22:00')
   })
@@ -233,11 +271,19 @@ describe('schedule definitions', () => {
       nextRunAt: new Date('2026-03-30T10:00:00Z'),
     }
     expect(
-      shouldMaterialiseOccurrence({ occurrence, enabledSince: new Date('2026-03-01T00:00:00Z'), lastOccurrenceAt: null }),
+      shouldMaterialiseOccurrence({
+        occurrence,
+        enabledSince: new Date('2026-03-01T00:00:00Z'),
+        lastOccurrenceAt: null,
+      }),
     ).toBe(true)
     // Installed after 11:00 today: today's morning briefing was never due.
     expect(
-      shouldMaterialiseOccurrence({ occurrence, enabledSince: new Date('2026-03-29T14:00:00Z'), lastOccurrenceAt: null }),
+      shouldMaterialiseOccurrence({
+        occurrence,
+        enabledSince: new Date('2026-03-29T14:00:00Z'),
+        lastOccurrenceAt: null,
+      }),
     ).toBe(false)
     // Already materialised this (or a later) occurrence.
     expect(
@@ -247,12 +293,26 @@ describe('schedule definitions', () => {
         lastOccurrenceAt: new Date('2026-03-29T10:00:00Z'),
       }),
     ).toBe(false)
-    const interval = { ...occurrence, localDate: null, dedupeKey: 'sync.rss:x', dueAt: new Date('2026-09-24T12:00:00Z'), nextRunAt: new Date('2026-09-24T13:00:00Z') }
+    const interval = {
+      ...occurrence,
+      localDate: null,
+      dedupeKey: 'sync.rss:x',
+      dueAt: new Date('2026-09-24T12:00:00Z'),
+      nextRunAt: new Date('2026-09-24T13:00:00Z'),
+    }
     expect(
-      shouldMaterialiseOccurrence({ occurrence: interval, enabledSince: new Date('2026-09-24T12:30:00Z'), lastOccurrenceAt: null }),
+      shouldMaterialiseOccurrence({
+        occurrence: interval,
+        enabledSince: new Date('2026-09-24T12:30:00Z'),
+        lastOccurrenceAt: null,
+      }),
     ).toBe(true)
     expect(
-      shouldMaterialiseOccurrence({ occurrence: interval, enabledSince: new Date('2026-09-24T13:00:00Z'), lastOccurrenceAt: null }),
+      shouldMaterialiseOccurrence({
+        occurrence: interval,
+        enabledSince: new Date('2026-09-24T13:00:00Z'),
+        lastOccurrenceAt: null,
+      }),
     ).toBe(false)
   })
 })

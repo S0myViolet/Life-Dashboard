@@ -31,12 +31,18 @@ import type { JobHandler } from '../dispatcher/types.ts'
 export interface BriefingHandlerOptions {
   timeoutMs?: number
   /** Content builder. Default: the deterministic Milestone 0 skeleton. (Also a test seam.) */
-  buildContent?: (kind: BriefingKind, localDate: string) => BriefingContent | Promise<BriefingContent>
+  buildContent?: (
+    kind: BriefingKind,
+    localDate: string,
+  ) => BriefingContent | Promise<BriefingContent>
 }
 
 export type BriefingJobOutcome = 'published' | 'already_published' | 'superseded'
 
-export function createBriefingJobHandler(kind: BriefingKind, options: BriefingHandlerOptions = {}): JobHandler {
+export function createBriefingJobHandler(
+  kind: BriefingKind,
+  options: BriefingHandlerOptions = {},
+): JobHandler {
   const localTime = briefingLocalTime(kind)
   const build = options.buildContent ?? buildBriefingSkeletonContent
 
@@ -79,17 +85,28 @@ export function createBriefingJobHandler(kind: BriefingKind, options: BriefingHa
               { kind, localDate: target.localDate },
               {
                 code: 'superseded',
-                message: 'Not published: a newer briefing was already due when this one ran (for example after an outage).',
+                message:
+                  'Not published: a newer briefing was already due when this one ran (for example after an outage).',
               },
             ),
           )
-          return { outcome: 'superseded' satisfies BriefingJobOutcome, kind, localDate: target.localDate }
+          return {
+            outcome: 'superseded' satisfies BriefingJobOutcome,
+            kind,
+            localDate: target.localDate,
+          }
         }
       }
 
-      const { briefing } = await withService(ctx.db, (tx) => insertOrGetBriefing(tx, { kind, ...target }))
+      const { briefing } = await withService(ctx.db, (tx) =>
+        insertOrGetBriefing(tx, { kind, ...target }),
+      )
       if (briefing.status === 'published') {
-        return { outcome: 'already_published' satisfies BriefingJobOutcome, kind, localDate: briefing.localDate }
+        return {
+          outcome: 'already_published' satisfies BriefingJobOutcome,
+          kind,
+          localDate: briefing.localDate,
+        }
       }
 
       const content = await build(kind, briefing.localDate)
@@ -120,7 +137,10 @@ export function createBriefingJobHandler(kind: BriefingKind, options: BriefingHa
         markBriefingFailed(
           tx,
           { kind, localDate },
-          { code: 'job_failed', message: 'The briefing could not be prepared after repeated attempts.' },
+          {
+            code: 'job_failed',
+            message: 'The briefing could not be prepared after repeated attempts.',
+          },
         ),
       )
     },
@@ -131,4 +151,7 @@ export const morningBriefingJobHandler: JobHandler = createBriefingJobHandler('m
 export const eveningBriefingJobHandler: JobHandler = createBriefingJobHandler('evening')
 
 /** The briefing handlers, ready for createJobHandlerRegistry(...). */
-export const briefingJobHandlers: readonly JobHandler[] = [morningBriefingJobHandler, eveningBriefingJobHandler]
+export const briefingJobHandlers: readonly JobHandler[] = [
+  morningBriefingJobHandler,
+  eveningBriefingJobHandler,
+]

@@ -25,7 +25,11 @@ export interface EnqueueJobResult {
 }
 
 /** Enqueue a job; idempotent on `dedupeKey`. */
-export async function enqueueJob(tx: Tx, input: EnqueueJobInput, now?: Date): Promise<EnqueueJobResult> {
+export async function enqueueJob(
+  tx: Tx,
+  input: EnqueueJobInput,
+  now?: Date,
+): Promise<EnqueueJobResult> {
   const v = EnqueueJobInputSchema.parse(input)
   const [res] = await tx<{ jobId: string; created: boolean }[]>`
     select * from private.enqueue_job(
@@ -138,7 +142,11 @@ export type FailJobOutcome = 'failed' | 'dead'
  * Record a failed attempt: retry later with deterministic backoff (seeded by the
  * job id), or `dead` after max_attempts. Returns null when the lease was lost.
  */
-export async function failJob(tx: Tx, lease: LeaseRef, o: FailJobOptions): Promise<FailJobOutcome | null> {
+export async function failJob(
+  tx: Tx,
+  lease: LeaseRef,
+  o: FailJobOptions,
+): Promise<FailJobOutcome | null> {
   const now = o.now ?? new Date()
   const message = sanitizeJobError(o.error)
   const retryAt = computeJobRetryAt({

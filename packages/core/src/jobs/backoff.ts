@@ -72,7 +72,10 @@ export function computeJobRetryAt(input: {
   const nowMs = input.now.getTime()
   const backoffAt = nowMs + computeJobBackoffMs(input.attempt, input.seed, input.policy)
   const requested = input.retryAt?.getTime()
-  const at = requested !== undefined && Number.isFinite(requested) ? Math.max(backoffAt, requested) : backoffAt
+  const at =
+    requested !== undefined && Number.isFinite(requested)
+      ? Math.max(backoffAt, requested)
+      : backoffAt
   return new Date(Math.min(at, nowMs + JOB_RETRY_AFTER_MAX_MS))
 }
 

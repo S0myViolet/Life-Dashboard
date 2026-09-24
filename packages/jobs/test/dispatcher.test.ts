@@ -53,7 +53,11 @@ const sleep = (ms: number, signal?: AbortSignal) =>
 /** No recurring schedules unless a test asks for them. */
 const NO_SCHEDULES: readonly JobScheduleDefinition[] = []
 
-function handler(kind: JobKind, run: JobHandler['run'], extra: Partial<JobHandler> = {}): JobHandler {
+function handler(
+  kind: JobKind,
+  run: JobHandler['run'],
+  extra: Partial<JobHandler> = {},
+): JobHandler {
   return { kind, run, ...extra }
 }
 
@@ -63,7 +67,10 @@ async function enqueueMany(db: Db, kind: JobKind, n: number, at = new Date(Date.
   }
 }
 
-function dispatch(db: Db, o: Partial<RunDispatcherOptions> & Pick<RunDispatcherOptions, 'handlers'>) {
+function dispatch(
+  db: Db,
+  o: Partial<RunDispatcherOptions> & Pick<RunDispatcherOptions, 'handlers'>,
+) {
   return runDispatcher({
     db,
     workerId: 'test-worker',
@@ -81,10 +88,14 @@ describe('runDispatcher', () => {
     const t = await freshDb()
     await enqueueMany(t.db, 'sync.rss', 30)
     const handlers = createJobHandlerRegistry([
-      handler('sync.rss', async (ctx) => {
-        await sleep(200, ctx.signal)
-        return { ok: true }
-      }, { timeoutMs: 400 }),
+      handler(
+        'sync.rss',
+        async (ctx) => {
+          await sleep(200, ctx.signal)
+          return { ok: true }
+        },
+        { timeoutMs: 400 },
+      ),
     ])
     const budgetMs = 1_500
     const t0 = performance.now()
@@ -122,7 +133,13 @@ describe('runDispatcher', () => {
     ])
     const summary = await dispatch(t.db, { handlers })
     expect(summary.stoppedReason).toBe('idle')
-    expect(summary.totals).toMatchObject({ claimed: 6, succeeded: 3, retrying: 2, dead: 1, leaseLost: 0 })
+    expect(summary.totals).toMatchObject({
+      claimed: 6,
+      succeeded: 3,
+      retrying: 2,
+      dead: 1,
+      leaseLost: 0,
+    })
     expect(deadSeen).toEqual(['JobFailure: invalid payload'])
     const jobs = await withService(t.db, (tx) => listJobs(tx, { kind: 'sync.rss' }))
     const byN = new Map(jobs.map((j) => [j.payload.n as number, j]))
@@ -143,7 +160,10 @@ describe('runDispatcher', () => {
     const summary = await dispatch(t.db, { handlers })
     expect(summary.totals).toMatchObject({ claimed: 2, succeeded: 1, retrying: 1, timedOut: 1 })
     const [rss] = await withService(t.db, (tx) => listJobs(tx, { kind: 'sync.rss' }))
-    expect(rss).toMatchObject({ status: 'failed', lastError: 'JobTimeoutError: Job timed out after 200 ms' })
+    expect(rss).toMatchObject({
+      status: 'failed',
+      lastError: 'JobTimeoutError: Job timed out after 200 ms',
+    })
   })
 
   it('passes Retry-After from a JobFailure through to run_at', async () => {
@@ -157,7 +177,10 @@ describe('runDispatcher', () => {
       }),
     ])
     await dispatch(t.db, { handlers, now: () => now })
-    expect(await withService(t.db, (tx) => getJob(tx, job.id))).toMatchObject({ status: 'failed', runAt: retryAt })
+    expect(await withService(t.db, (tx) => getJob(tx, job.id))).toMatchObject({
+      status: 'failed',
+      runAt: retryAt,
+    })
     // Not claimable before then.
     const early = await dispatch(t.db, { handlers, now: () => new Date('2026-09-24T12:19:59Z') })
     expect(early.totals.claimed).toBe(0)
@@ -170,18 +193,24 @@ describe('runDispatcher', () => {
     let running = true
     let thief: Promise<void> = Promise.resolve()
     const handlers = createJobHandlerRegistry([
-      handler('sync.rss', async (ctx) => {
-        // Another worker polls for due jobs for the whole time this job runs.
-        thief = (async () => {
-          while (running) {
-            const got = await withService(t.db, (tx) => claimJobs(tx, { workerId: 'thief', limit: 1, leaseMs: 10_000 }))
-            stolen += got.length
-            await sleep(50)
-          }
-        })()
-        await sleep(1_200, ctx.signal)
-        return { done: true }
-      }, { timeoutMs: 3_000 }),
+      handler(
+        'sync.rss',
+        async (ctx) => {
+          // Another worker polls for due jobs for the whole time this job runs.
+          thief = (async () => {
+            while (running) {
+              const got = await withService(t.db, (tx) =>
+                claimJobs(tx, { workerId: 'thief', limit: 1, leaseMs: 10_000 }),
+              )
+              stolen += got.length
+              await sleep(50)
+            }
+          })()
+          await sleep(1_200, ctx.signal)
+          return { done: true }
+        },
+        { timeoutMs: 3_000 },
+      ),
     ])
     // The lease (400 ms) is far shorter than the job (1.2 s): only heartbeats keep it.
     const summary = await dispatch(t.db, { handlers, leaseMs: 400, heartbeatIntervalMs: 100 })
@@ -198,18 +227,28 @@ describe('runDispatcher', () => {
     await enqueueMany(t.db, 'sync.rss', 1)
     let sawAbort: unknown = null
     const handlers = createJobHandlerRegistry([
-      handler('sync.rss', async (ctx) => {
-        // Simulate a stall long enough for the lease to be reclaimed elsewhere.
-        await withService(ctx.db, (tx) => tx`update private.jobs set lease_expires_at = now() - interval '1 second' where id = ${ctx.job.id}::uuid`)
-        const [taken] = await withService(ctx.db, (tx) => claimJobs(tx, { workerId: 'other', limit: 1, leaseMs: 60_000 }))
-        expect(taken?.id).toBe(ctx.job.id)
-        try {
-          await sleep(5_000, ctx.signal)
-        } catch (err) {
-          sawAbort = err
-          throw err
-        }
-      }, { timeoutMs: 6_000 }),
+      handler(
+        'sync.rss',
+        async (ctx) => {
+          // Simulate a stall long enough for the lease to be reclaimed elsewhere.
+          await withService(
+            ctx.db,
+            (tx) =>
+              tx`update private.jobs set lease_expires_at = now() - interval '1 second' where id = ${ctx.job.id}::uuid`,
+          )
+          const [taken] = await withService(ctx.db, (tx) =>
+            claimJobs(tx, { workerId: 'other', limit: 1, leaseMs: 60_000 }),
+          )
+          expect(taken?.id).toBe(ctx.job.id)
+          try {
+            await sleep(5_000, ctx.signal)
+          } catch (err) {
+            sawAbort = err
+            throw err
+          }
+        },
+        { timeoutMs: 6_000 },
+      ),
     ])
     const summary = await dispatch(t.db, { handlers, leaseMs: 600, heartbeatIntervalMs: 100 })
     expect(summary.totals).toMatchObject({ claimed: 1, leaseLost: 1, succeeded: 0 })
@@ -252,8 +291,12 @@ describe('runDispatcher', () => {
   it('reaps jobs whose lease expired on their final attempt and runs onDead', async () => {
     const t = await freshDb()
     const past = new Date(Date.now() - 60_000)
-    const { job } = await withService(t.db, (tx) => enqueueJob(tx, { kind: 'sync.rss', maxAttempts: 1 }, past))
-    await withService(t.db, (tx) => claimJobs(tx, { workerId: 'crashed', limit: 1, leaseMs: 1_000, now: past }))
+    const { job } = await withService(t.db, (tx) =>
+      enqueueJob(tx, { kind: 'sync.rss', maxAttempts: 1 }, past),
+    )
+    await withService(t.db, (tx) =>
+      claimJobs(tx, { workerId: 'crashed', limit: 1, leaseMs: 1_000, now: past }),
+    )
     const dead: string[] = []
     const handlers = createJobHandlerRegistry([
       handler('sync.rss', async () => ({}), { onDead: async (ctx) => void dead.push(ctx.job.id) }),
@@ -267,9 +310,27 @@ describe('runDispatcher', () => {
   it('materialises schedules idempotently and reports why a schedule is skipped', async () => {
     const t = await freshDb()
     const schedules: JobScheduleDefinition[] = [
-      { name: 'briefing.morning', kind: 'briefing.morning', cadence: 'daily_local_time', localTime: '11:00', enabled: true },
-      { name: 'sync.rss', kind: 'sync.rss', cadence: 'interval', intervalSeconds: 3_600, enabled: true },
-      { name: 'sync.google', kind: 'sync.google', cadence: 'interval', intervalSeconds: 900, enabled: false },
+      {
+        name: 'briefing.morning',
+        kind: 'briefing.morning',
+        cadence: 'daily_local_time',
+        localTime: '11:00',
+        enabled: true,
+      },
+      {
+        name: 'sync.rss',
+        kind: 'sync.rss',
+        cadence: 'interval',
+        intervalSeconds: 3_600,
+        enabled: true,
+      },
+      {
+        name: 'sync.google',
+        kind: 'sync.google',
+        cadence: 'interval',
+        intervalSeconds: 900,
+        enabled: false,
+      },
     ]
     const ran: string[] = []
     const handlers = createJobHandlerRegistry([
@@ -301,14 +362,19 @@ describe('runDispatcher', () => {
     expect(next.schedules?.enqueued).toBe(1)
     expect(ran).toEqual(['2026-09-24T12:00:00.000Z', '2026-09-24T13:00:00.000Z'])
     const jobs = await withService(t.db, (tx) => listJobs(tx, { kind: 'sync.rss' }))
-    expect(jobs.map((j) => j.dedupeKey)).toEqual(['sync.rss:2026-09-24T12:00:00.000Z', 'sync.rss:2026-09-24T13:00:00.000Z'])
+    expect(jobs.map((j) => j.dedupeKey)).toEqual([
+      'sync.rss:2026-09-24T12:00:00.000Z',
+      'sync.rss:2026-09-24T13:00:00.000Z',
+    ])
     expect(jobs.every((j) => j.scheduleName === 'sync.rss')).toBe(true)
   })
 
   it('summaries and logs carry no payloads or error text', async () => {
     const t = await freshDb()
     const secret = 'journal: my private thoughts'
-    await withService(t.db, (tx) => enqueueJob(tx, { kind: 'sync.rss', payload: { note: secret } }, new Date(Date.now() - 1000)))
+    await withService(t.db, (tx) =>
+      enqueueJob(tx, { kind: 'sync.rss', payload: { note: secret } }, new Date(Date.now() - 1000)),
+    )
     const events: DispatcherLogEvent[] = []
     const handlers = createJobHandlerRegistry([
       handler('sync.rss', async () => {
@@ -328,11 +394,20 @@ describe('runDispatcher', () => {
     const handlers = createJobHandlerRegistry([])
     await expect(dispatch(t.db, { handlers, budgetMs: 0 })).rejects.toThrow(RangeError)
     await expect(dispatch(t.db, { handlers, maxJobs: -1 })).rejects.toThrow(RangeError)
-    await expect(dispatch(t.db, { handlers, leaseMs: 100, heartbeatIntervalMs: 200 })).rejects.toThrow(RangeError)
-    const slow = createJobHandlerRegistry([handler('sync.rss', async () => {}, { timeoutMs: 60_000 })])
-    await expect(dispatch(t.db, { handlers: slow, budgetMs: 30_000 })).rejects.toThrow(/exceeds budgetMs for: sync.rss/)
-    expect(() => createJobHandlerRegistry([handler('sync.rss', async () => {}), handler('sync.rss', async () => {})])).toThrow(
-      /duplicate/,
+    await expect(
+      dispatch(t.db, { handlers, leaseMs: 100, heartbeatIntervalMs: 200 }),
+    ).rejects.toThrow(RangeError)
+    const slow = createJobHandlerRegistry([
+      handler('sync.rss', async () => {}, { timeoutMs: 60_000 }),
+    ])
+    await expect(dispatch(t.db, { handlers: slow, budgetMs: 30_000 })).rejects.toThrow(
+      /exceeds budgetMs for: sync.rss/,
     )
+    expect(() =>
+      createJobHandlerRegistry([
+        handler('sync.rss', async () => {}),
+        handler('sync.rss', async () => {}),
+      ]),
+    ).toThrow(/duplicate/)
   })
 })
