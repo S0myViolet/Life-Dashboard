@@ -1,2 +1,2 @@
 // Area barrel — google.
-export {}
+export * from './adapter.ts'

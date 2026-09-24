@@ -1,2 +1,2 @@
 // Area barrel — http.
-export {}
+export * from './client.ts'

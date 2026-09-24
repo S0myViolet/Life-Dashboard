@@ -1,2 +1,3 @@
 // Area barrel — oauth.
-export {}
+export * from './oauth.ts'
+export * from './registry.ts'
