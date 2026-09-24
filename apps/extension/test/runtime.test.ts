@@ -188,6 +188,70 @@ describe('content runtime', () => {
     expect(obs[1]!.observation.messages).toHaveLength(3)
   })
 
+  it('sends what it collected when the owner switches conversation before the page settled', async () => {
+    const h = start(chatgptPage({ turns: gptThread(2) }), CHAT_URL, 'chatgpt', { collect: true, mode: 'passive' })
+    await settle()
+    expect(observations(h)).toHaveLength(1)
+    // A new exchange renders; 800 ms later the owner clicks another chat in the sidebar.
+    h.win.document.body.innerHTML = chatgptPage({ turns: gptThread(4) })
+    await vi.advanceTimersByTimeAsync(800)
+    const other = 'https://chatgpt.com/c/1e2d3c4b-5a69-4788-9aab-bccddeeff001'
+    h.win.history.pushState({}, '', new URL(other).pathname)
+    await h.runtime.checkLocation()
+    h.win.document.body.innerHTML = chatgptPage({ turns: gptThread(3, (i) => `Other chat ${i}`) })
+    await settle()
+    const obs = observations(h) as Extract<ContentRequest, { type: 'ph:observation' }>[]
+    const first = obs.filter((o) => o.observation.url === CHAT_URL)
+    expect(first.at(-1)!.observation.messages.map((m) => m.text)).toEqual(
+      gptThread(4).map((t) => t.messages[0]!.text),
+    )
+    // Nothing from the other conversation was merged into the first one.
+    expect(first.flatMap((o) => o.observation.messages.map((m) => m.text)).some((t) => t.startsWith('Other chat'))).toBe(false)
+    expect(obs.at(-1)!.observation).toMatchObject({ url: other })
+  })
+
+  it('sends what it collected when the tab is hidden or the page is left', async () => {
+    const h = start(chatgptPage({ turns: gptThread(2) }), CHAT_URL, 'chatgpt', { collect: true, mode: 'passive' })
+    await settle()
+    h.win.document.body.innerHTML = chatgptPage({ turns: gptThread(4) })
+    await vi.advanceTimersByTimeAsync(300)
+    Object.defineProperty(h.win.document, 'visibilityState', { configurable: true, value: 'hidden' })
+    h.win.document.dispatchEvent(new h.win.Event('visibilitychange'))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(observations(h)).toHaveLength(2)
+    expect((observations(h)[1] as Extract<ContentRequest, { type: 'ph:observation' }>).observation.messages).toHaveLength(4)
+
+    // Unsent changes are also sent when the page goes away; nothing is sent twice.
+    h.win.document.body.innerHTML = chatgptPage({ turns: gptThread(6) })
+    await vi.advanceTimersByTimeAsync(300)
+    h.win.dispatchEvent(new h.win.Event('pagehide'))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(observations(h)).toHaveLength(3)
+    expect((observations(h)[2] as Extract<ContentRequest, { type: 'ph:observation' }>).observation.messages).toHaveLength(6)
+    await settle()
+    expect(observations(h)).toHaveLength(3)
+  })
+
+  it('never reads another conversation into this one when the app renders it before changing the URL', async () => {
+    const h = start(chatgptPage({ turns: gptThread(2) }), CHAT_URL, 'chatgpt', { collect: true, mode: 'passive' })
+    await settle()
+    h.win.document.body.innerHTML = chatgptPage({
+      turns: gptThread(3, (i) => `Other chat ${i}`).map((t, i) => ({
+        ...t,
+        turnId: `c${String(i).padStart(7, '0')}-0000-4000-8000-000000000000`,
+        messages: t.messages.map((m, j) => ({ ...m, id: `d${String(i * 10 + j).padStart(7, '0')}-0000-4000-8000-000000000000` })),
+      })),
+    })
+    await vi.advanceTimersByTimeAsync(20)
+    const other = 'https://chatgpt.com/c/1e2d3c4b-5a69-4788-9aab-bccddeeff001'
+    h.win.history.pushState({}, '', new URL(other).pathname)
+    await settle()
+    const obs = observations(h) as Extract<ContentRequest, { type: 'ph:observation' }>[]
+    for (const o of obs.filter((x) => x.observation.url === CHAT_URL)) {
+      expect(o.observation.messages.some((m) => m.text.startsWith('Other chat'))).toBe(false)
+    }
+  })
+
   it('accumulates a virtualised thread across scroll positions', async () => {
     const rows = claudeThread(30)
     const h = start(claudePage({ rows, mounted: [24, 29] }), CLAUDE_URL, 'claude', { collect: true, mode: 'passive' })

@@ -163,12 +163,18 @@ export class CaptureAccumulator {
     return this.version !== this.sentVersion
   }
 
+  /** Counter of changes so far; pass it to markSent for the observation it produced. */
+  get changes(): number {
+    return this.version
+  }
+
   get isStreaming(): boolean {
     return this.streaming || [...this.entries.values()].some((e) => e.message.isStreaming)
   }
 
-  markSent(): void {
-    this.sentVersion = this.version
+  /** The observation built at `version` was accepted; later changes stay unsent. */
+  markSent(version = this.version): void {
+    this.sentVersion = Math.max(this.sentVersion, version)
   }
 
   /** Positions the page lists that were never rendered during this visit (null: the page does not say). */

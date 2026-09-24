@@ -8,7 +8,9 @@
  * virtualised thread, a reply streaming) it is read at least every
  * readWhileChangingMs, so windows that mount and unmount before the page
  * settles are still accumulated; uploads to the service worker wait until the
- * page has been quiet for the settle delay.
+ * page has been quiet for the settle delay, except when the owner leaves the
+ * conversation, hides the tab or leaves the page: then what the visit
+ * collected is sent at once.
  */
 import {
   captureParseConversationUrl,
@@ -29,6 +31,12 @@ export const RUNTIME_TIMING = {
    * so waiting for the page to settle would lose every window passed on the way.
    */
   readWhileChangingMs: 250,
+  /**
+   * A read waits at least this long after a DOM change, so an app that renders
+   * the next conversation before it changes the URL is noticed (the URL no
+   * longer matches) instead of being read into the current one.
+   */
+  readDelayMs: 50,
   /** Quiet period after the last DOM change before reading the page and uploading. */
   settlePassiveMs: 1500,
   /** Revisit tabs load in the background; give them longer to finish rendering. */
@@ -105,8 +113,16 @@ export function startCaptureRuntime(deps: RuntimeDeps): CaptureRuntime {
     followUpTimer = setTimeout(() => void tick(), delay)
   }
 
-  /** Read what is mounted now and merge it into the session's accumulator (no upload). */
-  const read = (s: Session): PageExtract => {
+  /**
+   * Read what is mounted now and merge it into the session's accumulator (no
+   * upload). Returns null, reading nothing, when the URL has moved on to
+   * another conversation: the DOM may already show that one.
+   */
+  const read = (s: Session): PageExtract | null => {
+    if (win.location.href !== s.url) {
+      void checkLocation() // same conversation: updates s.url at once; another one: switches session
+      if (session !== s || win.location.href !== s.url) return null
+    }
     lastReadAt = deps.now()
     clearTimeout(readTimer)
     readTimer = undefined
@@ -115,19 +131,40 @@ export function startCaptureRuntime(deps: RuntimeDeps): CaptureRuntime {
     return extract
   }
 
-  /** On a DOM change: read now, or at the end of the current readWhileChangingMs interval. */
+  /** On a DOM change: read shortly, and at least every readWhileChangingMs while changes continue. */
   const readSoon = () => {
     const s = session
-    if (!s?.collect || s.stopped || dead) return
-    const wait = lastReadAt + RUNTIME_TIMING.readWhileChangingMs - deps.now()
-    if (wait <= 0) {
-      read(s)
-    } else if (readTimer === undefined) {
-      readTimer = setTimeout(() => {
-        readTimer = undefined
-        if (session === s && s.collect && !s.stopped && !dead) read(s)
-      }, wait)
+    if (!s?.collect || s.stopped || dead || readTimer !== undefined) return
+    const wait = Math.max(RUNTIME_TIMING.readDelayMs, lastReadAt + RUNTIME_TIMING.readWhileChangingMs - deps.now())
+    readTimer = setTimeout(() => {
+      readTimer = undefined
+      if (session === s && s.collect && !s.stopped && !dead) read(s)
+    }, wait)
+  }
+
+  /** Hand what the visit collected and has not sent yet to the service worker. */
+  const upload = async (s: Session): Promise<void> => {
+    if (!s.acc.hasUnsent) return
+    const version = s.acc.changes
+    const observation = s.acc.toObservation(new Date(deps.now()))
+    if (!observation) return
+    const res = await send<ObservationResponse>({ type: 'ph:observation', observation })
+    if (res?.accepted) {
+      s.acc.markSent(version)
+      if (session === s) s.firstUnsentAt = null
     }
+  }
+
+  /**
+   * The tab is being hidden or the page left: send now instead of waiting for
+   * the page to settle or a reply to finish (streaming messages stay flagged
+   * and the server ignores them).
+   */
+  const flushNow = () => {
+    const s = session
+    if (!s || !s.collect || s.stopped || dead) return
+    read(s)
+    void upload(s)
   }
 
   const reportProblem = async (s: Session, state: CaptureProblemState) => {
@@ -176,9 +213,17 @@ export function startCaptureRuntime(deps: RuntimeDeps): CaptureRuntime {
       previous.url = href // same conversation, different URL shape (e.g. moved into a project)
       return
     }
-    if (previous && !ref && previous.collect && !previous.stopped) {
-      const path = new URL(href).pathname
-      if (isLoginPath(deps.provider, path)) await reportProblem(previous, 'signed_out')
+    if (previous && previous.collect && !previous.stopped) {
+      // Leaving a collected conversation (another chat, or a sign-in page).
+      // Send what this visit collected but had not sent yet: the page may not
+      // have settled, or a reply may still be streaming (those messages stay
+      // flagged). The DOM may already show the next page, so it is not read.
+      previous.stopped = true
+      const signedOut = !ref && isLoginPath(deps.provider, new URL(href).pathname)
+      const leaving = upload(previous).then(() =>
+        signedOut ? reportProblem(previous, 'signed_out') : undefined,
+      )
+      if (signedOut) await leaving
     }
     clearTimeout(settleTimer)
     clearTimeout(followUpTimer)
@@ -206,6 +251,7 @@ export function startCaptureRuntime(deps: RuntimeDeps): CaptureRuntime {
     const s = session
     if (!s || !s.collect || s.stopped || dead) return
     const extract = read(s)
+    if (!extract) return
     const now = deps.now()
 
     if (extract.status === 'signed_out' || extract.status === 'challenge') {
@@ -230,13 +276,7 @@ export function startCaptureRuntime(deps: RuntimeDeps): CaptureRuntime {
       followUp(RUNTIME_TIMING.streamingRecheckMs)
       return
     }
-    const observation = s.acc.toObservation(new Date(now))
-    if (!observation) return
-    const res = await send<ObservationResponse>({ type: 'ph:observation', observation })
-    if (res?.accepted && session === s) {
-      s.acc.markSent()
-      s.firstUnsentAt = null
-    }
+    await upload(s)
   }
 
   function stop() {
@@ -245,6 +285,7 @@ export function startCaptureRuntime(deps: RuntimeDeps): CaptureRuntime {
     clearTimeout(followUpTimer)
     clearTimeout(readTimer)
     clearInterval(poll)
+    win.removeEventListener('pagehide', flushNow)
     observer?.disconnect()
     observer = null
   }
@@ -253,8 +294,10 @@ export function startCaptureRuntime(deps: RuntimeDeps): CaptureRuntime {
     if (notice.type === 'ph:recheck' && session && !session.stopped) void hello(session)
   })
   doc.addEventListener('visibilitychange', () => {
-    if (doc.visibilityState === 'visible' && session && !session.collect && !session.stopped) void hello(session)
+    if (doc.visibilityState === 'hidden') flushNow()
+    else if (doc.visibilityState === 'visible' && session && !session.collect && !session.stopped) void hello(session)
   })
+  win.addEventListener('pagehide', flushNow)
   const poll = setInterval(() => void checkLocation(), RUNTIME_TIMING.locationPollMs)
   void checkLocation()
 

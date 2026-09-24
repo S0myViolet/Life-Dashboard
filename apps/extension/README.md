@@ -155,6 +155,10 @@ yours.
 
 - The service worker is event-driven (it stops when idle). All listeners are registered at the
   top level; all state is in `chrome.storage.local`.
+- The page is read at least every 250 ms while it keeps changing (so windows passed while
+  scrolling are kept) and handed to the service worker once it has been quiet for 1.5 s. When
+  you switch to another conversation, hide the tab or leave the page, what the visit collected
+  is handed over at once (on page unload this is best effort: Chrome may not deliver it).
 - Uploads go through a bounded offline queue (40 items / 6 MB, a week at most) with exponential
   backoff and `Retry-After`. A newer capture of the same page visit replaces an older queued one.
 - On browser start (`runtime.onStartup`) and when the 1-minute alarm fires after a long gap
