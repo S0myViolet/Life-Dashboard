@@ -50,7 +50,6 @@ export function sanitizeJobError(error: unknown, maxLength: number = JOB_ERROR_M
   // Bound the work before running regexes over untrusted text.
   if (text.length > 8 * maxLength) text = text.slice(0, 8 * maxLength)
   for (const [pattern, replacement] of REDACTIONS) text = text.replace(pattern, replacement)
-  // eslint-disable-next-line no-control-regex
   text = text.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ')
   text = text.replace(/\s+/g, ' ').trim()
   if (text === '') text = 'Unknown error'

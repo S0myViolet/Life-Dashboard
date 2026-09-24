@@ -22,6 +22,14 @@ import {
   type RunDispatcherOptions,
 } from '../src/index.ts'
 
+// The db harness reads its template via inject('templateDb'). That key is typed in
+// packages/db/test/global-setup.ts, which this package's tsconfig does not include.
+declare module 'vitest' {
+  export interface ProvidedContext {
+    templateDb: string
+  }
+}
+
 const dbs: TestDatabase[] = []
 afterEach(async () => {
   while (dbs.length) await dbs.pop()!.drop()
