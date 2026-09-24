@@ -1,0 +1,39 @@
+# Supabase CLI project configuration (https://supabase.com/docs/guides/local-development/cli/config).
+#
+# Minimal on purpose: only what this app depends on. No secrets live here; values
+# written as "env(NAME)" are read from the environment (or supabase/.env) by the CLI.
+# Hosted-project settings (redirect allow-list, Google provider, spend cap) are also
+# set in the Supabase Dashboard; see the owner setup notes in the jobs report.
+
+project_id = "personal-home"
+
+[api]
+enabled = true
+# Only `public` is exposed through the Data API. Never add `private`: it holds the
+# job queue, the owner record and encrypted tokens.
+schemas = ["public", "graphql_public"]
+
+[auth]
+enabled = true
+# Public origin of the web app (same value as APP_URL in the app's environment).
+site_url = "env(APP_URL)"
+# Add the app's /auth/callback URL(s) here or in the Dashboard (Authentication → URL Configuration).
+additional_redirect_urls = []
+
+# App sign-in is Google only. The server-side allowlist (OWNER_EMAIL) decides who may own
+# the dashboard; this provider is separate from the Gmail/Calendar connection OAuth client.
+[auth.external.google]
+enabled = true
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+skip_nonce_check = false
+
+# The minute job dispatcher, invoked by pg_cron + pg_net (supabase/setup/10_schedule_dispatcher.sql).
+# verify_jwt is off because the caller sends no user JWT; the function authenticates every
+# request itself with the x-dispatcher-secret header (DISPATCHER_SECRET function secret).
+# A publishable/anon key alone is rejected with 401.
+[functions.dispatcher]
+enabled = true
+verify_jwt = false
+import_map = "./functions/deno.json"
+entrypoint = "./functions/dispatcher/index.ts"
