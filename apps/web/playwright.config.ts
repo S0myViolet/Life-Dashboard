@@ -16,7 +16,10 @@ import { join } from 'node:path'
 import { chromium, defineConfig, devices } from '@playwright/test'
 
 const E2E_PORT = Number(process.env.PH_E2E_PORT ?? 3200)
-const E2E_BASE_URL = `http://127.0.0.1:${E2E_PORT}`
+// `localhost`, not 127.0.0.1: `next start` builds request.url with the hostname
+// "localhost" whatever address it listens on, so absolute redirects (the test
+// sign-in route) land on localhost and the session cookie must belong to it.
+const E2E_BASE_URL = `http://localhost:${E2E_PORT}`
 
 /**
  * Use the Chromium build Playwright expects when present; otherwise the newest

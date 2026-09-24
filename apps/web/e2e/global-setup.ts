@@ -63,7 +63,7 @@ async function portInUse(port: number): Promise<boolean> {
 }
 
 export default async function globalSetup(config: FullConfig) {
-  const baseURL = String(config.projects[0]?.use.baseURL ?? 'http://127.0.0.1:3200')
+  const baseURL = String(config.projects[0]?.use.baseURL ?? 'http://localhost:3200')
   const port = Number(new URL(baseURL).port)
   if (await portInUse(port)) {
     throw new Error(`Port ${port} is already in use. Stop that server or set PH_E2E_PORT.`)
@@ -127,7 +127,7 @@ export default async function globalSetup(config: FullConfig) {
     server.stdout?.on('data', (d: Buffer) => logs.push(d.toString()))
     server.stderr?.on('data', (d: Buffer) => logs.push(d.toString()))
     try {
-      await waitForServer(`${baseURL}/login`, server, 60_000)
+      await waitForServer(`http://127.0.0.1:${port}/login`, server, 60_000)
     } catch (error) {
       console.error(logs.join(''))
       throw error
