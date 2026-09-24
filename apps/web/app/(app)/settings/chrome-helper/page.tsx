@@ -71,7 +71,9 @@ export default async function ChromeHelperPage() {
             </p>
             <p>
               A page that shows only part of a conversation never removes saved messages, and an
-              edited or regenerated message is kept as a new version. If a page is signed out, shows
+              edited or regenerated message is saved alongside the earlier text (Claude keeps it as
+              a new version of the same message; ChatGPT gives it a new message id, so it appears
+              as a new message next to the original). If a page is signed out, shows
               a verification check or looks different than expected, collection of that conversation
               pauses and the last good data is kept until you choose Reconnect.
             </p>
