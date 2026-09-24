@@ -89,6 +89,19 @@ export interface MessageSender {
 const conversationKey = (ref: { provider: CaptureProvider; externalId: string }) =>
   `${ref.provider}:${ref.externalId.toLowerCase()}`
 
+/**
+ * Only keep selection entries whose URL is a real conversation URL of the same
+ * provider and id: the helper opens these URLs in revisit tabs, so a dashboard
+ * must never be able to point it anywhere else.
+ */
+export function captureSafeSelection(items: CaptureSelectionItem[]): CaptureSelectionItem[] {
+  return items.flatMap((item) => {
+    const ref = captureParseConversationUrl(item.url)
+    if (!ref || ref.provider !== item.provider || ref.externalId !== item.externalId.toLowerCase()) return []
+    return [{ ...item, url: ref.canonicalUrl }]
+  })
+}
+
 function findSelected(items: CaptureSelectionItem[], ref: CaptureConversationRef) {
   return items.find((i) => i.provider === ref.provider && i.externalId.toLowerCase() === ref.externalId)
 }
@@ -467,8 +480,9 @@ export class Background {
       const changed = await this.update(['selection', 'conversations', 'pairing'], (s) => {
         if (s.pairing?.token !== pairing.token) return false // re-paired meanwhile
         const before = JSON.stringify(s.selection.items)
-        s.selection = { items: res.data.conversations, syncedAt: now, error: null }
-        const active = new Set(res.data.conversations.map((c) => c.id))
+        const items = captureSafeSelection(res.data.conversations)
+        s.selection = { items, syncedAt: now, error: null }
+        const active = new Set(items.map((c) => c.id))
         const next: StoredState['conversations'] = {}
         for (const [id, status] of Object.entries(s.conversations)) {
           if (active.has(id)) {
@@ -633,9 +647,11 @@ export class Background {
         return nextToOpen(s.revisit)
       })
       for (const task of tasks) {
+        const ref = captureParseConversationUrl(task.url)
+        if (!ref || ref.provider !== task.provider) continue // never open anything else
         let tabId: number | undefined
         try {
-          tabId = (await this.chrome.tabsCreateBackground(task.url)).id
+          tabId = (await this.chrome.tabsCreateBackground(ref.canonicalUrl)).id
         } catch {
           tabId = undefined
         }

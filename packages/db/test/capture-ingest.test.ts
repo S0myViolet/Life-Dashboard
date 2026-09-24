@@ -92,6 +92,13 @@ describe('captureIngestSnapshot', () => {
     expect(await stored()).toEqual(await model([s]))
   })
 
+  it('an older snapshot delivered late never overwrites a newer title', async () => {
+    await ingest(makeSnapshot(at(5), thread(2), { title: 'Renamed thread' }))
+    await ingest(makeSnapshot(at(0), thread(2), { title: 'Original title' }))
+    const [conv] = await withOwner(t.db, owner, (tx) => captureListConversations(tx))
+    expect(conv).toMatchObject({ title: 'Renamed thread', lastCapturedAt: new Date(at(5)) })
+  })
+
   it('answers a retried upload (same snapshotId) from the log without applying it twice', async () => {
     const s = makeSnapshot(at(0), thread(3))
     await ingest(s)

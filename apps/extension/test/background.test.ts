@@ -390,6 +390,18 @@ describe('revisit prototype', () => {
     expect(chrome.created).toHaveLength(1)
   })
 
+  it('never opens or keeps a selection entry whose URL is not that conversation', async () => {
+    dash.selection = [
+      { ...selectionItem('chatgpt'), url: 'https://evil.example/phish' },
+      { ...selectionItem('claude'), url: CHAT_URL }, // provider/id mismatch
+    ]
+    await paired()
+    expect(chrome.store.selection.items).toEqual([])
+    clockNow += REVISIT.intervalMs
+    await bg.onMessage({ type: 'ph:set-revisit', enabled: true, acknowledged: true }, PAGE)
+    expect(chrome.created).toEqual([])
+  })
+
   it('switching revisits off closes the open collector tabs', async () => {
     await paired()
     clockNow += REVISIT.intervalMs

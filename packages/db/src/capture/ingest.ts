@@ -316,7 +316,9 @@ export async function captureIngestSnapshot(
           last_seen_complete_at = case when ${plan.complete}
             then greatest(last_seen_complete_at, ${capturedAt}::timestamptz)
             else last_seen_complete_at end,
-          title = coalesce(${snapshot.conversation.title?.trim() || null}, title),
+          -- An older snapshot delivered late never overwrites a newer title.
+          title = case when ${capturedAt}::timestamptz >= coalesce(last_captured_at, '-infinity')
+            then coalesce(${snapshot.conversation.title?.trim() || null}, title) else title end,
           content_changed_at = case when ${plan.contentChanged}
             then ${receivedAt} else content_changed_at end,
           message_count = (

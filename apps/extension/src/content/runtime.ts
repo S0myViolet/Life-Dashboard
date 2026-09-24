@@ -26,7 +26,7 @@ export const RUNTIME_TIMING = {
   /** Revisit tabs load in the background; give them longer to finish rendering. */
   settleRevisitMs: 4000,
   /** No recognisable thread for this long on a conversation URL → structure_changed. */
-  structureGraceMs: 20_000,
+  structureGraceMs: 30_000,
   /** While a reply is streaming, re-check this often. */
   streamingRecheckMs: 5000,
   /** Upload anyway after this long (streaming messages are flagged and ignored by the server). */
