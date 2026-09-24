@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Personal Home capture — options</title>
+    <link rel="stylesheet" href="extension.css" />
+    <script type="module" src="options.js"></script>
+  </head>
+  <body class="options">
+    <main>
+      <h1>Personal Home capture</h1>
+      <p class="muted">
+        A private helper that collects the ChatGPT and Claude conversations you select into your
+        own Personal Home dashboard.
+      </p>
+
+      <section aria-labelledby="status-heading">
+        <h2 id="status-heading">Status</h2>
+        <p id="status" role="status">Loading…</p>
+        <div class="row">
+          <a id="dashboard-link" href="#" target="_blank" rel="noopener noreferrer" hidden
+            >Open Settings → Chrome helper</a
+          >
+          <button type="button" id="unpair" class="danger" hidden>Unpair this browser</button>
+        </div>
+      </section>
+
+      <section aria-labelledby="pair-heading">
+        <h2 id="pair-heading">Pair with your dashboard</h2>
+        <p class="small muted">
+          In the dashboard, open Settings → Chrome helper and create a pairing code. It is valid
+          for 10 minutes and works once. Chrome will ask to let the helper reach your dashboard's
+          address; that is the only site besides chatgpt.com and claude.ai it can talk to.
+        </p>
+        <form id="pair-form" novalidate>
+          <label for="origin">Dashboard address</label>
+          <input
+            id="origin"
+            type="url"
+            inputmode="url"
+            autocomplete="url"
+            placeholder="https://home.example.com"
+            required
+          />
+          <label for="device">Name for this browser</label>
+          <input id="device" type="text" maxlength="60" required />
+          <label for="code">Pairing code</label>
+          <input
+            id="code"
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="XXXX-XXXX-XXXX"
+            required
+          />
+          <p><button type="submit" class="primary" id="pair-button">Pair</button></p>
+          <p id="pair-result" role="status"></p>
+        </form>
+      </section>
+
+      <section aria-labelledby="about-heading">
+        <h2 id="about-heading">What it collects</h2>
+        <p class="small">
+          Only conversations you selected on the dashboard, and only the user and assistant text
+          Chrome rendered while the conversation was open in a tab. Long chats are drawn a window
+          at a time, so older messages are collected when you scroll through them once. It never
+          reads cookies or passwords, never calls ChatGPT's or Claude's internal APIs, and never
+          collects attachments, images, hidden branches or anything that was not shown.
+        </p>
+        <p class="small">
+          If a page is signed out, shows a verification check, or looks different than expected,
+          the helper stops collecting that conversation and the dashboard shows Reconnect or
+          Capture needs attention. Background revisits are an opt-in prototype in the popup; read
+          its terms-of-use note before switching it on.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

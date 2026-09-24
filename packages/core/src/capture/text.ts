@@ -24,6 +24,13 @@ export function captureContentHash(normalizedText: string): Promise<string> {
   return sha256Hex(`ph-capture-v1\n${normalizedText}`)
 }
 
+/**
+ * Valid message keys: provider message ids (ChatGPT data-message-id / data-turn-id)
+ * or derived keys ('d:…', 'h:…'). Kept here, away from the zod schemas, so the
+ * Chrome helper's content scripts can use it without bundling zod.
+ */
+export const CAPTURE_MESSAGE_KEY_RE = /^[A-Za-z0-9][A-Za-z0-9:_.-]{0,199}$/
+
 /** Keys the helper or the server derived (not a provider message id). */
 export function captureIsDerivedKey(key: string): boolean {
   return /^[dh]:/.test(key)

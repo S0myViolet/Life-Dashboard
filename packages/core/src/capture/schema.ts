@@ -12,15 +12,13 @@ import {
   CaptureProviderSchema,
   CaptureStateSchema,
 } from './constants.ts'
+import { CAPTURE_MESSAGE_KEY_RE } from './text.ts'
 import { CAPTURE_UUID_RE, captureParseConversationUrl } from './urls.ts'
 
 const uuid = z.string().regex(CAPTURE_UUID_RE, 'expected a UUID')
 const count = z.number().int().min(0).max(1_000_000)
 const isoInstant = z.iso.datetime({ offset: true })
 const extensionVersion = z.string().regex(/^\d{1,5}(\.\d{1,5}){0,3}$/, 'expected a version like 0.1.0')
-
-/** Provider message ids (ChatGPT data-message-id) or derived keys ('d:…', 'h:…'). */
-export const CAPTURE_MESSAGE_KEY_RE = /^[A-Za-z0-9][A-Za-z0-9:_.-]{0,199}$/
 
 export const CaptureMessageSchema = z.strictObject({
   key: z.string().regex(CAPTURE_MESSAGE_KEY_RE).optional(),
