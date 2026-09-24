@@ -145,11 +145,10 @@ export function createDispatcherHttpHandler(
     try {
       db = o.getDb()
     } catch (err) {
-      if (err instanceof DispatcherConfigError) {
-        log({ event: 'dispatcher_not_configured', setting: err.setting })
-        return json(503, { ok: false, error: 'not_configured' })
-      }
-      throw err
+      // Never log this error's message: a malformed connection string may be in it.
+      const setting = err instanceof DispatcherConfigError ? err.setting : 'SUPABASE_DB_URL'
+      log({ event: 'dispatcher_not_configured', setting })
+      return json(503, { ok: false, error: 'not_configured' })
     }
 
     let summary: DispatcherSummary

@@ -3,7 +3,12 @@
  * heartbeats, lease loss, aborts and schedule materialisation.
  */
 import { afterEach, describe, expect, it } from 'vitest'
-import { JobFailure, type JobKind, type JobScheduleDefinition } from '@personal-home/core'
+import {
+  JOB_SCHEDULE_DEFINITIONS,
+  JobFailure,
+  type JobKind,
+  type JobScheduleDefinition,
+} from '@personal-home/core'
 import {
   claimJobs,
   countJobsByStatus,
@@ -15,7 +20,9 @@ import {
 } from '@personal-home/db'
 import { createTestDatabase, seedOwner, type TestDatabase } from '@personal-home/db/testing'
 import {
+  createDefaultJobHandlerRegistry,
   createJobHandlerRegistry,
+  registeredJobKinds,
   runDispatcher,
   type DispatcherLogEvent,
   type JobHandler,
@@ -409,5 +416,16 @@ describe('runDispatcher', () => {
         handler('sync.rss', async () => {}),
       ]),
     ).toThrow(/duplicate/)
+  })
+})
+
+describe('default handler registry', () => {
+  it('has a real handler for every enabled schedule, and every other schedule stays disabled', () => {
+    const registry = createDefaultJobHandlerRegistry()
+    expect(registeredJobKinds(registry)).toEqual(['briefing.evening', 'briefing.morning'])
+    for (const def of JOB_SCHEDULE_DEFINITIONS) {
+      if (def.enabled) expect(registry[def.kind], def.name).toBeDefined()
+      else expect(registry[def.kind], def.name).toBeUndefined()
+    }
   })
 })
