@@ -148,14 +148,24 @@ describe('home layout', () => {
     ])
   })
 
-  it('refuses to hide required modules and reports no-op changes', async () => {
+  it('refuses to hide or move required modules and reports no-op changes', async () => {
     expect(
       await asOwner((tx) => changeHomeLayout(tx, { op: 'hide', module: 'needs_attention' })),
     ).toEqual({ status: 'required_module' })
+    for (const direction of ['up', 'down'] as const) {
+      expect(
+        await asOwner((tx) =>
+          changeHomeLayout(tx, { op: 'move', module: 'needs_attention', direction }),
+        ),
+      ).toEqual({ status: 'required_module' })
+    }
+    // The first optional module cannot climb above the required ones.
     const noop = await asOwner((tx) =>
-      changeHomeLayout(tx, { op: 'move', module: 'needs_attention', direction: 'up' }),
+      changeHomeLayout(tx, { op: 'move', module: 'today', direction: 'up' }),
     )
     expect(noop).toMatchObject({ status: 'saved', changed: false })
+    const s = await asOwner((tx) => getOwnerSettings(tx))
+    expect(s!.homeLayout).toEqual(defaultHomeLayout())
   })
 
   it('serialises concurrent operations (no lost update)', async () => {
@@ -178,6 +188,8 @@ describe('home layout', () => {
       e.module === 'todays_plan' ? { ...e, hidden: true } : e,
     )
     await expect(asOwner((tx) => updateHomeLayout(tx, layout))).rejects.toThrow(ZodError)
+    const [first, ...rest] = defaultHomeLayout()
+    await expect(asOwner((tx) => updateHomeLayout(tx, [...rest, first!]))).rejects.toThrow(ZodError)
     await expect(
       asOwner((tx) => updateHomeLayout(tx, defaultHomeLayout().slice(2))),
     ).rejects.toThrow(ZodError)

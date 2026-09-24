@@ -19,8 +19,9 @@ const iconButton = buttonClass('secondary', 'size-11 shrink-0 px-0 sm:size-10')
 
 /**
  * Reorder, hide and show Home modules. Every control is a small form posting
- * one operation, so it also works before JavaScript loads. Required modules
- * can move but not be hidden.
+ * one operation, so it also works before JavaScript loads. Required modules are
+ * locked: always shown, fixed at the top (brief §2: reorder and hide optional
+ * modules), so they get no controls and nothing can move above them.
  */
 export function HomeLayoutEditor({ layout }: { layout: HomeLayout }) {
   const [state, action, pending] = useActionState(changeHomeLayoutAction, IDLE_STATE)
@@ -57,6 +58,8 @@ export function HomeLayoutEditor({ layout }: { layout: HomeLayout }) {
           const mod: HomeModule = entry.module
           const label = HOME_MODULE_LABELS[mod]
           const required = isRequiredHomeModule(mod)
+          const previous = layout[index - 1]
+          const atTop = !previous || isRequiredHomeModule(previous.module)
           return (
             <li
               key={mod}
@@ -75,7 +78,7 @@ export function HomeLayoutEditor({ layout }: { layout: HomeLayout }) {
                   </span>
                   {required ? (
                     <Pill>
-                      <Lock aria-hidden className="size-3" /> Always shown
+                      <Lock aria-hidden className="size-3" /> Always shown at the top
                     </Pill>
                   ) : entry.hidden ? (
                     <Pill tone="caution">Hidden</Pill>
@@ -83,31 +86,27 @@ export function HomeLayoutEditor({ layout }: { layout: HomeLayout }) {
                 </div>
                 <p className="mt-0.5 text-sm text-ink-muted">{HOME_MODULE_DESCRIPTIONS[mod]}</p>
               </div>
-              <div className="flex items-center gap-2">
-                {op(
-                  { op: 'move', module: mod, direction: 'up' },
-                  <ArrowUp aria-hidden className="size-4" />,
-                  { label: `Move ${label} up`, disabled: index === 0 },
-                )}
-                {op(
-                  { op: 'move', module: mod, direction: 'down' },
-                  <ArrowDown aria-hidden className="size-4" />,
-                  { label: `Move ${label} down`, disabled: index === layout.length - 1 },
-                )}
-                {required ? (
-                  <span className={`${iconButton} pointer-events-none opacity-40`} aria-hidden>
-                    <Lock className="size-4" />
-                  </span>
-                ) : entry.hidden ? (
-                  op({ op: 'show', module: mod }, <Eye aria-hidden className="size-4" />, {
-                    label: `Show ${label}`,
-                  })
-                ) : (
-                  op({ op: 'hide', module: mod }, <EyeOff aria-hidden className="size-4" />, {
-                    label: `Hide ${label}`,
-                  })
-                )}
-              </div>
+              {required ? null : (
+                <div className="flex items-center gap-2">
+                  {op(
+                    { op: 'move', module: mod, direction: 'up' },
+                    <ArrowUp aria-hidden className="size-4" />,
+                    { label: `Move ${label} up`, disabled: atTop },
+                  )}
+                  {op(
+                    { op: 'move', module: mod, direction: 'down' },
+                    <ArrowDown aria-hidden className="size-4" />,
+                    { label: `Move ${label} down`, disabled: index === layout.length - 1 },
+                  )}
+                  {entry.hidden
+                    ? op({ op: 'show', module: mod }, <Eye aria-hidden className="size-4" />, {
+                        label: `Show ${label}`,
+                      })
+                    : op({ op: 'hide', module: mod }, <EyeOff aria-hidden className="size-4" />, {
+                        label: `Hide ${label}`,
+                      })}
+                </div>
+              )}
             </li>
           )
         })}

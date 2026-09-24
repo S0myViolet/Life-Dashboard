@@ -48,6 +48,40 @@ test.describe('timezone confirmation', () => {
     await page.goto('/')
     await expect(page.getByTestId('home-date')).toHaveText(localDateLabel('Asia/Tokyo'))
   })
+
+  test('the picker follows each save without a reload, so pressing Save again never reverts it', async ({
+    page,
+  }) => {
+    await signInAsOwner(page, '/settings/timezone')
+    const select = page.getByLabel('Timezone', { exact: true })
+    const tz = () => sql('select timezone, timezone_confirmed from public.owner_settings')
+    const saveResponse = () =>
+      page.waitForResponse((r) => r.request().method() === 'POST' && r.url().includes('/settings'))
+    await expect(select).toHaveValue('Europe/London')
+
+    // Picker save: the heading and the select both show the new zone.
+    await select.selectOption('Asia/Tokyo')
+    await page.getByRole('button', { name: 'Confirm timezone' }).click()
+    await expect(page.getByRole('heading', { name: 'Asia/Tokyo' })).toBeVisible()
+    await expect(page.getByText('Timezone set to Asia/Tokyo.')).toBeVisible()
+    await expect(select).toHaveValue('Asia/Tokyo')
+    expect(tz()).toBe('Asia/Tokyo|t')
+
+    // Device button: the select follows the saved zone too.
+    await page.getByRole('button', { name: 'Use America/New_York' }).click()
+    await expect(page.getByRole('heading', { name: 'America/New_York' })).toBeVisible()
+    await expect(select).toHaveValue('America/New_York')
+    expect(tz()).toBe('America/New_York|t')
+
+    // Pressing Save without touching the picker keeps what was saved.
+    const saved = saveResponse()
+    await page.getByRole('button', { name: 'Save timezone' }).click()
+    await saved
+    await expect(page.getByRole('button', { name: 'Save timezone' })).toBeEnabled()
+    await expect(page.getByRole('heading', { name: 'America/New_York' })).toBeVisible()
+    await expect(select).toHaveValue('America/New_York')
+    expect(tz()).toBe('America/New_York|t')
+  })
 })
 
 test('confirming the default timezone in Settings keeps it and hides the Home banner', async ({
@@ -80,9 +114,15 @@ test('home layout: hiding and reordering persist across reloads and shape Home',
   await page.getByRole('button', { name: 'Move Latest briefing up' }).click()
   await expect(rows.nth(2)).toHaveAttribute('data-module', 'briefing')
 
-  // Required modules cannot be hidden.
-  await expect(page.getByRole('button', { name: 'Hide Needs attention' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Hide Your plan for today' })).toHaveCount(0)
+  // Required modules are locked: they cannot be hidden or moved, and nothing moves above them.
+  for (const name of ['Needs attention', 'Your plan for today']) {
+    for (const action of ['Hide', 'Move'])
+      await expect(
+        page.getByRole('button', { name: new RegExp(`^${action} ${name}`) }),
+      ).toHaveCount(0)
+  }
+  await expect(page.getByRole('button', { name: 'Move Latest briefing up' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Move Today up' })).toBeEnabled()
 
   await page.reload()
   await expect(rows).toHaveCount(7)

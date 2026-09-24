@@ -4,7 +4,9 @@
  * Stored in owner_settings.home_layout as [{ module, hidden }] in display order.
  * Rules:
  *   - Every module from HOME_MODULES appears exactly once.
- *   - Required modules (REQUIRED_HOME_MODULES) are always present and visible.
+ *   - Required modules (REQUIRED_HOME_MODULES) are always present, visible and
+ *     pinned to the top in their fixed order (brief §2 Home: the owner reorders
+ *     and hides *optional* modules only). Optional modules follow, in saved order.
  *   - Unknown/malformed entries are dropped; missing modules are appended in the
  *     default order (visible), so new modules show up without a migration.
  */
@@ -66,6 +68,14 @@ export const HomeLayoutSchema = z
         })
       }
       seen.add(entry.module)
+      const pinned = REQUIRED_HOME_MODULES[index]
+      if (pinned !== undefined && entry.module !== pinned) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `${HOME_MODULE_LABELS[pinned]} stays at the top of Home`,
+          path: [index, 'module'],
+        })
+      }
       if (entry.hidden && isRequiredHomeModule(entry.module)) {
         ctx.addIssue({
           code: 'custom',
@@ -82,19 +92,19 @@ export function defaultHomeLayout(): HomeLayout {
 
 /**
  * Repair any stored value into a valid layout. Never throws.
- * Keeps the first occurrence of each known module and its saved order.
+ * Required modules come first in their fixed order; optional modules keep the
+ * first occurrence of each and their saved order.
  */
 export function normalizeHomeLayout(raw: unknown): HomeLayout {
-  const out: HomeLayout = []
-  const seen = new Set<HomeModule>()
+  const out: HomeLayout = REQUIRED_HOME_MODULES.map((module) => ({ module, hidden: false }))
+  const seen = new Set<HomeModule>(REQUIRED_HOME_MODULES)
   if (Array.isArray(raw)) {
     for (const item of raw) {
       if (typeof item !== 'object' || item === null) continue
       const module = HomeModuleSchema.safeParse((item as { module?: unknown }).module)
       if (!module.success || seen.has(module.data)) continue
       seen.add(module.data)
-      const hidden = (item as { hidden?: unknown }).hidden === true
-      out.push({ module: module.data, hidden: hidden && !isRequiredHomeModule(module.data) })
+      out.push({ module: module.data, hidden: (item as { hidden?: unknown }).hidden === true })
     }
   }
   for (const module of HOME_MODULES) {
@@ -132,16 +142,20 @@ function sameLayout(a: HomeLayout, b: HomeLayout): boolean {
   )
 }
 
-/** Swap a module with its neighbour. Moving past either end leaves the layout unchanged. */
+/**
+ * Swap an optional module with its neighbour. Required modules never move, and
+ * nothing moves above them or past the end: those leave the layout unchanged.
+ */
 export function moveHomeModule(
   layout: HomeLayout,
   module: HomeModule,
   direction: 'up' | 'down',
 ): HomeLayout {
   const next = normalizeHomeLayout(layout)
+  if (isRequiredHomeModule(module)) return next
   const from = next.findIndex((e) => e.module === module)
   const to = direction === 'up' ? from - 1 : from + 1
-  if (from < 0 || to < 0 || to >= next.length) return next
+  if (from < 0 || to < REQUIRED_HOME_MODULES.length || to >= next.length) return next
   const a = next[from]!
   next[from] = next[to]!
   next[to] = a
@@ -166,6 +180,7 @@ export function applyHomeLayoutOperation(
   const before = normalizeHomeLayout(layout)
   switch (operation.op) {
     case 'move': {
+      if (isRequiredHomeModule(operation.module)) return { ok: false, error: 'required_module' }
       const next = moveHomeModule(before, operation.module, operation.direction)
       return { ok: true, layout: next, changed: !sameLayout(before, next) }
     }

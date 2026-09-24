@@ -17,12 +17,23 @@ test('iPhone width shows the five-item bottom navigation and no sidebar', async 
   await expect(nav.getByRole('link')).toHaveText(['Home', 'Plan', 'Capture', 'Updates', 'More'])
   await expect(page.locator('aside')).toBeHidden()
 
-  // Touch targets are at least 44px tall.
+  // Touch targets are at least 44px tall: the bottom nav and every link inside Home's
+  // modules, including the card-header routes ("Week", "Open", "Updates").
   for (const box of await nav
     .getByRole('link')
     .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height))) {
     expect(box).toBeGreaterThanOrEqual(44)
   }
+  await expect(page.locator('[data-home-module]')).toHaveCount(7)
+  const moduleLinks = await page
+    .locator('[data-home-module] a')
+    .evaluateAll((els) =>
+      els.map((e) => ({ text: e.textContent?.trim(), h: e.getBoundingClientRect().height })),
+    )
+  expect(moduleLinks.map((l) => l.text)).toEqual(
+    expect.arrayContaining(['Week', 'Open', 'Updates']),
+  )
+  for (const link of moduleLinks) expect(link.h, link.text).toBeGreaterThanOrEqual(44)
   // No sideways scrolling at phone width, on Home or Settings.
   for (const path of ['/', '/settings', '/settings/hours', '/settings/home-layout']) {
     await page.goto(path)
@@ -100,11 +111,11 @@ test('skip link and keyboard focus work', async ({ page }) => {
 
   // Keyboard-only: reach Settings → Home layout and operate a control with Enter.
   await page.goto('/settings/home-layout')
-  const moveDown = page.getByRole('button', { name: 'Move Needs attention down' })
+  const moveDown = page.getByRole('button', { name: 'Move Today down' })
   await moveDown.focus()
   await page.keyboard.press('Enter')
-  await expect(page.locator('ol > li[data-module]').first()).toHaveAttribute(
+  await expect(page.locator('ol > li[data-module]').nth(2)).toHaveAttribute(
     'data-module',
-    'todays_plan',
+    'briefing',
   )
 })

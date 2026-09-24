@@ -78,7 +78,11 @@ export async function changeHomeLayoutFromForm(
   if (result.status === 'not_owner') return NOT_OWNER
   if (result.status === 'required_module') {
     const label = 'module' in parsed.data ? HOME_MODULE_LABELS[parsed.data.module] : 'This module'
-    return { status: 'error', message: `${label} always stays on Home.` }
+    const message =
+      parsed.data.op === 'move'
+        ? `${label} stays at the top of Home.`
+        : `${label} always stays on Home.`
+    return { status: 'error', message }
   }
   const op = parsed.data
   const message =

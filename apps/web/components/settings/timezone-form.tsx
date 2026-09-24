@@ -42,7 +42,15 @@ export function TimezoneForm({
           <label htmlFor="timezone" className="block text-sm font-medium text-ink">
             Timezone
           </label>
+          {/*
+            key={current}: React resets a form after its action runs, restoring each
+            <option>'s defaultSelected from the first render — and it never re-applies a
+            changed defaultValue (a controlled value does not survive the reset either).
+            Without a remount the picker fell back to the first-rendered zone after a save,
+            and pressing Save again silently reverted the saved timezone.
+          */}
           <select
+            key={current}
             id="timezone"
             name="timezone"
             defaultValue={current}

@@ -135,6 +135,23 @@ describe('changeHomeLayoutFromForm', () => {
     )
   })
 
+  it('refuses to move required modules (a hand-built POST cannot bypass the editor)', async () => {
+    const state = await asOwner((tx) =>
+      changeHomeLayoutFromForm(
+        tx,
+        form({ op: 'move', module: 'needs_attention', direction: 'down' }),
+      ),
+    )
+    expect(state).toEqual({
+      status: 'error',
+      message: 'Needs attention stays at the top of Home.',
+    })
+    expect((await saved())?.homeLayout.map((e) => e.module).slice(0, 2)).toEqual([
+      'needs_attention',
+      'todays_plan',
+    ])
+  })
+
   it('rejects malformed operations', async () => {
     const invalid: Record<string, string>[] = [
       {},

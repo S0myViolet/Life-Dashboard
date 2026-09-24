@@ -12,7 +12,7 @@ export default async function HomeLayoutPage() {
     <>
       <SettingsSubpageHeader
         title="Home layout"
-        subtitle="Choose the order of Home's sections and hide the ones you do not need. Needs attention and your plan for today always stay."
+        subtitle="Choose the order of Home's other sections and hide the ones you do not need. Needs attention and your plan for today always stay at the top."
       />
       {settings ? (
         <HomeLayoutEditor layout={settings.homeLayout} />

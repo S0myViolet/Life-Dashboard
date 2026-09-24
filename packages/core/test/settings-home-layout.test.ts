@@ -29,16 +29,34 @@ describe('normalizeHomeLayout', () => {
       { module: 'briefing', hidden: false },
     ])
     expect(order(layout)).toEqual([
-      'interests',
-      'briefing',
       'needs_attention',
       'todays_plan',
+      'interests',
+      'briefing',
       'today',
       'health_preview',
       'money_preview',
     ])
-    expect(layout[0]).toEqual({ module: 'interests', hidden: true })
-    expect(layout.slice(2).every((e) => !e.hidden)).toBe(true)
+    expect(layout[2]).toEqual({ module: 'interests', hidden: true })
+    expect(layout.slice(3).every((e) => !e.hidden)).toBe(true)
+  })
+
+  it('pins required modules to the top in the brief order, whatever was stored', () => {
+    const layout = normalizeHomeLayout([
+      { module: 'today', hidden: false },
+      { module: 'todays_plan', hidden: false },
+      { module: 'interests', hidden: false },
+      { module: 'needs_attention', hidden: false },
+    ])
+    expect(order(layout)).toEqual([
+      ...REQUIRED_HOME_MODULES,
+      'today',
+      'interests',
+      'briefing',
+      'health_preview',
+      'money_preview',
+    ])
+    expect(HomeLayoutSchema.safeParse(layout).success).toBe(true)
   })
 
   it('drops unknown modules, malformed entries and duplicates (first wins)', () => {
@@ -53,9 +71,9 @@ describe('normalizeHomeLayout', () => {
     ])
     expect(layout).toHaveLength(HOME_MODULES.length)
     expect(new Set(order(layout)).size).toBe(HOME_MODULES.length)
-    expect(layout[0]).toEqual({ module: 'money_preview', hidden: true })
+    expect(layout[2]).toEqual({ module: 'money_preview', hidden: true })
     // Non-boolean hidden is treated as visible rather than guessed.
-    expect(layout[1]).toEqual({ module: 'today', hidden: false })
+    expect(layout[3]).toEqual({ module: 'today', hidden: false })
   })
 
   it('forces required modules visible even if stored hidden', () => {
@@ -90,21 +108,61 @@ describe('HomeLayoutSchema (strict, for writes)', () => {
     const extraKey = base.map((e) => ({ ...e, extra: 1 }))
     expect(HomeLayoutSchema.safeParse(extraKey).success).toBe(false)
   })
+
+  it('rejects layouts that move a required module out of its fixed place', () => {
+    const base = defaultHomeLayout()
+    const swapped = [base[1]!, base[0]!, ...base.slice(2)]
+    expect(HomeLayoutSchema.safeParse(swapped).success).toBe(false)
+    const sunk = [...base.slice(1), base[0]!]
+    const res = HomeLayoutSchema.safeParse(sunk)
+    expect(res.success).toBe(false)
+    expect(res.error?.issues[0]?.message).toMatch(/Needs attention stays at the top/)
+  })
 })
 
 describe('layout operations', () => {
-  it('moves up/down and is a no-op at the ends', () => {
+  it('moves optional modules up/down and is a no-op at the ends', () => {
     const base = defaultHomeLayout()
-    expect(order(moveHomeModule(base, 'todays_plan', 'up')).slice(0, 2)).toEqual([
-      'todays_plan',
+    expect(order(moveHomeModule(base, 'briefing', 'up')).slice(0, 4)).toEqual([
       'needs_attention',
+      'todays_plan',
+      'briefing',
+      'today',
     ])
-    expect(order(moveHomeModule(base, 'needs_attention', 'up'))).toEqual(order(base))
     expect(order(moveHomeModule(base, 'interests', 'down'))).toEqual(order(base))
     const down = moveHomeModule(base, 'briefing', 'down')
     expect(order(down).indexOf('briefing')).toBe(order(base).indexOf('briefing') + 1)
     // Input is not mutated.
     expect(order(base)).toEqual([...HOME_MODULES])
+  })
+
+  it('never moves required modules, or an optional module above them', () => {
+    const base = defaultHomeLayout()
+    for (const module of REQUIRED_HOME_MODULES) {
+      for (const direction of ['up', 'down'] as const) {
+        expect(order(moveHomeModule(base, module, direction))).toEqual(order(base))
+        expect(applyHomeLayoutOperation(base, { op: 'move', module, direction })).toEqual({
+          ok: false,
+          error: 'required_module',
+        })
+      }
+    }
+    // 'today' is the first optional module: it cannot climb above Your plan for today.
+    expect(order(moveHomeModule(base, 'today', 'up'))).toEqual(order(base))
+    expect(
+      applyHomeLayoutOperation(base, { op: 'move', module: 'today', direction: 'up' }),
+    ).toEqual({ ok: true, layout: base, changed: false })
+    // Six presses of "down" on Needs attention (the reported repro) leave it first.
+    let layout = base
+    for (let i = 0; i < 6; i++) {
+      const result = applyHomeLayoutOperation(layout, {
+        op: 'move',
+        module: 'needs_attention',
+        direction: 'down',
+      })
+      if (result.ok) layout = result.layout
+    }
+    expect(visibleHomeModules(layout)[0]).toBe('needs_attention')
   })
 
   it('hides and shows optional modules, refuses to hide required ones', () => {
