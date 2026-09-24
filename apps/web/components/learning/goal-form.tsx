@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useState } from 'react'
+import { useId } from 'react'
 import {
   LEARNING_GOAL_LIMITS,
   LEARNING_GOAL_STATUSES,
@@ -8,7 +8,14 @@ import {
   type LearningGoalStatus,
 } from '@personal-home/core'
 import { createGoalAction, updateGoalAction } from '@/app/(app)/learning/actions'
-import { FieldError, FormMessage, SubmitButton, fieldAria, useFormAction } from './form-kit'
+import {
+  FieldError,
+  FormMessage,
+  SubmitButton,
+  fieldAria,
+  useFormAction,
+  useSyncedState,
+} from './form-kit'
 import {
   fieldsetLegendClass,
   hintClass,
@@ -54,11 +61,20 @@ export function GoalForm({
   habits: { id: string; title: string }[]
 }) {
   const action = goal ? updateGoalAction.bind(null, goal.id) : createGoalAction
-  const [habitChoice, setHabitChoice] = useState(goal?.habitId ?? '')
+  // Selects follow the stored goal (see useSyncedState): after a save that created a
+  // practice habit the choice becomes that habit, so saving again cannot create another,
+  // and a status changed by the Mark done / Pause buttons is not saved back over.
+  const [habitChoice, setHabitChoice] = useSyncedState(goal?.habitId ?? '')
+  const [bookChoice, setBookChoice] = useSyncedState(goal?.bookId ?? '')
+  const [status, setStatus] = useSyncedState<LearningGoalStatus>(goal?.status ?? 'active')
   const { state, pending, formProps } = useFormAction(action, {
-    // After a save the choice must match what was stored: a "New habit…" choice now
-    // points at the habit just created, so saving again cannot create a second one.
-    onSaved: (saved) => setHabitChoice(goal ? (saved.values?.habitId ?? '') : ''),
+    // Edit forms keep their values; the add form clears for the next goal.
+    resetOnSave: !goal,
+    onSaved: () => {
+      if (goal) return
+      setHabitChoice('')
+      setBookChoice('')
+    },
   })
   const uid = useId()
   const id = (name: string) => `goal-${uid}-${name}`
@@ -105,7 +121,8 @@ export function GoalForm({
           <select
             id={id('bookId')}
             name="bookId"
-            defaultValue={goal?.bookId ?? ''}
+            value={bookChoice}
+            onChange={(e) => setBookChoice(e.target.value)}
             className={selectClass}
             {...fieldAria(state, id('bookId'), 'bookId', id('bookId-hint'))}
           >
@@ -241,7 +258,8 @@ export function GoalForm({
           <select
             id={id('status')}
             name="status"
-            defaultValue={goal.status}
+            value={status}
+            onChange={(e) => setStatus(e.target.value as LearningGoalStatus)}
             className={selectClass}
           >
             {LEARNING_GOAL_STATUSES.map((s) => (

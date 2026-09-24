@@ -8,6 +8,7 @@ import {
   SubmitButton,
   fieldAria,
   useFormAction,
+  useSyncedState,
 } from '@/components/learning/form-kit'
 import {
   hintClass,
@@ -38,7 +39,11 @@ export function PersonForm({
   idPrefix?: string
 }) {
   const action = person ? updatePersonAction.bind(null, person.id) : createPersonAction
-  const { state, pending, formProps } = useFormAction(action)
+  // The edit form keeps its values after a save; its select follows the stored cadence.
+  const { state, pending, formProps } = useFormAction(action, { resetOnSave: !person })
+  const [cadence, setCadence] = useSyncedState(
+    person?.catchUpEveryDays == null ? '' : String(person.catchUpEveryDays),
+  )
   const id = (name: string) => `${idPrefix}-${name}`
   const custom =
     person?.catchUpEveryDays != null &&
@@ -98,7 +103,8 @@ export function PersonForm({
           <select
             id={id('catchUpEveryDays')}
             name="catchUpEveryDays"
-            defaultValue={person?.catchUpEveryDays ?? ''}
+            value={cadence}
+            onChange={(e) => setCadence(e.target.value)}
             className={selectClass}
             {...fieldAria(state, id('catchUpEveryDays'), 'catchUpEveryDays')}
           >

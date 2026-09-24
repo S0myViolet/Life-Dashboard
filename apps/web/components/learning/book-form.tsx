@@ -7,7 +7,14 @@ import {
   type BookStatus,
 } from '@personal-home/core'
 import { createBookAction, updateBookAction } from '@/app/(app)/learning/actions'
-import { FieldError, FormMessage, SubmitButton, fieldAria, useFormAction } from './form-kit'
+import {
+  FieldError,
+  FormMessage,
+  SubmitButton,
+  fieldAria,
+  useFormAction,
+  useSyncedState,
+} from './form-kit'
 import { hintClass, inputClass, labelClass, selectClass } from './form-styles'
 
 export interface BookFormValues {
@@ -29,9 +36,10 @@ export function BookForm({
   idPrefix?: string
 }) {
   const action = book ? updateBookAction.bind(null, book.id) : createBookAction
-  // Resetting after a save also re-syncs an edit form with what was stored (the dates a
-  // status change fills in), because the refreshed page updates each field's default.
-  const { state, pending, formProps } = useFormAction(action)
+  // Edit forms are not reset after a save: untouched inputs follow the refreshed defaults
+  // and the status select follows the stored status (useSyncedState).
+  const { state, pending, formProps } = useFormAction(action, { resetOnSave: !book })
+  const [status, setStatus] = useSyncedState<BookStatus>(book?.status ?? 'want')
   const id = (name: string) => `${idPrefix}-${name}`
 
   return (
@@ -100,7 +108,13 @@ export function BookForm({
           <select
             id={id('status')}
             name="status"
-            defaultValue={book?.status ?? 'want'}
+            {...(book
+              ? {
+                  value: status,
+                  onChange: (e: React.ChangeEvent<HTMLSelectElement>) =>
+                    setStatus(e.target.value as BookStatus),
+                }
+              : { defaultValue: 'want' })}
             className={selectClass}
           >
             {BOOK_STATUSES.map((s) => (

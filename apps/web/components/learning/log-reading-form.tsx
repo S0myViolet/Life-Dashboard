@@ -16,7 +16,11 @@ export type ReadingMeasure = 'page' | 'pages' | 'percent'
 
 const MEASURE_LABELS: Record<ReadingMeasure, { option: string; field: string; hint: string }> = {
   page: { option: 'Page reached', field: 'Page you reached', hint: 'The page you are on now.' },
-  pages: { option: 'Pages read', field: 'Pages read', hint: 'Pages read in this sitting.' },
+  pages: {
+    option: 'Pages read',
+    field: 'Number of pages read',
+    hint: 'Pages read in this sitting.',
+  },
   percent: { option: 'Percent', field: 'Percent through', hint: 'From your e-reader, 0–100.' },
 }
 

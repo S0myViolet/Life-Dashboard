@@ -52,6 +52,23 @@ export function useFormAction(
   return { state, pending, formProps: { ref, action: formAction, onSubmit } }
 }
 
+/**
+ * State for a controlled field in an edit form that follows the stored value: when the
+ * record changes on the server (this form's save, or another action such as logging
+ * progress changing a book's status), the field shows the new value. React does not
+ * re-select an uncontrolled <select> when its defaultValue changes, so without this a
+ * stale choice could be saved back over a newer one.
+ */
+export function useSyncedState<T>(stored: T) {
+  const [value, setValue] = useState(stored)
+  const [lastStored, setLastStored] = useState(stored)
+  if (!Object.is(stored, lastStored)) {
+    setLastStored(stored)
+    setValue(stored)
+  }
+  return [value, setValue] as const
+}
+
 export function fieldError(state: FormActionState, name: string): string | undefined {
   return state.status === 'error' ? state.fieldErrors?.[name] : undefined
 }
