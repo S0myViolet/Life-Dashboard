@@ -14,18 +14,18 @@ export function FlashBanner({ flash }: { flash: ConnectionsFlash }) {
       className={`mb-5 rounded-xl border px-4 py-3 text-sm ${toneClass[flash.tone]}`}
     >
       <p>{flash.message}</p>
-      {flash.link ? (
-        <p className="mt-1">
+      {flash.links?.map((link) => (
+        <p key={link.href} className="mt-1">
           <a
-            href={flash.link.href}
+            href={link.href}
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium underline underline-offset-2"
           >
-            {flash.link.label}
+            {link.label}
           </a>
         </p>
-      ) : null}
+      ))}
     </div>
   )
 }

@@ -9,23 +9,38 @@ import {
   ProviderSchema,
   type Provider,
 } from '@personal-home/core'
+import { MICROSOFT_CONSENT_PAGES } from '@personal-home/integrations'
 import { isOAuthResultError, type OAuthResultError } from './oauth-flow-codes'
+
+export interface FlashLink {
+  href: string
+  label: string
+}
 
 export interface ConnectionsFlash {
   tone: 'positive' | 'caution' | 'danger'
   message: string
-  /** Optional follow-up link (provider consent pages). */
-  link?: { href: string; label: string }
+  /** Optional follow-up links (provider consent pages). */
+  links?: FlashLink[]
 }
 
-/** Where the owner removes Personal Home's access by hand. */
-export const PROVIDER_ACCESS_PAGES: Partial<Record<Provider, { href: string; label: string }>> = {
-  google: { href: 'https://myaccount.google.com/permissions', label: 'Google account permissions' },
+/**
+ * Where the owner removes Personal Home's access by hand. Microsoft personal
+ * and work/school accounts manage app consent on different pages, and the
+ * account kind is not stored, so both are offered.
+ */
+export const PROVIDER_ACCESS_PAGES: Partial<Record<Provider, FlashLink[]>> = {
+  google: [
+    { href: 'https://myaccount.google.com/permissions', label: 'Google account permissions' },
+  ],
   // UNVERIFIED from the build container (learn.microsoft.com is blocked): long-standing consent pages.
-  microsoft: {
-    href: 'https://account.live.com/consent/Manage',
-    label: 'Microsoft account app permissions',
-  },
+  microsoft: [
+    {
+      href: MICROSOFT_CONSENT_PAGES.personal,
+      label: 'Personal Microsoft account: app permissions',
+    },
+    { href: MICROSOFT_CONSENT_PAGES.workOrSchool, label: 'Work or school account: My Apps' },
+  ],
 }
 
 type SearchParams = Record<string, string | string[] | undefined>
@@ -85,7 +100,9 @@ export function connectionsFlash(sp: SearchParams): ConnectionsFlash | null {
 
   const disconnected = one(sp.disconnected)
   if (disconnected && provider) {
-    const page = PROVIDER_ACCESS_PAGES[provider]
+    const pages = PROVIDER_ACCESS_PAGES[provider]
+    const links = pages ? { links: pages } : {}
+    const which = pages && pages.length > 1 ? ' Use the page for your kind of account.' : ''
     switch (one(sp.revoke)) {
       case 'revoked':
         return {
@@ -100,14 +117,14 @@ export function connectionsFlash(sp: SearchParams): ConnectionsFlash | null {
       case 'not_supported':
         return {
           tone: 'caution',
-          message: `Disconnected and stored tokens deleted. ${name} has no way for apps to revoke access, so remove Personal Home from your account's app permissions to finish.`,
-          ...(page ? { link: page } : {}),
+          message: `Disconnected and stored tokens deleted. ${name} has no way for apps to revoke access, so remove Personal Home from your account's app permissions to finish.${which}`,
+          ...links,
         }
       case 'failed':
         return {
           tone: 'caution',
-          message: `Disconnected and stored tokens deleted, but revoking access at ${name} failed. Remove Personal Home from your account's app permissions.`,
-          ...(page ? { link: page } : {}),
+          message: `Disconnected and stored tokens deleted, but revoking access at ${name} failed. Remove Personal Home from your account's app permissions.${which}`,
+          ...links,
         }
       default:
         return null

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { PROVIDERS, type Provider } from '@personal-home/core'
 import type { ConnectionRow } from '@personal-home/db'
+import { MICROSOFT_CONSENT_PAGES } from '@personal-home/integrations'
 import { connectionsFlash } from '@/lib/integrations/flash'
 import { formatAbsolute, formatRelative } from '@/lib/integrations/format'
 import { OAUTH_RESULT_ERRORS } from '@/lib/integrations/oauth-flow-codes'
@@ -200,7 +201,15 @@ describe('connectionsFlash', () => {
     ).toBe('caution')
     const ms = connectionsFlash({ disconnected: 'microsoft', revoke: 'not_supported' })!
     expect(ms.tone).toBe('caution')
-    expect(ms.link?.href).toMatch(/^https:\/\//)
+    // The account kind is not known here: offer the personal and the work/school page.
+    expect(ms.links?.map((l) => l.href)).toEqual([
+      MICROSOFT_CONSENT_PAGES.personal,
+      MICROSOFT_CONSENT_PAGES.workOrSchool,
+    ])
+    expect(ms.links?.map((l) => l.label).join(' ')).toMatch(/personal.*work or school/i)
+    expect(
+      connectionsFlash({ disconnected: 'google', revoke: 'failed' })?.links?.map((l) => l.href),
+    ).toEqual(['https://myaccount.google.com/permissions'])
     expect(connectionsFlash({ disconnected: 'google', revoke: 'revoked' })?.tone).toBe('positive')
     expect(connectionsFlash({ disconnected: 'google', revoke: 'failed' })?.message).toContain(
       'revoking access at Google failed',
