@@ -46,7 +46,13 @@ export const realChromeApi = (): ChromeApi => ({
     return (await chrome.alarms.get(name)) !== undefined
   },
   async alarmCreate(name, periodInMinutes, delayInMinutes) {
-    await chrome.alarms.create(name, { periodInMinutes, delayInMinutes, persistAcrossSessions: true })
+    try {
+      // Explicit, as the alarms docs advise (Chrome 150+).
+      await chrome.alarms.create(name, { periodInMinutes, delayInMinutes, persistAcrossSessions: true })
+    } catch {
+      // Older Chrome rejects the unknown property; the alarm is re-created on startup anyway.
+      await chrome.alarms.create(name, { periodInMinutes, delayInMinutes })
+    }
   },
   async tabsCreateBackground(url) {
     const tab = await chrome.tabs.create({ url, active: false })

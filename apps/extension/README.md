@@ -159,10 +159,23 @@ yours.
 
 ## Live verification protocol (the brief's early gate)
 
-None of this has been run yet. The container that built the helper cannot reach chatgpt.com or
-claude.ai; every selector comes from open-source exporters' 2026 code (docs/research/chat-dom.md)
-and is tested only against synthetic DOM fixtures. Run each step on **both** services, and record
-pass/fail with dates in `docs/INTEGRATION_RESULTS.md`:
+None of this has been run against the real services. The container that built the helper cannot
+reach chatgpt.com or claude.ai; every selector comes from open-source exporters' 2026 code
+(docs/research/chat-dom.md) and is tested only against synthetic DOM fixtures.
+
+What *was* exercised (2026-09-24, local, synthetic): the built extension loaded into Chromium
+141 (Playwright, headless) with SYNTHETIC pages served at `https://chatgpt.com/c/…` and
+`https://claude.ai/chat/…` by request interception, against a local dashboard and database. The
+module service worker started and created its alarm; pairing through the worker succeeded
+(so Chromium sent `Origin: chrome-extension://<id>` on the worker's POST); opening the page
+stored 2 messages, a new exchange raised it to 4; a signed-out page paused the conversation on
+the dashboard; with revisits switched on, one non-active background tab opened for an unopened
+Claude conversation, captured it in revisit mode and was closed by the helper, leaving the
+owner's other tabs alone. That run also found (and the helper now handles) Chrome < 150
+rejecting the alarms `persistAcrossSessions` field. This is not live verification.
+
+Run each step on **both** services, and record pass/fail with dates in
+`docs/INTEGRATION_RESULTS.md`:
 
 1. **Pairing.** Pair as above. If pairing fails with "did not receive this extension's origin",
    Chrome did not send `Origin: chrome-extension://<id>` on the service worker's POST: report it.
