@@ -1,2 +1,2 @@
 // Area barrel — ai.
-export {}
+export * from './gateway.ts'

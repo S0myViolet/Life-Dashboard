@@ -1,2 +1,2 @@
 // Area barrel — owned by the ai area.
-export {}
+export * from './budget.ts'
