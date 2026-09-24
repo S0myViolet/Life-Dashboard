@@ -9,6 +9,13 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 import postgres from 'postgres'
 import { inject } from 'vitest'
+
+// Declared here (not only in global-setup.ts) so packages that import @personal-home/db/testing typecheck.
+declare module 'vitest' {
+  export interface ProvidedContext {
+    templateDb: string
+  }
+}
 import { createDb, withOwner, type Db, type OwnerClaims, type Tx } from '../src/client.ts'
 import { claimOwner } from '../src/owner.ts'
 
