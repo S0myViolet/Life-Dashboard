@@ -164,6 +164,18 @@ describe('content runtime', () => {
     expect(observations(h)).toHaveLength(0)
   })
 
+  it('sends what it read before the page turned into a sign-in page, then reports it', async () => {
+    const h = start(chatgptPage({ turns: gptThread(2) }), CHAT_URL, 'chatgpt', { collect: true, mode: 'passive' })
+    await settle()
+    h.win.document.body.innerHTML = chatgptPage({ turns: gptThread(4) })
+    await vi.advanceTimersByTimeAsync(300)
+    h.win.document.body.innerHTML = chatgptSignedOutPage
+    await settle()
+    const kinds = h.sent.filter((m) => m.type !== 'ph:hello').map((m) => m.type)
+    expect(kinds).toEqual(['ph:observation', 'ph:observation', 'ph:problem'])
+    expect((observations(h)[1] as Extract<ContentRequest, { type: 'ph:observation' }>).observation.messages).toHaveLength(4)
+  })
+
   it('reports signed_out when the app navigates a collected conversation to its sign-in page', async () => {
     const h = start(claudePage({ rows: claudeThread(2) }), CLAUDE_URL, 'claude', { collect: true, mode: 'passive' })
     await settle()

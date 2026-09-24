@@ -256,6 +256,8 @@ export function startCaptureRuntime(deps: RuntimeDeps): CaptureRuntime {
 
     if (extract.status === 'signed_out' || extract.status === 'challenge') {
       // Stop at once; never interact with a sign-in page or a verification check.
+      // What was read before the page changed is sent first (the report pauses the conversation).
+      await upload(s)
       await reportProblem(s, extract.status)
       return
     }
