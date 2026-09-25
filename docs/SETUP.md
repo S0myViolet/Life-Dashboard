@@ -57,7 +57,7 @@ about an hour for steps 1–3.
 
    | Name | Value |
    |---|---|
-   | `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
+   | `NEXT_PUBLIC_SUPABASE_URL` | `https://<project-ref>.supabase.co` (nothing after `.co`) |
    | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key |
    | `SUPABASE_SECRET_KEY` | Secret key |
    | `DATABASE_URL` | Connect → **Transaction pooler** URI (port 6543) |

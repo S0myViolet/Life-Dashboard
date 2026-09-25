@@ -6,6 +6,7 @@
  */
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { normalizeSupabaseUrl } from '@/lib/config-urls'
 
 const PUBLIC_PATHS = ['/login', '/auth/', '/not-authorized', '/signed-out', '/offline']
 
@@ -24,7 +25,7 @@ function e2eMode() {
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request })
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const url = normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL)
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 
   if (e2eMode()) {

@@ -7,6 +7,7 @@
  */
 import 'server-only'
 import { z } from 'zod'
+import { normalizeAppUrl, normalizeSupabaseUrl } from '@/lib/config-urls'
 
 const optional = z
   .string()
@@ -15,17 +16,43 @@ const optional = z
   .optional()
 
 const CoreEnvSchema = z.object({
-  NEXT_PUBLIC_SUPABASE_URL: z.url(),
+  NEXT_PUBLIC_SUPABASE_URL: z.string().transform((v, ctx) => {
+    const url = normalizeSupabaseUrl(v)
+    if (!url) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'use the project URL, e.g. https://<project-ref>.supabase.co (no /rest/v1)',
+      })
+      return z.NEVER
+    }
+    return url
+  }),
   /** Supabase publishable key (sb_publishable_...) or legacy anon key. Safe for browsers. */
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(20),
   /** Supabase secret key (sb_secret_...) or legacy service_role key. Server only. */
   SUPABASE_SECRET_KEY: z.string().min(20),
   /** Postgres URL. On Vercel use the Supavisor transaction pooler (port 6543). */
-  DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\//),
+  DATABASE_URL: z
+    .string()
+    .regex(
+      /^postgres(ql)?:\/\/[^\s/]+@[^\s/]+:\d+\/\S+$/,
+      'use the full postgresql://… address from Supabase → Connect → Transaction pooler, with your password filled in',
+    ),
   /** The only Google account allowed to own the dashboard. */
   OWNER_EMAIL: z.email().transform((v) => v.toLowerCase()),
   /** Canonical public origin, e.g. https://home.example.com. Used for OAuth redirect URIs. */
-  APP_URL: z.url().transform((v) => v.replace(/\/$/, '')),
+  APP_URL: z.string().transform((v, ctx) => {
+    const url = normalizeAppUrl(v)
+    if (!url) {
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          "use your app's own address, e.g. https://your-app.vercel.app (no path, not a placeholder)",
+      })
+      return z.NEVER
+    }
+    return url
+  }),
   /** 32 random bytes, base64. Encrypts provider refresh tokens at rest. */
   TOKEN_ENCRYPTION_KEY: z
     .string()
@@ -36,13 +63,35 @@ export type CoreEnv = z.infer<typeof CoreEnvSchema>
 
 let cached: CoreEnv | undefined
 
-/** Required core configuration. Throws a readable error listing missing names (never values). */
+export interface ConfigProblem {
+  /** Setting name (never its value). */
+  name: string
+  hint: string
+}
+
+/** What is wrong with the core settings, by name and hint only. Empty when all is well. */
+export function coreEnvProblems(env: NodeJS.ProcessEnv = process.env): ConfigProblem[] {
+  const parsed = CoreEnvSchema.safeParse(env)
+  if (parsed.success) return []
+  const byName = new Map<string, string>()
+  for (const issue of parsed.error.issues) {
+    const name = String(issue.path[0])
+    if (byName.has(name)) continue
+    const missing = env[name] === undefined || env[name] === ''
+    byName.set(name, missing ? 'not set' : issue.message)
+  }
+  return [...byName].map(([name, hint]) => ({ name, hint }))
+}
+
+/** Required core configuration. Throws a readable error listing names and hints (never values). */
 export function coreEnv(): CoreEnv {
   if (cached) return cached
   const parsed = CoreEnvSchema.safeParse(process.env)
   if (!parsed.success) {
-    const names = [...new Set(parsed.error.issues.map((i) => String(i.path[0])))].join(', ')
-    throw new Error(`Missing or invalid server configuration: ${names}. See .env.example.`)
+    const problems = coreEnvProblems()
+      .map((p) => `${p.name} (${p.hint})`)
+      .join('; ')
+    throw new Error(`Missing or invalid server configuration: ${problems}. See .env.example.`)
   }
   cached = parsed.data
   return cached
