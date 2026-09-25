@@ -14,17 +14,31 @@ about an hour for steps 1–3.
 
 ## 1 · Supabase project
 
-1. Create a project on the **Pro** plan with **Micro** compute. Leave the **Spend Cap on** (the
-   default). The cap blocks usage overages but does not cover compute add-ons, so add none.
-2. From the repository root, link and apply the migrations:
+1. Create a project on the **Pro** plan with **Micro** compute. Pick the region closest to you
+   (for the UK, London). Save the **database password** you choose in your password manager. Leave
+   the **Spend Cap on** (the default). The cap blocks usage overages but does not cover compute
+   add-ons, so add none.
+2. Find your **project ref**. It is the short code in the dashboard address
+   (`supabase.com/dashboard/project/<ref>`), and also appears under **Project Settings → General → Project ID**.
+3. Get the code onto your laptop. You need [Node.js 22 LTS](https://nodejs.org) and nothing else
+   for this step.
+   - On GitHub, switch the branch picker to `claude/stoic-thompson-zc3g4g`, then choose
+     **Code → Download ZIP**, and unzip it.
+   - Or clone it: `git clone -b claude/stoic-thompson-zc3g4g https://github.com/S0myViolet/Life-Dashboard.git`.
+4. Open **Terminal** (Mac) or **PowerShell** (Windows) in that folder and run these three commands:
    ```sh
-   pnpm install
    npx supabase login
    npx supabase link --project-ref <your-project-ref>
    npx supabase db push
    ```
-3. **Database → Extensions:** enable `pg_cron` and `pg_net`.
-4. **Project Settings → API Keys:** note the project URL, the **publishable** key and a **secret** key.
+   - `login` opens your browser to approve access. If npx asks to install `supabase`, answer **y**.
+   - `link` asks for the database password from step 1. Type it into the terminal, never into a chat.
+   - `db push` lists 12 migrations and asks to confirm. Answer **Y**. This exact command was tested
+     against a fresh database with the real Supabase CLI (2.117.0): all 12 applied, and every table
+     is owner-only.
+5. Check it worked: **Table Editor** should list tables such as `tasks`, `habits`, `notes` and `people`.
+6. **Database → Extensions:** enable `pg_cron` and `pg_net`.
+7. **Project Settings → API Keys:** note the project URL, the **publishable** key and a **secret** key.
 
 ## 2 · Owner sign-in (Google)
 

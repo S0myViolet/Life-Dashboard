@@ -127,6 +127,7 @@ fallback (Milestone 3).
 | Dispatcher leases, retries, backoff, one briefing per day across DST | Verified locally (8 concurrent workers, 50 jobs, Europe/London DST days) |
 | Dispatcher Edge Function (Deno) | Verified locally with Deno 2.9.6 against real Postgres |
 | pg_cron → pg_net → Edge Function in a real project | **Needs live test** (setup script tested against stub schemas only) |
+| Migrations via the real Supabase CLI (`supabase db push`, 2.117.0) | Verified locally: all 12 applied to a fresh database; 26/26 tables owner-only, no anon grants, migration history recorded |
 | Briefing content | Honest skeleton only; real content arrives in Milestone 2 |
 
 ## Owner sign-in
